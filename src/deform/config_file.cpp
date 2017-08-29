@@ -1,11 +1,12 @@
 #include "config_file.h"
 
+#include <framework/debug/log.h>
 #include <framework/types.h>
 
 void exitWithError(const std::string &error)
 {
-	std::cerr << error;
-	exit(EXIT_FAILURE);
+    LOG(Error, error.c_str());
+    exit(EXIT_FAILURE);
 }
 
 void ConfigFile::removeComment(std::string &line) const
