@@ -88,5 +88,44 @@ workspace "deform"                   -- Solution Name
       src_dir,
       SRC
     }
+    
+    links
+    {
+      "framework"
+    }
+
+filter {}
+project "framework"
+  language "C++"
+  kind "StaticLib"
+
+  defines
+  {
+    -- DF_ENABLE_CUDA -- CUDA not supported for now
+  }
+
+  local src_dir = SRC .. "framework/";
+
+  files
+  { 
+    src_dir .. "**.h", 
+    src_dir .. "**.hpp", 
+    src_dir .. "**.c", 
+    src_dir .. "**.cpp",
+  }
+
+  vpaths 
+  {
+    ["Header Files/*"] = { src_dir .. "**.h", src_dir .. "**.hxx", src_dir .. "**.hpp" },
+    ["Source Files/*"] = { src_dir .. "**.c", src_dir .. "**.cxx", src_dir .. "**.cpp" },
+  }
+
+  includedirs
+  {
+    src_dir,
+    SRC
+  }
+
+
 
 
