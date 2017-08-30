@@ -14,8 +14,8 @@
 
 #pragma warning(pop)
 
-#include <assert.h>
-#include <iostream>
+#include <framework/debug/assert.h>
+#include <framework/debug/log.h>
 
 namespace stb
 {
@@ -23,6 +23,10 @@ namespace stb
     {
         int x, y, n;
         uint8_t* data = stbi_load(file, &x, &y, &n, 0);
+        if (!data)
+        {
+            return Volume(); // Return "invalid" volume
+        }
 
         Dims size = { size_t(x), size_t(y), 1 };
         voxel::Type voxel_type = voxel::Type_Unknown;
@@ -36,7 +40,11 @@ namespace stb
         stbi_image_free(data);
         return vol;
     }
-    void write_image(const char* file, const Volume& volume)
+    const char* last_read_error()
+    {
+        return stbi_failure_reason();
+    }    
+    bool write_image(const char* file, const Volume& volume)
     {
         assert(volume.voxel_type() == voxel::Type_UChar ||
                volume.voxel_type() == voxel::Type_UChar2 ||
@@ -54,20 +62,37 @@ namespace stb
         {
             int ret = stbi_write_png(file, int(size.width), int(size.height), num_comps, volume.ptr(), int(size.width * num_comps));
             assert(ret != 0);
+            if(ret == 0)
+            {
+                LOG(Error, "Failed to write image: '%s'\n", file);
+                return false;
+            }
         }
         else if (_stricmp(ext, ".bmp") == 0)
         {
             int ret = stbi_write_bmp(file, int(size.width), int(size.height), num_comps, volume.ptr());
             assert(ret != 0);
+            if(ret == 0)
+            {
+                LOG(Error, "Failed to write image: '%s'\n", file);
+                return false;
+            }
         }
         else if (_stricmp(ext, ".tga") == 0)
         {
             int ret = stbi_write_tga(file, int(size.width), int(size.height), num_comps, volume.ptr());
             assert(ret != 0);
+            if(ret == 0)
+            {
+                LOG(Error, "Failed to write image: '%s'\n", file);
+                return false;
+            }
         }
         else
         {
-            std::cout << "Unsupported image extension: " << ext << std::endl;
+            assert(false && "Unsupported image extension");
+            return false;
         }
+        return true;
     }
 }

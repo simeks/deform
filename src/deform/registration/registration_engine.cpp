@@ -17,13 +17,9 @@ void RegistrationEngine::shutdown()
     
 }
 
-bool RegistrationEngine::set_fixed_image(int , const Grid3<element_type>& )
+void RegistrationEngine::set_image_pair(int i, const Volume& fixed, const Volume& moving)
 {
-    return false;
-}
-bool RegistrationEngine::set_moving_image(int , const Grid3<element_type>& )
-{
-    return false;
+    i; fixed; moving;
 }
 
 void RegistrationEngine::build_pyramid()

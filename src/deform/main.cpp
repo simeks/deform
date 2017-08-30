@@ -1,7 +1,14 @@
 #include "config_file.h"
 #include "registration/registration_engine.h"
 
-#include <assert.h>
+#include <framework/debug/assert.h>
+#include <framework/debug/log.h>
+#include <framework/platform/file_path.h>
+#include <framework/volume/volume.h>
+#include <framework/volume/stb.h>
+#include <framework/volume/vtk.h>
+
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -87,7 +94,45 @@ private:
 
 };
 
+// Identifies and loads the given file
+// file : Filename
+// is_2d [out] : Indicates if the volume is a 2d volume
+// Returns the loaded volume, if load failed the returned volume will be flagged as invalid 
+Volume load_volume(const std::string& file)
+{
+    FilePath path(file);
+    std::string ext = path.extension();
+    
+    // To lower case
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](char c){ return (char)::tolower(c); });
 
+    if (ext == "vtk")
+    {
+        vtk::Reader reader;
+        Volume vol = reader.execute(file.c_str());
+        if (!vol.valid())        
+        {
+            LOG(Error, "Failed to read image: %s\n", reader.last_error());
+        }
+        return vol;
+    }
+    else if (ext == "png")
+    {
+        std::string err;
+        Volume vol = stb::read_image(file.c_str());
+        if (!vol.valid())
+        {
+            LOG(Error, "Failed to read image: %s\n", stb::last_read_error());
+        }
+        return vol;
+    }
+    else
+    {
+        LOG(Error, "Unsupported file extension: '%s'\n", ext.c_str());
+    }
+    // Returning an "invalid" volume
+    return Volume();
+}
 
 void print_help()
 {
@@ -99,6 +144,8 @@ void print_help()
 
 }
 
+
+
 int main(int argc, char* argv[])
 {
     ArgParser args(argc, argv);
@@ -109,38 +156,40 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::string param_file;
-    if (args.is_set("p"))
-    {
-        param_file = args.value("p");
-    }
-    else
-    {
-        print_help();
-        return 1;
-    }
+    // std::string param_file;
+    // if (args.is_set("p"))
+    // {
+    //     param_file = args.value("p");
+    // }
+    // else
+    // {
+    //     print_help();
+    //     return 1;
+    // }
 
-    ConfigFile cfg(param_file);
-    RegistrationEngine engine;
+    // ConfigFile cfg(param_file);
+    // RegistrationEngine engine;
 
-    std::string fi, mi, fixed_file, moving_file;
-    for (int i = 0; ; ++i)
-    {
-        std::stringstream ss;
-        ss << "-f" << i;
-        fi = ss.str();
+    // std::string fi, mi, fixed_file, moving_file;
+    // for (int i = 0; ; ++i)
+    // {
+    //     std::stringstream ss;
+    //     ss << "-f" << i;
+    //     fi = ss.str();
 
-        ss.str("");
-        ss << "-m" << i;
-        mi = ss.str();
+    //     ss.str("");
+    //     ss << "-m" << i;
+    //     mi = ss.str();
 
-        if (args.is_set(fi) && args.is_set(mi))
-        {
-            // engine.set_fixed_image(i, file);
-            // engine.set_moving_image(i, file);
-        }
-    }
+    //     if (args.is_set(fi) && args.is_set(mi))
+    //     {
+    //         // engine.set_fixed_image(i, file);
+    //         // engine.set_moving_image(i, file);
+    //     }
+    // }
 
+    Optimizer* optimizer = new BlockedGraphCut();
+    engine.set_optimizer(optimizer);
 
 
     // if (!engine.initialize(cfg))

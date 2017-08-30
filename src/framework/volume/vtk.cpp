@@ -55,7 +55,7 @@ namespace
 
 namespace vtk
 {
-    Volume read_volume(const char* file)
+    Volume read_volume(const char* file, std::stringstream& error)
     {
         // Spec: http://www.vtk.org/wp-content/uploads/2015/04/file-formats.pdf
 
@@ -71,7 +71,11 @@ namespace vtk
         //LOOKUP_TABLE default
 
         std::ifstream f(file, std::ios::binary);
-        assert(f.is_open());
+        if (!f.is_open())
+        {
+            error << "File not found";
+            return Volume();
+        }
 
         std::string line;
         
@@ -84,7 +88,7 @@ namespace vtk
         std::getline(f, line);
         if (line != "BINARY")
         {
-            std::cout << "Invalid format: " << line << std::endl;
+            error << "Invalid format: " << line;
             f.close();
             return Volume();
         }
@@ -93,7 +97,7 @@ namespace vtk
         std::getline(f, line);
         if (line != "DATASET STRUCTURED_POINTS")
         {
-            std::cout << "Unexpected dataset: " << line << std::endl;
+            error << "Unexpected dataset: " << line;
             f.close();
             return Volume();
         }
@@ -171,7 +175,7 @@ namespace vtk
                 
                 if (voxel_type == voxel::Type_Unknown)
                 {
-                    std::cout << "Unsupported data type: " << data_type << " " << num_comp << std::endl;
+                    error << "Unsupported data type: " << data_type << " " << num_comp;
                     f.close();
                     return Volume();
                 }
@@ -182,7 +186,7 @@ namespace vtk
                 ss >> value;
                 if (value != "default")
                 {
-                    std::cout << "Invalid parameter to LOOKUP_TABLE: " << value << std::endl;
+                    error << "Invalid parameter to LOOKUP_TABLE: " << value;
                     f.close();
                     return Volume();
                 }
@@ -193,24 +197,24 @@ namespace vtk
 
         if (size.width == 0 || size.height == 0 || size.depth == 0)
         {
-            std::cout << "Invalid volume size: " <<
+            error << "Invalid volume size: " <<
                 size.width << ", " <<
                 size.height << ", " <<
-                size.depth << std::endl;
+                size.depth;
             f.close();
             return Volume();
         }
 
         if (voxel_type == voxel::Type_Unknown)
         {
-            std::cout << "Invalid voxel type" << std::endl;
+            error << "Invalid voxel type";
             f.close();
             return Volume();
         }
 
         if (point_data == size_t(~0))
         {
-            std::cout << "Invalid point_data" << std::endl;
+            error << "Invalid point_data";
         }
 
 
@@ -301,7 +305,7 @@ namespace vtk
             num_comp = 4;
             break;
         default:
-            std::cout << "Unsupported format" << std::endl;
+            assert(false && "Unsupported format");
             return;
         };
 
@@ -322,5 +326,30 @@ namespace vtk
             f.write((const char*)vol.ptr(), num_values);
 
         f.close();
+    }
+
+    Reader::Reader() {}
+    Reader::~Reader() {}
+
+    Volume Reader::execute(const char* file)
+    {
+        std::stringstream err;
+        Volume vol = read_volume(file, err);
+        _error = err.str();
+        return vol;
+    }
+    bool Reader::failed() const
+    {
+        return !_error.empty();
+    }
+    const char* Reader::last_error() const
+    {
+        return _error.c_str();
+    }
+
+    Volume read_volume(const char* file)
+    {
+        std::stringstream err;
+        return read_volume(file, err);
     }
 }

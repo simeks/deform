@@ -8,8 +8,12 @@ namespace stb
     /// Reads a number of common 2D image formats, such as png, gif, jpeg.
     /// See stb_image.h for more information
     Volume read_image(const char* file);
+
+    /// Returns the last error in case of a failed read_image call
+    const char* last_read_error();
     
     /// Only supports 2D images, meaning volume has to be of size 1 in z-direction
-    /// Supported formats: .png, .bmp, .tga 
-    void write_image(const char* file, const Volume& volume);
+    /// Supported formats: .png, .bmp, .tga
+    /// Returns true if image was written successfully, false if not
+    bool write_image(const char* file, const Volume& volume);
 }

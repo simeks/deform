@@ -15,8 +15,9 @@ public:
     bool initialize(const ConfigFile& cfg);
     void shutdown();
 
-    bool set_image_pair(int i, const Volume& fixed, const Volume& moving);
+    void set_image_pair(int i, const Volume& fixed, const Volume& moving);
     
+
 private:
     void build_pyramid();
 

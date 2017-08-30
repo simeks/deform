@@ -1,6 +1,6 @@
 #pragma once
 
-namespace log
+namespace logging
 {
     enum Level
     {

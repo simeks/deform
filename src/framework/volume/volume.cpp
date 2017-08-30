@@ -1,9 +1,10 @@
 #ifdef DF_ENABLE_CUDA
 #include <cuda_runtime.h>
-#endif
 
 #include "gpu_volume.h"
 #include "helper_cuda.h"
+#endif
+
 #include "volume.h"
 #include "voxel.h"
 
