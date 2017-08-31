@@ -1,9 +1,5 @@
 #pragma once
 
-#include "EnergyFunction.h"
-#include "Optimizer.h"
-
-
 template<typename TImage>
 class BlockedGraphCutOptimizer : public Optimizer
 {
@@ -15,9 +11,7 @@ public:
         const Image* fixed, 
         const Image* moving, 
         int pair_count,
-        const ImageUInt8& constraint_mask,
-        const ImageVec3d& constraint_values,
-        ImageVec3d& def) OVERRIDE;
+        ImageVec3d& def) override;
 
 private:
     bool do_block(

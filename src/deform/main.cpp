@@ -188,8 +188,8 @@ int main(int argc, char* argv[])
     //     }
     // }
 
-    Optimizer* optimizer = new BlockedGraphCut();
-    engine.set_optimizer(optimizer);
+    // Optimizer* optimizer = new BlockedGraphCut();
+    // engine.set_optimizer(optimizer);
 
 
     // if (!engine.initialize(cfg))
