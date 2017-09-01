@@ -1,10 +1,12 @@
 #include "config_file.h"
 #include "registration/registration_engine.h"
+#include "registration/volume_pyramid.h"
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
 #include <framework/platform/file_path.h>
 #include <framework/volume/volume.h>
+#include <framework/volume/volume_helper.h>
 #include <framework/volume/stb.h>
 #include <framework/volume/vtk.h>
 
@@ -144,7 +146,14 @@ void print_help()
 
 }
 
+Volume downsample_volume(const Volume& vol, float scale)
+{
+    assert(scale >= 1.0f);
+    assert(vol.voxel_type() == voxel::Type_UChar);
 
+
+    return Volume(vol);
+}
 
 int main(int argc, char* argv[])
 {
@@ -155,6 +164,24 @@ int main(int argc, char* argv[])
         print_help();
         return 1;
     }
+
+    if (args.num_tokens() < 1)
+    {
+        print_help();
+        return 1;
+    }
+
+    vtk::Reader reader;
+    Volume vol = reader.execute(args.token(0).c_str());
+    if (reader.failed())
+    {
+        std::cout << reader.last_error();
+        return 1;
+    }
+
+    VolumePyramid pyramid(5);
+    pyramid.build_from_base(vol, downsample_volume);
+
 
     // std::string param_file;
     // if (args.is_set("p"))
