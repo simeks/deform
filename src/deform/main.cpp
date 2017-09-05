@@ -4,6 +4,7 @@
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
+#include <framework/filters/gaussian_filter.h>
 #include <framework/platform/file_path.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
@@ -16,7 +17,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
 
 class ArgParser
 {
@@ -146,42 +146,48 @@ void print_help()
 
 }
 
-Volume downsample_volume(const Volume& vol, float scale)
+
+
+Volume downsample_volume_gaussian(const Volume& vol, float scale)
 {
-    assert(scale >= 1.0f);
-    assert(vol.voxel_type() == voxel::Type_UChar);
+    scale;
+    assert(scale <= 1.0f);
+    //assert(vol.voxel_type() == voxel::Type_UChar);
 
-
-    return Volume(vol);
+    return vol.clone();
 }
 
 int main(int argc, char* argv[])
 {
     ArgParser args(argc, argv);
 
-    if (args.is_set("help") || args.is_set("h"))
-    {
-        print_help();
-        return 1;
-    }
+    // if (args.is_set("help") || args.is_set("h"))
+    // {
+    //     print_help();
+    //     return 1;
+    // }
 
-    if (args.num_tokens() < 1)
-    {
-        print_help();
-        return 1;
-    }
+    // if (args.num_tokens() < 1)
+    // {
+    //     print_help();
+    //     return 1;
+    // }
 
     vtk::Reader reader;
-    Volume vol = reader.execute(args.token(0).c_str());
+    Volume vol = reader.execute("C:\\data\\test.vtk");//args.token(0).c_str());
     if (reader.failed())
     {
         std::cout << reader.last_error();
         return 1;
     }
 
-    VolumePyramid pyramid(5);
-    pyramid.build_from_base(vol, downsample_volume);
+    //VolumePyramid pyramid(5);
+    //pyramid.build_from_base(vol, downsample_volume_gaussian);
 
+    vtk::write_volume("C:\\data\\gauss_test_10.vtk",  filters::gaussian_filter_3d(vol, 10.0f));
+    vtk::write_volume("C:\\data\\gauss_test_20.vtk",  filters::gaussian_filter_3d(vol, 20.0f));
+    vtk::write_volume("C:\\data\\gauss_test_50.vtk",  filters::gaussian_filter_3d(vol, 50.0f));
+    vtk::write_volume("C:\\data\\gauss_test_100.vtk",  filters::gaussian_filter_3d(vol, 100.0f));
 
     // std::string param_file;
     // if (args.is_set("p"))

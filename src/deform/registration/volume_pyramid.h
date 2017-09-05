@@ -1,8 +1,13 @@
 #pragma once
 
+#include <vector>
+
+class Volume;
+
 /// Image pyramid representing a set of images each smaller than the other.
 /// I.e. 
 /// Level:                      Size [elements]:
+///     3        | |            1
 ///     2       | | |           2
 ///     1     | | | | |         4
 ///     0 | | | | | | | | |     8
@@ -22,7 +27,8 @@ public:
     void build_from_base(const Volume& base, ResampleVolumeFn resample_fn);
 
 private:
-    ResampleVolumeFn _resample_fn;
+    int _levels;
 
-    Volume* _volumes;
+    ResampleVolumeFn _resample_fn;
+    std::vector<Volume> _volumes;
 };
