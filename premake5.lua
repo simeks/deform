@@ -23,6 +23,11 @@ workspace "deform"                   -- Solution Name
 
   defines { "_UNICODE", "UNICODE" }
 
+  defines{"DF_ENABLE_OPENMP"}
+  buildoptions { "/openmp" }
+
+  --defines{"DF_ENABLE_CUDA"} Not currently supported
+  
   linkoptions { "/DEBUG:FULL" }
 
   -- Debug info for release builds
@@ -66,7 +71,7 @@ workspace "deform"                   -- Solution Name
     kind "ConsoleApp"
 
     filter {} -- clear filter!
-
+    
     local src_dir = SRC .. "deform/";
     -- what files the visual studio project/makefile/etc should know about
     files
@@ -98,11 +103,6 @@ filter {}
 project "framework"
   language "C++"
   kind "StaticLib"
-
-  defines
-  {
-    -- DF_ENABLE_CUDA -- CUDA not supported for now
-  }
 
   local src_dir = SRC .. "framework/";
 
