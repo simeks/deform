@@ -29,6 +29,8 @@ public:
 
     /// Release any allocated data the volume is holding
     /// This makes the volume object invalid
+    /// Note: 
+    ///     Resets spacing and origin
     void release();
 
     /// Clones this volume
@@ -54,6 +56,12 @@ public:
     uint8_t voxel_type() const;
     const Dims& size() const;
 
+    void set_origin(const float3& origin);
+    void set_spacing(const float3& spacing);
+
+    const float3& origin() const;
+    const float3& spacing() const;
+
     /// @remark This does not copy the data, use clone if you want a separate copy.
     Volume(const Volume& other);
     Volume& operator=(const Volume& other);
@@ -78,6 +86,8 @@ public:
 
 
 protected:
+    /// Note: 
+    ///     Resets spacing and origin
     void allocate(const Dims& size, uint8_t voxel_type);
 
     std::shared_ptr<VolumeData> _data;
@@ -86,4 +96,7 @@ protected:
 
     Dims _size;
     uint8_t _voxel_type;
+
+    float3 _origin; // Origin in world coordinates
+    float3 _spacing; // Size of a voxel
 };

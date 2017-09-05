@@ -8,9 +8,9 @@ template<typename T>
 class VolumeHelper : public Volume
 {
 public:
-    typedef T VoxelType;
+    typedef T TVoxelType;
     
-    VolumeHelper(Volume& other);
+    VolumeHelper(const Volume& other);
     /// Creates a new volume of the specified size
     VolumeHelper(const Dims& size);
     /// Creates a new volume of the specified size and initializes it with the given value

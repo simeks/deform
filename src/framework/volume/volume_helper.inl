@@ -1,5 +1,5 @@
 template<typename T>
-VolumeHelper<T>::VolumeHelper(Volume& other) : Volume(other)
+VolumeHelper<T>::VolumeHelper(const Volume& other) : Volume(other)
 {
     assert(!Volume::valid() || ::voxel_type<T>::type_id == other.voxel_type());
 }

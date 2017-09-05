@@ -1,8 +1,8 @@
 #ifdef DF_ENABLE_CUDA
-#include <cuda_runtime.h>
+    #include <cuda_runtime.h>
 
-#include "gpu_volume.h"
-#include "helper_cuda.h"
+    #include "gpu_volume.h"
+    #include "helper_cuda.h"
 #endif
 
 #include "volume.h"
@@ -45,11 +45,16 @@ VolumeData::~VolumeData()
 
 Volume::Volume() : _ptr(nullptr), _stride(0)
 {
+    _origin = {0, 0, 0};
+    _spacing = {1, 1, 1};
 }
 Volume::Volume(const Dims& size, uint8_t voxel_type, uint8_t* data) :
     _size(size),
     _voxel_type(voxel_type)
 {
+    _origin = {0, 0, 0};
+    _spacing = {1, 1, 1};
+
     allocate(size, voxel_type);
     if (data)
     {
@@ -65,6 +70,8 @@ Volume::~Volume()
 Volume Volume::clone() const
 {
     Volume copy(_size, _voxel_type);
+    copy._origin = _origin;
+    copy._spacing = _spacing;
 
     size_t num_bytes = _size.width * _size.height * 
         _size.depth * voxel::size(_voxel_type);
@@ -121,12 +128,31 @@ const Dims& Volume::size() const
 {
     return _size;
 }
+void Volume::set_origin(const float3& origin)
+{
+    _origin = origin;
+}
+void Volume::set_spacing(const float3& spacing)
+{
+    _spacing = spacing;
+}
+const float3& Volume::origin() const
+{
+    return _origin;
+}
+const float3& Volume::spacing() const
+{
+    return _spacing;
+}
+
 Volume::Volume(const Volume& other) :
     _data(other._data),
     _ptr(other._ptr),
     _stride(other._stride),
     _size(other._size),
-    _voxel_type(other._voxel_type)
+    _voxel_type(other._voxel_type),
+    _origin(other._origin),
+    _spacing(other._spacing)
 {
 }
 Volume& Volume::operator=(const Volume& other)
@@ -136,6 +162,8 @@ Volume& Volume::operator=(const Volume& other)
     _stride = other._stride;
     _size = other._size;
     _voxel_type = other._voxel_type;
+    _origin = other._origin;
+    _spacing = other._spacing;
 
     return *this;
 }
@@ -145,6 +173,8 @@ void Volume::allocate(const Dims& size, uint8_t voxel_type)
 
     _size = size;
     _voxel_type = voxel_type;
+    _origin = { 0, 0, 0 };
+    _spacing = { 1, 1, 1 };
 
     size_t num_bytes = _size.width * _size.height *
         _size.depth * voxel::size(_voxel_type);
@@ -159,6 +189,8 @@ void Volume::release()
     _ptr = nullptr;
     _size = { 0, 0, 0 };
     _stride = 0;
+    _origin = { 0, 0, 0 };
+    _spacing = { 1, 1, 1 };
 }
 
 #ifdef DF_ENABLE_CUDA

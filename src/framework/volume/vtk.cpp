@@ -102,7 +102,10 @@ namespace vtk
             return Volume();
         }
 
-        Dims size = { 0, 0, 0 };
+        Dims size{ 0, 0, 0 };
+        float3 origin{0};
+        float3 spacing{1, 1, 1};
+
         // Hopefully we wont have files as large as 2^64
         size_t point_data = size_t(~0);
         uint8_t voxel_type = voxel::Type_Unknown;
@@ -128,12 +131,16 @@ namespace vtk
             //ORIGIN - 249.023 - 249.023 21.0165
             else if (key == "ORIGIN")
             {
-                // TODO:
+                ss >> origin.x;
+                ss >> origin.y;
+                ss >> origin.z;
             }
             //SPACING 1.9531 1.9531 2.6001
             else if (key == "SPACING")
             {
-                // TODO:
+                ss >> spacing.x;
+                ss >> spacing.y;
+                ss >> spacing.z;
             }
             //POINT_DATA 48496640
             else if (key == "POINT_DATA")
@@ -220,6 +227,8 @@ namespace vtk
 
         // Allocate volume
         Volume vol(size, voxel_type);
+        vol.set_origin(origin);
+        vol.set_spacing(spacing);
 
         size_t num_bytes = size.width * size.height * size.depth * voxel::size(voxel_type);
         f.read((char*)vol.ptr(), num_bytes);
@@ -257,6 +266,7 @@ namespace vtk
         //LOOKUP_TABLE default
 
         std::ofstream f(file, std::ios::binary);
+        assert(f.is_open());
         f << "# vtk DataFile Version 3.0\n";
         f << "Written by cortado (vtk.cpp)\n";
         f << "BINARY\n";
@@ -264,8 +274,10 @@ namespace vtk
 
         auto size = vol.size();
         f << "DIMENSIONS " << size.width << " " << size.height << " " << size.depth << "\n";
-        f << "ORIGIN 0 0 0\n"; // TODO:
-        f << "SPACING 1 1 1\n"; // TODO:
+        float3 origin = vol.origin();
+        f << "ORIGIN " << origin.x << " " << origin.y << " " << origin.z << "\n";
+        float3 spacing = vol.spacing();
+        f << "SPACING " << spacing.x << " " << spacing.y << " " << spacing.z << "\n";
         f << "POINT_DATA " << size.width * size.height * size.depth << "\n";
 
         std::string data_type;
