@@ -4,6 +4,15 @@
 
 #include <assert.h>
 
+namespace volume
+{
+    enum BorderMode
+    {
+        Border_Constant, // Zero padding outside volume
+        Border_Replicate
+    };
+}
+
 template<typename T>
 class VolumeHelper : public Volume
 {
@@ -18,6 +27,9 @@ public:
     ~VolumeHelper();
 
     void fill(const T& value);
+
+    T at(int x, int y, int z, volume::BorderMode border_mode) const;
+    T linear_at(float x, float y, float z, volume::BorderMode border_mode) const;
 
     VolumeHelper& operator=(VolumeHelper& other);
     VolumeHelper& operator=(Volume& other);

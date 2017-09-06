@@ -29,7 +29,72 @@ void VolumeHelper<T>::fill(const T& value)
         }
     }
 }
+template<typename T>
+T VolumeHelper<T>::at(int x, int y, int z, volume::BorderMode border_mode) const
+{
+    if (border_mode == volume::Border_Constant) 
+    {
+        if (x < 0 || ceil(x) >= _size.width ||
+            y < 0 || ceil(y) >= _size.height ||
+            z < 0 || ceil(z) >= _size.depth) 
+        {
+            return T{0};
+        }
+    }
+    else if (border_mode == volume::Border_Replicate)
+    {
+        x = std::max(x, 0);
+        x = std::min(x, int(_size.width - 1));
+        y = std::max(y, 0);
+        y = std::min(y, int(_size.height - 1));
+        z = std::max(z, 0);
+        z = std::min(z, int(_size.depth - 1));
+    }
 
+    return *((T const*)(((uint8_t*)_ptr) + offset(x, y, z)));
+}
+template<typename T>
+T VolumeHelper<T>::linear_at(float x, float y, float z, volume::BorderMode border_mode) const
+{
+    if (border_mode == volume::Border_Constant) 
+    {
+        if (x < 0 || ceil(x) >= _size.width ||
+            y < 0 || ceil(y) >= _size.height ||
+            z < 0 || ceil(z) >= _size.depth) 
+        {
+            return T{0};
+        }
+    }
+    else if (border_mode == volume::Border_Replicate)
+    {
+        x = std::max(x, 0.0f);
+        x = std::min(x, float(_size.width - 1));
+        y = std::max(y, 0.0f);
+        y = std::min(y, float(_size.height - 1));
+        z = std::max(z, 0.0f);
+        z = std::min(z, float(_size.depth - 1));
+    }
+    
+    float xt = x - floor(x);
+    float yt = y - floor(y);
+    float zt = z - floor(z);
+
+    int x1 = int(floor(x));
+    int x2 = int(ceil(x));
+    int y1 = int(floor(y));
+    int y2 = int(ceil(y));
+    int z1 = int(floor(z));
+    int z2 = int(ceil(z));
+
+    return T((1 - zt)*((1 - yt)*((1 - xt)*operator()(x1, y1, z1) +
+        (xt)*operator()(x2, y1, z1)) +
+        (yt)*((1 - xt)*operator()(x1, y2, z1) +
+        (xt)*operator()(x2, y2, z1))) +
+        (zt)*((1 - yt)*((1 - xt)*operator()(x1, y1, z2) +
+        (xt)*operator()(x2, y1, z2)) +
+        (yt)*((1 - xt)*operator()(x1, y2, z2) +
+        (xt)*operator()(x2, y2, z2))));
+}
 template<typename T>
 VolumeHelper<T>& VolumeHelper<T>::operator=(VolumeHelper& other)
 {

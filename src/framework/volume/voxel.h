@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "types.h"
+#include <framework/math/types.h>
 
 namespace voxel
 {
