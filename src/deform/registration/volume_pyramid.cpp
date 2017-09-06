@@ -22,3 +22,12 @@ void VolumePyramid::build_from_base(const Volume& base, ResampleVolumeFn resampl
         _volumes[i+1] = resample_fn(_volumes[i], 0.5f);
     }
 }
+const Volume& VolumePyramid::volume(int index) const
+{
+    assert(index < _levels);
+    return _volumes[index];
+}
+int VolumePyramid::levels() const
+{
+    return _levels;
+}

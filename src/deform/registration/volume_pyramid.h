@@ -26,6 +26,12 @@ public:
     /// the provided resampling function.
     void build_from_base(const Volume& base, ResampleVolumeFn resample_fn);
 
+    /// Returns the volume at the specified index, 0 being the base volume.
+    const Volume& volume(int index) const;
+
+    /// Returns the number of levels in this pyramid
+    int levels() const;
+
 private:
     int _levels;
 
