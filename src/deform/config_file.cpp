@@ -1,7 +1,7 @@
 #include "config_file.h"
 
 #include <framework/debug/log.h>
-#include <framework/volume/types.h>
+#include <framework/math/types.h>
 
 void exitWithError(const std::string &error)
 {
