@@ -17,14 +17,27 @@ class Volume;
 class VolumePyramid
 {
 public:
-    typedef Volume (*ResampleVolumeFn)(const Volume&, float scale);
+    typedef Volume (*DownsampleFn)(const Volume&, float scale);
+    typedef Volume (*DownsampleWithResidualFn)(const Volume&, float scale, Volume& residual);
 
-    VolumePyramid(int levels);
+    VolumePyramid();
     ~VolumePyramid();
+
+    /// Sets the size of the pyramid. 
+    /// This needs to be called before build_from_base, otherwise you'll need to rebuild the pyramid
+    void set_level_count(int levels);
 
     /// Sets the given base at index 0 and builds the rest of the pyramid using
     /// the provided resampling function.
-    void build_from_base(const Volume& base, ResampleVolumeFn resample_fn);
+    /// downsample_fn : Resampling function, required to support downsampling
+    void build_from_base(const Volume& base, DownsampleFn downsample_fn);
+
+    /// Sets the given base at index 0 and builds the rest of the pyramid using
+    /// the provided resampling function.
+    /// Using this method in comparison to build_from_base allows for saving the residuals of the
+    ///     downsampling. This could be useful for deformation fields.
+    /// downsample_fn : Resampling function, required to support downsampling
+    void build_from_base_with_residual(const Volume& base, DownsampleWithResidualFn downsample_fn);
 
     /// Returns the volume at the specified index, 0 being the base volume.
     const Volume& volume(int index) const;
@@ -34,7 +47,11 @@ public:
 
 private:
     int _levels;
+    bool _save_residuals;
 
-    ResampleVolumeFn _resample_fn;
     std::vector<Volume> _volumes;
+
+    /// Residuals:
+    /// Index 0 holds the residual from downsampling pyramid level 0 to 1, index 1 holds 1 to 2, ... 
+    std::vector<Volume> _residuals;
 };

@@ -4,7 +4,7 @@
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
-#include <framework/filters/gaussian_filter.h>
+#include <framework/filters/resample.h>
 #include <framework/platform/file_path.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
@@ -147,16 +147,6 @@ void print_help()
 }
 
 
-
-Volume downsample_volume_gaussian(const Volume& vol, float scale)
-{
-    scale;
-    assert(scale <= 1.0f);
-    //assert(vol.voxel_type() == voxel::Type_UChar);
-
-    return vol.clone();
-}
-
 int main(int argc, char* argv[])
 {
     ArgParser args(argc, argv);
@@ -181,14 +171,6 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    //VolumePyramid pyramid(5);
-    //pyramid.build_from_base(vol, downsample_volume_gaussian);
-
-    vtk::write_volume("C:\\data\\gauss_test_10.vtk",  filters::gaussian_filter_3d(vol, 10.0f));
-    vtk::write_volume("C:\\data\\gauss_test_20.vtk",  filters::gaussian_filter_3d(vol, 20.0f));
-    vtk::write_volume("C:\\data\\gauss_test_50.vtk",  filters::gaussian_filter_3d(vol, 50.0f));
-    vtk::write_volume("C:\\data\\gauss_test_100.vtk",  filters::gaussian_filter_3d(vol, 100.0f));
-
     // std::string param_file;
     // if (args.is_set("p"))
     // {
@@ -200,8 +182,15 @@ int main(int argc, char* argv[])
     //     return 1;
     // }
 
-    // ConfigFile cfg(param_file);
-    // RegistrationEngine engine;
+    //ConfigFile cfg(param_file);
+    RegistrationEngine engine(6, 1);
+
+    // engine.set_initial_deformation(starting_guess);
+
+    // engine.set_image_pair_count(3); // Water, fat, mask
+    // engine.set_image_pair(0, fixed_water, moving_water);
+    // engine.set_image_pair(1, fixed_fat, moving_fat);
+    // engine.set_image_pair(2, fixed_mask, moving_mask);
 
     // std::string fi, mi, fixed_file, moving_file;
     // for (int i = 0; ; ++i)

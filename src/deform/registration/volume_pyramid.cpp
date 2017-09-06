@@ -3,23 +3,49 @@
 #include <framework/debug/assert.h>
 #include <framework/volume/volume.h>
 
-VolumePyramid::VolumePyramid(int levels) : _levels(levels)
+
+VolumePyramid::VolumePyramid() : 
+    _levels(0), 
+    _save_residuals(false)
 {
-    _volumes.resize(_levels);
 }
 VolumePyramid::~VolumePyramid()
 {
 }
-
-void VolumePyramid::build_from_base(const Volume& base, ResampleVolumeFn resample_fn)
+void VolumePyramid::set_level_count(int levels)
 {
-    assert(resample_fn);
+    _levels = levels;
+    _volumes.resize(_levels);
+}
+void VolumePyramid::build_from_base(const Volume& base, DownsampleFn downsample_fn)
+{
+    assert(base.valid());
+    assert(downsample_fn);
     assert(_levels > 0);
+
+    _save_residuals = false;
 
     _volumes[0] = base;
     for (int i = 0; i < _levels-1; ++i)
     {
-        _volumes[i+1] = resample_fn(_volumes[i], 0.5f);
+        _volumes[i+1] = downsample_fn(_volumes[i], 0.5f);
+    }
+
+}
+void VolumePyramid::build_from_base_with_residual(const Volume& base, 
+    DownsampleWithResidualFn downsample_fn)
+{
+    assert(base.valid());
+    assert(downsample_fn);
+    assert(_levels > 0);
+
+    _save_residuals = true;
+    _residuals.resize(_levels);
+
+    _volumes[0] = base;
+    for (int i = 0; i < _levels-1; ++i)
+    {
+        _volumes[i+1] = downsample_fn(_volumes[i], 0.5f, _residuals[i]);
     }
 }
 const Volume& VolumePyramid::volume(int index) const

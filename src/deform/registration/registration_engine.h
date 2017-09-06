@@ -1,31 +1,46 @@
 #pragma once
 
+#include "volume_pyramid.h"
+
+#include <vector>
+
 class ConfigFile;
 class Optimizer;
-class Volume;
+
+struct ImagePairDesc
+{
+    Volume (*downsample_fn)(const Volume&, float);
+};
 
 class RegistrationEngine
 {
 public:
+    enum ImageType
+    {
+        Image_Float,
+        Image_Mask
+    };
 
-    RegistrationEngine();
+    RegistrationEngine(int pyramid_levels, int image_pair_count);
     ~RegistrationEngine();
 
-    bool initialize(const ConfigFile& cfg);
-    void shutdown();
+    void set_initial_deformation(const Volume& def);
+    void set_image_pair(int i, const ImagePairDesc& desc, const Volume& fixed, const Volume& moving);
 
-   void set_image_pair(int i, const Volume& fixed, const Volume& moving);
-
+    /// Runs the engine
+    /// Returns the resulting deformation field or an invalid volume if registration failed.
+    Volume run();
 
 private:
     void build_pyramid();
 
-    // uint32_t _pyramid_levels;
+    int _pyramid_levels; // Size of the multi-res pyramids
+    int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
 
-    // ResampleVolumeFn* _resampler;
-    // Volume** _fixed_pyramid;
-    // Volume** _moving_pyramid;
-    // VolumeVec3f** _deformation_pyramid;
+    std::vector<VolumePyramid> _fixed_pyramids;
+    std::vector<VolumePyramid> _moving_pyramids;
+    VolumePyramid _deformation_pyramid;
 
+    
     Optimizer* optimizer;
 };
