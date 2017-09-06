@@ -80,6 +80,18 @@ Volume Volume::clone() const
 
     return copy;
 }
+void Volume::copy_from(const Volume& other)
+{
+    assert(_size.width == other._size.width);
+    assert(_size.height == other._size.height);
+    assert(_size.depth == other._size.depth);
+    assert(_voxel_type == other._voxel_type);
+
+    size_t num_bytes = _size.width * _size.height * 
+        _size.depth * voxel::size(_voxel_type);
+
+    memcpy(_ptr, other._ptr, num_bytes);
+}
 Volume Volume::as_type(uint8_t type) const
 {
     if (_voxel_type == type)

@@ -36,6 +36,11 @@ public:
     /// Clones this volume
     Volume clone() const;
 
+    /// Copies the data from the given volume
+    /// This assumes that both volumes are of the same size and data type
+    /// Compoared to using clone, this does not perform any memory allocations.
+    void copy_from(const Volume& other);
+
     /// Attempts to convert this volume to the specified format,
     ///     If this volume already is of the specified format it will just return itself.
     ///     If not a copied converted version will be returned.
