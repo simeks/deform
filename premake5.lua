@@ -123,7 +123,8 @@ project "framework"
   includedirs
   {
     src_dir,
-    SRC
+    SRC,
+    EXTERNAL .. "gco-v3.0"
   }
 
 
