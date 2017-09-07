@@ -9,4 +9,8 @@ namespace filters
 
     /// Downsamples a 3d vectorfield and keeps the residual
     Volume downsample_vectorfield(const Volume& vol, float scale, Volume& residual);
+
+    /// Upsamples a 3d vectorfield and optionally applies the given residual
+    /// residual : Passing an invalid Volume (simply Volume()) will behave the same as having a zero residual
+    Volume upsample_vectorfield(const Volume& vol, float scale, const Volume& residual);
 }

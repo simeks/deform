@@ -147,3 +147,69 @@ Volume filters::downsample_vectorfield(const Volume& vol, float scale, Volume& r
     }
     return Volume();
 }
+Volume filters::upsample_vectorfield(const Volume& vol, float scale, const Volume& residual)
+{
+    assert(scale > 1.0f);
+    assert(vol.voxel_type() == voxel::Type_Float3);
+    if (vol.voxel_type() == voxel::Type_Float3)
+    {
+        VolumeFloat3 field(vol);
+        float inv_scale = 1.0f / scale;
+
+        Dims old_dims = field.size();
+        Dims new_dims{
+            uint32_t(ceil(old_dims.width * scale)),
+            uint32_t(ceil(old_dims.height * scale)),
+            uint32_t(ceil(old_dims.depth * scale))
+        };
+
+        VolumeFloat3 out(new_dims);
+        out.set_origin(field.origin());
+
+        float3 old_spacing = field.spacing();
+        float3 new_spacing{
+            old_spacing.x * inv_scale,
+            old_spacing.y * inv_scale,
+            old_spacing.z * inv_scale
+        };
+        out.set_spacing(new_spacing);
+
+        if (residual.valid())
+        {
+            assert(residual.voxel_type() == voxel::Type_Float3);
+            assert(out.size() == residual.size());
+
+            VolumeFloat3 residual_float3(residual);
+            
+            #pragma omp parallel for
+            for (int z = 0; z < int(new_dims.depth); ++z)
+            {
+                for (int y = 0; y < int(new_dims.height); ++y)
+                {
+                    for (int x = 0; x < int(new_dims.width); ++x)
+                    {
+                        out(x, y, z) = scale * field.linear_at(inv_scale*x, inv_scale*y, inv_scale*z, volume::Border_Replicate) 
+                            + residual_float3(x, y, z);
+                    }
+                }
+            }
+
+        }
+        else
+        {
+            #pragma omp parallel for
+            for (int z = 0; z < int(new_dims.depth); ++z)
+            {
+                for (int y = 0; y < int(new_dims.height); ++y)
+                {
+                    for (int x = 0; x < int(new_dims.width); ++x)
+                    {
+                        out(x, y, z) = scale * field.linear_at(inv_scale*x, inv_scale*y, inv_scale*z, volume::Border_Replicate);
+                    }
+                }
+            }
+        }
+        return out;
+    }
+    return Volume();
+}

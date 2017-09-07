@@ -42,5 +42,6 @@ public:
 
 };
 
+typedef VolumeHelper<float3> VolumeFloat3;
 
 #include "volume_helper.inl"
