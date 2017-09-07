@@ -1,12 +1,13 @@
 #pragma once
 
+class Volume;
 class Optimizer
 {
 public:
     virtual void execute(
-        const Image* fixed, 
-        const Image* moving, 
+        Volume* fixed, 
+        Volume* moving, 
         int pair_count,
-        ImageVec3d& def) = 0;
+        Volume& def) = 0;
 };
 

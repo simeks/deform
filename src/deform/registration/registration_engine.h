@@ -29,10 +29,13 @@ public:
 
     /// Runs the engine
     /// Returns the resulting deformation field or an invalid volume if registration failed.
-    Volume run();
+    Volume run(Optimizer& optimizer);
 
 private:
-    void build_pyramid();
+    /// Validates all volumes and makes sure everything is in order.
+    /// Should be called before performing executing the registration.
+    /// Returns true if the validation was successful, false if not.
+    bool validate_volumes();
 
     int _pyramid_levels; // Size of the multi-res pyramids
     int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
@@ -41,6 +44,4 @@ private:
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
 
-    
-    Optimizer* optimizer;
 };
