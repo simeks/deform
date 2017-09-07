@@ -39,8 +39,15 @@ public:
     /// downsample_fn : Resampling function, required to support downsampling
     void build_from_base_with_residual(const Volume& base, DownsampleWithResidualFn downsample_fn);
 
-    /// Returns the volume at the specified index, 0 being the base volume.
-    const Volume& volume(int index) const;
+    /// Sets the volume at the given level without rebuilding any other levels of the pyramid. 
+    void set_volume(int level, const Volume& vol);
+
+    /// Returns the volume at the specified level, 0 being the base volume.
+    const Volume& volume(int level) const;
+
+    /// Returns the residual volume at the specified level, 0 being the base volume
+    /// This will fail if the pyramid wasn't built using build_*_with_residual
+    const Volume& residual(int level) const;
 
     /// Returns the number of levels in this pyramid
     int levels() const;

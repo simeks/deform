@@ -48,10 +48,21 @@ void VolumePyramid::build_from_base_with_residual(const Volume& base,
         _volumes[i+1] = downsample_fn(_volumes[i], 0.5f, _residuals[i]);
     }
 }
-const Volume& VolumePyramid::volume(int index) const
+void VolumePyramid::set_volume(int level, const Volume& vol)
 {
-    assert(index < _levels);
-    return _volumes[index];
+    assert(level < _levels);
+    _volumes[level] = vol;
+}
+const Volume& VolumePyramid::volume(int level) const
+{
+    assert(level < _levels);
+    return _volumes[level];
+}
+const Volume& VolumePyramid::residual(int level) const
+{
+    assert(_save_residuals);
+    assert(level < _levels);
+    return _residuals[level];
 }
 int VolumePyramid::levels() const
 {
