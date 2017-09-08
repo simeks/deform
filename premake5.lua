@@ -91,7 +91,8 @@ workspace "deform"                   -- Solution Name
     includedirs
     {
       src_dir,
-      SRC
+      SRC,
+      EXTERNAL .. "gco-v3.0"
     }
     
     links

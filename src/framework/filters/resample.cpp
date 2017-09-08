@@ -143,24 +143,27 @@ Volume filters::downsample_vectorfield(const Volume& vol, float scale, Volume& r
             }
         }
         residual = tmp;
-    
+        return result;
     }
     return Volume();
 }
-Volume filters::upsample_vectorfield(const Volume& vol, float scale, const Volume& residual)
+Volume filters::upsample_vectorfield(const Volume& vol, const Dims& new_dims, const Volume& residual)
 {
-    assert(scale > 1.0f);
     assert(vol.voxel_type() == voxel::Type_Float3);
     if (vol.voxel_type() == voxel::Type_Float3)
     {
         VolumeFloat3 field(vol);
-        float inv_scale = 1.0f / scale;
 
         Dims old_dims = field.size();
-        Dims new_dims{
-            uint32_t(ceil(old_dims.width * scale)),
-            uint32_t(ceil(old_dims.height * scale)),
-            uint32_t(ceil(old_dims.depth * scale))
+        float3 scale{
+            new_dims.width / float(old_dims.width),
+            new_dims.height / float(old_dims.height),
+            new_dims.depth / float(old_dims.depth)
+        };
+        float3 inv_scale{
+            1.0f / scale.x,
+            1.0f / scale.y,
+            1.0f / scale.z
         };
 
         VolumeFloat3 out(new_dims);
@@ -168,9 +171,9 @@ Volume filters::upsample_vectorfield(const Volume& vol, float scale, const Volum
 
         float3 old_spacing = field.spacing();
         float3 new_spacing{
-            old_spacing.x * inv_scale,
-            old_spacing.y * inv_scale,
-            old_spacing.z * inv_scale
+            old_spacing.x * inv_scale.x,
+            old_spacing.y * inv_scale.y,
+            old_spacing.z * inv_scale.z
         };
         out.set_spacing(new_spacing);
 
@@ -188,8 +191,9 @@ Volume filters::upsample_vectorfield(const Volume& vol, float scale, const Volum
                 {
                     for (int x = 0; x < int(new_dims.width); ++x)
                     {
-                        out(x, y, z) = scale * field.linear_at(inv_scale*x, inv_scale*y, inv_scale*z, volume::Border_Replicate) 
+                        float3 d = field.linear_at(inv_scale.x*x, inv_scale.y*y, inv_scale.z*z, volume::Border_Replicate) 
                             + residual_float3(x, y, z);
+                        out(x, y, z) = {scale.x * d.x, scale.y * d.y, scale.z * d.z}; 
                     }
                 }
             }
@@ -204,7 +208,8 @@ Volume filters::upsample_vectorfield(const Volume& vol, float scale, const Volum
                 {
                     for (int x = 0; x < int(new_dims.width); ++x)
                     {
-                        out(x, y, z) = scale * field.linear_at(inv_scale*x, inv_scale*y, inv_scale*z, volume::Border_Replicate);
+                        float3 d = field.linear_at(inv_scale.x*x, inv_scale.y*y, inv_scale.z*z, volume::Border_Replicate);
+                        out(x, y, z) = {scale.x * d.x, scale.y * d.y, scale.z * d.z};
                     }
                 }
             }

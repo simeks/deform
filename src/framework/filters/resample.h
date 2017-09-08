@@ -1,6 +1,7 @@
 #pragma once
 
 class Volume;
+struct Dims;
 
 namespace filters
 {
@@ -12,5 +13,5 @@ namespace filters
 
     /// Upsamples a 3d vectorfield and optionally applies the given residual
     /// residual : Passing an invalid Volume (simply Volume()) will behave the same as having a zero residual
-    Volume upsample_vectorfield(const Volume& vol, float scale, const Volume& residual);
+    Volume upsample_vectorfield(const Volume& vol, const Dims& new_dims, const Volume& residual);
 }

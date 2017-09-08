@@ -4,8 +4,11 @@
 #include <framework/graph_cut/graph_cut.h>
 
 
-template<typename TImage>
-BlockedGraphCutOptimizer<TImage>::BlockedGraphCutOptimizer()
+template<
+    typename TUnaryTerm,
+    typename TBinaryTerm
+>
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer()
 {
     _neighbors[0] = {1, 0, 0};
     _neighbors[1] = {-1, 0, 0};
@@ -15,23 +18,27 @@ BlockedGraphCutOptimizer<TImage>::BlockedGraphCutOptimizer()
     _neighbors[5] = {0, 0, -1};
 
     _block_size = {12, 12, 12};
-    _step_size = 0.5f; // mm
 }
-template<typename TImage>
-BlockedGraphCutOptimizer<TImage>::~BlockedGraphCutOptimizer()
+template<
+    typename TUnaryTerm,
+    typename TBinaryTerm
+    >
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::~BlockedGraphCutOptimizer()
 {
 }
-template<typename TImage>
-void BlockedGraphCutOptimizer<TImage>::execute(
-    Volume* fixed, 
-    Volume* moving, 
-    int pair_count,
-    Volume& def)
+template<
+    typename TUnaryTerm,
+    typename TBinaryTerm
+    >
+void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
+    TUnaryTerm& unary_fn, 
+    TBinaryTerm& binary_fn, 
+    float3 step_size, 
+    VolumeFloat3& def)
 {
     LOG(Info, "Performing registration.\n");
 
     Dims dims = def.size();    
-    float3 moving_spacing_inv = Vec3d(1.0 / moving_spacing.x, 1.0 / moving_spacing.y, 1.0 / moving_spacing.z);
 
     // Setting the block size to (0, 0, 0) will disable blocking and run the whole volume
     int3 block_dims = _block_size;
@@ -42,47 +49,29 @@ void BlockedGraphCutOptimizer<TImage>::execute(
     if (block_dims.z == 0)
         block_dims.z = dims.depth;
 
-    int3 block_count(
-        dims.width / block_dims.x,
-        dims.height / block_dims.y,
-        dims.depth / block_dims.z
-        );
+    int3 block_count{
+        int(dims.width) / block_dims.x,
+        int(dims.height) / block_dims.y,
+        int(dims.depth) / block_dims.z
+    };
 
     // Rest
-    int3 block_rest = {
-        dims.width % block_dims.x,
-        dims.height % block_dims.y,
-        dims.depth % block_dims.z
+    int3 block_rest{
+        int(dims.width) % block_dims.x,
+        int(dims.height) % block_dims.y,
+        int(dims.depth) % block_dims.z
     };
 
     block_count.x += (block_rest.x > 0 ? 1 : 0);
     block_count.y += (block_rest.y > 0 ? 1 : 0);
     block_count.z += (block_rest.z > 0 ? 1 : 0);
 
-    LOG(Info, "Volume size: %d, %d, %d\n", dims.x, dims.y, dims.z);
+    LOG(Info, "Volume size: %d, %d, %d\n", dims.width, dims.height, dims.depth);
     LOG(Info, "Block count: %d, %d, %d\n", block_count.x, block_count.y, block_count.z);
     LOG(Info, "Block size: %d, %d, %d\n", block_dims.x, block_dims.y, block_dims.z);
     LOG(Info, "Block rest: %d, %d, %d\n", block_rest.x, block_rest.y, block_rest.z);
 
     BlockChangeFlags change_flags(block_count); 
-
-    if (constraint_mask && constraint_values)
-    {
-        // Set constraint values
-        for (int z = 0; z < dims.z; ++z)
-        {
-            for (int y = 0; y < dims.y; ++y)
-            {
-                for (int x = 0; x < dims.x; ++x)
-                {
-                    if (constraint_mask(x, y, z) > 0) 
-                    {
-                        def(x, y, z) = constraint_values(x, y, z);
-                    }
-                }
-            }
-        }
-    }
 
     bool done = false;
     while (!done)
@@ -131,7 +120,7 @@ void BlockedGraphCutOptimizer<TImage>::execute(
                     int3 block_p{block_x, block_y, block_z};
 
                     bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
-                    int n_count = ndims == 3 ? 6 : 4;
+                    int n_count = 6; // Neighbors
                     for (int n = 0; n < n_count; ++n)
                     {
                         need_update = need_update || change_flags.is_block_set(block_p + _neighbors[n], use_shift == 1);
@@ -145,19 +134,20 @@ void BlockedGraphCutOptimizer<TImage>::execute(
                     bool block_changed = false;
                     for (int n = 0; n < n_count; ++n)
                     {
-                        // delta in mm
-                        float3 delta = _step_size * float3{
-                                moving_spacing_inv.x * _neighbors[n].x,
-                                moving_spacing_inv.y * _neighbors[n].y,
-                                moving_spacing_inv.z * _neighbors[n].z
-                            };
+                        // delta in [voxels]
+                        float3 delta{
+                            step_size.x * _neighbors[n].x,
+                            step_size.y * _neighbors[n].y,
+                            step_size.z * _neighbors[n].z
+                        };
 
                         block_changed |= do_block(
+                            unary_fn,
+                            binary_fn,
                             block_p,
                             block_dims,
                             block_offset,
                             delta,
-                            constraint_mask,
                             def);
 
                     }
@@ -168,8 +158,13 @@ void BlockedGraphCutOptimizer<TImage>::execute(
         }
     }
 }
-template<typename TImage>
-bool BlockedGraphCutOptimizer<TImage>::do_block(
+template<
+    typename TUnaryTerm,
+    typename TBinaryTerm
+    >
+bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
+    TUnaryTerm& unary_fn,
+    TBinaryTerm& binary_fn,
     const int3& block_p,
     const int3& block_dims,
     const int3& block_offset,
@@ -194,9 +189,9 @@ bool BlockedGraphCutOptimizer<TImage>::do_block(
                     int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
 
                     // Skip voxels outside volume
-                    if (gx < 0 || gx >= dims.width ||
-                        gy < 0 || gy >= dims.height ||
-                        gz < 0 || gz >= dims.depth)
+                    if (gx < 0 || gx >= int(dims.width) ||
+                        gy < 0 || gy >= int(dims.height) ||
+                        gz < 0 || gz >= int(dims.depth))
                     {
                         graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
                         continue;
@@ -205,67 +200,67 @@ bool BlockedGraphCutOptimizer<TImage>::do_block(
                     int3 p{gx, gy, gz};
                     float3 def1 = def(p);
 
-                    float f0 = _unary_function(p, def1);
-                    float f1 = _unary_function(p, def1 + delta);
+                    float f0 = unary_fn(p, def1);
+                    float f1 = unary_fn(p, def1 + delta);
 
                     // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
 
                     if (sub_x == 0 && gx != 0)
                     {
-                        Vec3i step(-1, 0, 0);
-                        Vec3d& def2 = def(gx - 1, gy, gz);
-                        f0 += _binary_function(p, def1, def2, step);
-                        f1 += _binary_function(p, def1 + delta, def2, step);
+                        int3 step{-1, 0, 0};
+                        float3 def2 = def(gx - 1, gy, gz);
+                        f0 += binary_fn(p, def1, def2, step);
+                        f1 += binary_fn(p, def1 + delta, def2, step);
                     }
-                    else if (sub_x == block_dims.x - 1 && gx < dims.x - 1)
+                    else if (sub_x == block_dims.x - 1 && gx < int(dims.width) - 1)
                     {
-                        Vec3i step(1, 0, 0);
-                        Vec3d& def2 = def(gx + 1, gy, gz);
-                        f0 += _binary_function(p, def1, def2, step);
-                        f1 += _binary_function(p, def1 + delta, def2, step);
+                        int3 step{1, 0, 0};
+                        float3 def2 = def(gx + 1, gy, gz);
+                        f0 += binary_fn(p, def1, def2, step);
+                        f1 += binary_fn(p, def1 + delta, def2, step);
                     }
 
                     if (sub_y == 0 && gy != 0)
                     {
-                        Vec3i step(0, -1, 0);
-                        Vec3d& def2 = def(gx, gy - 1, gz);
-                        f0 += _binary_function(p, def1, def2, step);
-                        f1 += _binary_function(p, def1 + delta, def2, step);
+                        int3 step{0, -1, 0};
+                        float3 def2 = def(gx, gy - 1, gz);
+                        f0 += binary_fn(p, def1, def2, step);
+                        f1 += binary_fn(p, def1 + delta, def2, step);
                     }
-                    else if (sub_y == block_dims.y - 1 && gy < dims.y - 1)
+                    else if (sub_y == block_dims.y - 1 && gy < int(dims.height) - 1)
                     {
-                        Vec3i step(0, 1, 0);
-                        Vec3d& def2 = def(gx, gy + 1, gz);
-                        f0 += _binary_function(p, def1, def2, step);
-                        f1 += _binary_function(p, def1 + delta, def2, step);
+                        int3 step{0, 1, 0};
+                        float3 def2 = def(gx, gy + 1, gz);
+                        f0 += binary_fn(p, def1, def2, step);
+                        f1 += binary_fn(p, def1 + delta, def2, step);
                     }
 
                     if (sub_z == 0 && gz != 0)
                     {
-                        Vec3i step(0, 0, -1);
-                        Vec3d& def2 = def(gx, gy, gz - 1);
-                        f0 += _binary_function(p, def1, def2, step);
-                        f1 += _binary_function(p, def1 + delta, def2, step);
+                        int3 step{0, 0, -1};
+                        float3 def2 = def(gx, gy, gz - 1);
+                        f0 += binary_fn(p, def1, def2, step);
+                        f1 += binary_fn(p, def1 + delta, def2, step);
                     }
-                    else if (sub_z == block_dims.z - 1 && gz < dims.z - 1)
+                    else if (sub_z == block_dims.z - 1 && gz < int(dims.depth) - 1)
                     {
-                        Vec3i step(0, 0, 1);
-                        Vec3d& def2 = def(gx, gy, gz + 1);
-                        f0 += _binary_function(p, def1, def2, step);
-                        f1 += _binary_function(p, def1 + delta, def2, step);
+                        int3 step{0, 0, 1};
+                        float3 def2 = def(gx, gy, gz + 1);
+                        f0 += binary_fn(p, def1, def2, step);
+                        f1 += binary_fn(p, def1 + delta, def2, step);
                     }
 
                     graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
 
                     cost += f0;
 
-                    if (sub_x + 1 < block_dims.x && gx + 1 < dims.x)
+                    if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.width))
                     {
-                        Vec3i step(1, 0, 0);
-                        Vec3d& def2 = def(p + step);
-                        float f_same = _binary_function(p, def1, def2, step);
-                        float f01 = _binary_function(p, def1, def2 + delta, step);
-                        float f10 = _binary_function(p, def1 + delta, def2, step);
+                        int3 step{1, 0, 0};
+                        float3 def2 = def(p + step);
+                        float f_same = binary_fn(p, def1, def2, step);
+                        float f01 = binary_fn(p, def1, def2 + delta, step);
+                        float f10 = binary_fn(p, def1 + delta, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -274,13 +269,13 @@ bool BlockedGraphCutOptimizer<TImage>::do_block(
 
                         cost += f_same;
                     }
-                    if (sub_y + 1 < block_dims.y && gy + 1 < dims.y)
+                    if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.height))
                     {
-                        Vec3i step(0, 1, 0);
-                        Vec3d& def2 = def(p + step);
-                        float f_same = _binary_function(p, def1, def2, step);
-                        float f01 = _binary_function(p, def1, def2 + delta, step);
-                        float f10 = _binary_function(p, def1 + delta, def2, step);
+                        int3 step{0, 1, 0};
+                        float3 def2 = def(p + step);
+                        float f_same = binary_fn(p, def1, def2, step);
+                        float f01 = binary_fn(p, def1, def2 + delta, step);
+                        float f10 = binary_fn(p, def1 + delta, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -289,13 +284,13 @@ bool BlockedGraphCutOptimizer<TImage>::do_block(
 
                         cost += f_same;
                     }
-                    if (sub_z + 1 < block_dims.z && gz + 1 < dims.z)
+                    if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.depth))
                     {
-                        Vec3i step(0, 0, 1);
-                        Vec3d& def2 = def(p + step);
-                        float f_same = _binary_function(p, def1, def2, step);
-                        float f01 = _binary_function(p, def1, def2 + delta, step);
-                        float f10 = _binary_function(p, def1 + delta, def2, step);
+                        int3 step{0, 0, 1};
+                        float3 def2 = def(p + step);
+                        float f_same = binary_fn(p, def1, def2, step);
+                        float f01 = binary_fn(p, def1, def2 + delta, step);
+                        float f10 = binary_fn(p, def1 + delta, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -309,11 +304,11 @@ bool BlockedGraphCutOptimizer<TImage>::do_block(
         }
     }
 
-    double current_emin = graph.minimize();
+    float current_emin = graph.minimize();
 
     bool changed_flag = false;
 
-    if (current_emin + 0.00001 < cost) //Accept solution
+    if (current_emin + 0.00001f < cost) //Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++)
         {
@@ -327,16 +322,16 @@ bool BlockedGraphCutOptimizer<TImage>::do_block(
                     int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
 
                     // Skip voxels outside volume
-                    if (gx < 0 || gx >= dims.x ||
-                        gy < 0 || gy >= dims.y ||
-                        gz < 0 || gz >= dims.z)
+                    if (gx < 0 || gx >= int(dims.width) ||
+                        gy < 0 || gy >= int(dims.height) ||
+                        gz < 0 || gz >= int(dims.depth))
                     {
                         continue;
                     }
 
                     if (graph.get_var(sub_x, sub_y, sub_z) == 1)
                     {
-                        def(gx, gy, gz) += delta;
+                        def(gx, gy, gz) = def(gx, gy, gz) + delta;
                         changed_flag = true;
                     }
                 }

@@ -1,10 +1,11 @@
 #include "config_file.h"
-#include "registration/registration_engine.h"
+#include "registration/blocked_graph_cut_optimizer.h"
 #include "registration/volume_pyramid.h"
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
 #include <framework/filters/resample.h>
+#include <framework/platform/arg_parser.h>
 #include <framework/platform/file_path.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
@@ -18,83 +19,24 @@
 #include <string>
 #include <vector>
 
-class ArgParser
+namespace defaults
 {
-public:
-    ArgParser(int argc, char** argv)
-    {
-        _executable = argv[0];
+    const float step_size = 0.5f; // [mm]
+}
 
-        std::vector<std::string> tokens;
-        for (int i = 1; i < argc; ++i)
-            tokens.push_back(argv[i]);
+struct RegistrationContext
+{
+    int _pyramid_levels; // Size of the multi-res pyramids
+    int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
 
-        while (!tokens.empty())
-        {
-            const std::string& token = tokens.back();
-            
-            if (token[0] == '-')
-            {
-                int b = 1;
-                if (token[1] == '-')
-                {
-                    b = 2;
-                }
+    std::vector<VolumePyramid> _fixed_pyramids;
+    std::vector<VolumePyramid> _moving_pyramids;
+    VolumePyramid _deformation_pyramid;
 
-                std::string line = token.substr(b);
-                size_t p = line.find('=');
-                if (p != std::string::npos)
-                {
-                    std::string key = line.substr(0, p);
-                    std::string value = line.substr(p + 1);
-                    _values[key] = value;
-                }
-                else
-                {
-                    _values[line] = "";
-                }
-            }
-            else
-            {
-                _tokens.push_back(token);
-            }
-            tokens.pop_back();
-        }
-    }
-
-    bool is_set(const std::string& key) const
-    {
-        return _values.find(key) != _values.end();
-    }
-    const std::string& value(const std::string& key) const
-    {
-        assert(is_set(key));
-        return _values.at(key);
-    }
-    const std::map<std::string, std::string>& values() const
-    {
-        return _values;
-    }
-
-    const std::string& token(int i) const
-    {
-        return _tokens[i];
-    }
-    int num_tokens() const
-    {
-        return (int)_tokens.size();
-    }
-    const std::string& executable() const
-    {
-        return _executable;
-    }
-
-private:
-    std::string _executable;
-    std::map<std::string, std::string> _values;
-    std::vector<std::string> _tokens;
-
+    RegistrationContext() : _pyramid_levels(-1), _image_pair_count(-1) {}
+    ~RegistrationContext() {}
 };
+
 
 // Identifies and loads the given file
 // file : Filename
@@ -136,6 +78,174 @@ Volume load_volume(const std::string& file)
     return Volume();
 }
 
+void initialize(RegistrationContext& ctx, int pyramid_levels, int image_pair_count)
+{
+    ctx._pyramid_levels = pyramid_levels;
+    ctx._image_pair_count = image_pair_count;
+
+    ctx._fixed_pyramids.resize(ctx._image_pair_count);
+    ctx._moving_pyramids.resize(ctx._image_pair_count);
+
+    for (int i = 0; i < ctx._image_pair_count; ++i)
+    {
+        ctx._fixed_pyramids[i].set_level_count(ctx._pyramid_levels);
+        ctx._moving_pyramids[i].set_level_count(ctx._pyramid_levels);
+    }
+    ctx._deformation_pyramid.set_level_count(ctx._pyramid_levels);
+}
+
+/// Validates all volumes and makes sure everything is in order.
+/// Should be called before performing executing the registration.
+/// Returns true if the validation was successful, false if not.
+bool validate_input(RegistrationContext& ctx)
+{
+    // Rules:
+    // * All volumes for the same subject (i.e. fixed or moving) must have the same dimensions
+    // * All volumes for the same subject (i.e. fixed or moving) need to have the same origin and spacing
+    
+    Dims fixed_dims = ctx._fixed_pyramids[0].volume(0).size();
+    Dims moving_dims = ctx._moving_pyramids[0].volume(0).size();
+
+    float3 fixed_origin = ctx._fixed_pyramids[0].volume(0).origin();
+    float3 moving_origin = ctx._moving_pyramids[0].volume(0).origin();
+    
+    float3 fixed_spacing = ctx._fixed_pyramids[0].volume(0).spacing();
+    float3 moving_spacing = ctx._moving_pyramids[0].volume(0).spacing();
+
+    for (int i = 1; i < ctx._image_pair_count; ++i)
+    {
+        Dims fixed_dims_i = ctx._fixed_pyramids[i].volume(0).size();
+        if (fixed_dims_i != fixed_dims)
+        {
+            LOG(Error, "Dimension mismatch for fixed image id %d (size: %d %d %d, expected: %d %d %d)\n", i, 
+                fixed_dims_i.width, fixed_dims_i.height, fixed_dims_i.depth,
+                fixed_dims.width, fixed_dims.height, fixed_dims.depth);
+            return false;
+        }
+        Dims moving_dims_i = ctx._moving_pyramids[i].volume(0).size();
+        if (moving_dims_i != moving_dims)
+        {
+            LOG(Error, "Dimension mismatch for moving image id %d (size: %d %d %d, expected: %d %d %d)\n", i, 
+                moving_dims_i.width, moving_dims_i.height, moving_dims_i.depth,
+                moving_dims.width, moving_dims.height, moving_dims.depth);
+            return false;
+        }
+        
+        float3 fixed_origin_i = ctx._fixed_pyramids[i].volume(0).origin();
+        if (fabs(fixed_origin_i.x - fixed_origin.x) > 0.0001f || 
+            fabs(fixed_origin_i.y - fixed_origin.y) > 0.0001f ||
+            fabs(fixed_origin_i.z - fixed_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Origin mismatch for fixed image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
+                        fixed_origin_i.x, fixed_origin_i.y, fixed_origin_i.z,
+                        fixed_origin.x, fixed_origin.y, fixed_origin.z);
+            return false;
+        }
+
+        float3 fixed_spacing_i = ctx._fixed_pyramids[i].volume(0).spacing();
+        if (fabs(fixed_spacing_i.x - fixed_spacing.x) > 0.0001f || 
+            fabs(fixed_spacing_i.y - fixed_spacing.y) > 0.0001f ||
+            fabs(fixed_spacing_i.z - fixed_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Spacing mismatch for fixed image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
+                        fixed_spacing_i.x, fixed_spacing_i.y, fixed_spacing_i.z,
+                        fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
+            return false;
+        }
+        
+        float3 moving_origin_i = ctx._moving_pyramids[i].volume(0).origin();
+        if (fabs(moving_origin_i.x - moving_origin.x) > 0.0001f || 
+            fabs(moving_origin_i.y - moving_origin.y) > 0.0001f ||
+            fabs(moving_origin_i.z - moving_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Origin mismatch for moving image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
+                        moving_origin_i.x, moving_origin_i.y, moving_origin_i.z,
+                        moving_origin.x, moving_origin.y, moving_origin.z);
+            return false;
+        }
+
+        float3 moving_spacing_i = ctx._moving_pyramids[i].volume(0).spacing();
+        if (fabs(moving_spacing_i.x - moving_spacing.x) > 0.0001f || 
+            fabs(moving_spacing_i.y - moving_spacing.y) > 0.0001f ||
+            fabs(moving_spacing_i.z - moving_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Spacing mismatch for moving image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
+                        moving_spacing_i.x, moving_spacing_i.y, moving_spacing_i.z,
+                        moving_spacing.x, moving_spacing.y, moving_spacing.z);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/// Runs the registration. 
+/// Returns the resulting deformation field or an invalid volume if registration failed.
+Volume execute_registration(RegistrationContext& ctx)
+{
+    // No copying of image data is performed here as Volume is simply a wrapper 
+    std::vector<Volume> fixed_volumes(ctx._image_pair_count);
+    std::vector<Volume> moving_volumes(ctx._image_pair_count);
+
+    for (int l = ctx._pyramid_levels-1; l >= 0; --l)
+    {
+        for (int i = 0; i < ctx._image_pair_count; ++i)
+        {
+            fixed_volumes[i] = ctx._fixed_pyramids[i].volume(l);
+            moving_volumes[i] = ctx._fixed_pyramids[i].volume(l);
+        }
+
+        VolumeFloat3 def = ctx._deformation_pyramid.volume(l);
+
+        BlockedGraphCutOptimizer<EnergyFunction, Regularizer> optimizer;
+        EnergyFunction unary_fn;
+        Regularizer binary_fn(fixed_volumes[0].spacing());
+
+        // Calculate step size in voxels
+        float3 fixed_spacing = fixed_volumes[0].spacing();
+        float3 step_size_voxels{
+            defaults::step_size / fixed_spacing.x,
+            defaults::step_size / fixed_spacing.y,
+            defaults::step_size / fixed_spacing.z
+        };
+        optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
+
+        if (l != 0)
+        {
+            Dims upsampled_dims = ctx._deformation_pyramid.volume(l - 1).size();
+            ctx._deformation_pyramid.set_volume(l - 1,
+                filters::upsample_vectorfield(def, upsampled_dims, ctx._deformation_pyramid.residual(l - 1)));
+        }
+        else
+        {
+            ctx._deformation_pyramid.set_volume(0, def);
+        }
+    }
+
+    return ctx._deformation_pyramid.volume(0);
+}
+
+void set_initial_deformation(RegistrationContext& ctx, const Volume& def)
+{
+    assert(def.voxel_type() == voxel::Type_Float3); // Only single-precision supported for now
+    assert(ctx._pyramid_levels);
+
+    ctx._deformation_pyramid.build_from_base_with_residual(def, filters::downsample_vectorfield);
+}
+
+void set_image_pair(
+    RegistrationContext& ctx,
+    int i, 
+    const Volume& fixed, 
+    const Volume& moving,
+    Volume (*downsample_fn)(const Volume&, float))
+{
+    assert(i < ctx._image_pair_count);
+
+    ctx._fixed_pyramids[i].build_from_base(fixed, downsample_fn);
+    ctx._moving_pyramids[i].build_from_base(moving, downsample_fn);
+}
+
 void print_help()
 {
     std::cout   << "Arguments:" << std::endl
@@ -163,34 +273,31 @@ int main(int argc, char* argv[])
     //     return 1;
     // }
 
-    vtk::Reader reader;
-    Volume vol = reader.execute("C:\\data\\test.vtk");//args.token(0).c_str());
-    if (reader.failed())
-    {
-        std::cout << reader.last_error();
-        return 1;
-    }
+    RegistrationContext ctx;
+    initialize(ctx, 6, 1);
 
-    // std::string param_file;
-    // if (args.is_set("p"))
+    auto fixed_fat = load_volume("C:\\projects\\deform-sandbox\\fixed_fat.vtk");
+    if (!fixed_fat.valid()) return 1;
+    auto moving_fat = load_volume("C:\\projects\\deform-sandbox\\moving_fat.vtk");
+    if (!moving_fat.valid()) return 1;
+    
+    set_image_pair(ctx, 0, fixed_fat, moving_fat, filters::downsample_volume_gaussian);
+    
+    VolumeFloat3 starting_guess(fixed_fat.size(), float3{0, 0, 0}); 
+    set_initial_deformation(ctx, starting_guess);
+
+    validate_input(ctx);
+
+    Volume def = execute_registration(ctx);
+    def;
+
+    // vtk::Reader reader;
+    // Volume vol = reader.execute("C:\\data\\test.vtk");//args.token(0).c_str());
+    // if (reader.failed())
     // {
-    //     param_file = args.value("p");
-    // }
-    // else
-    // {
-    //     print_help();
+    //     std::cout << reader.last_error();
     //     return 1;
     // }
-
-    //ConfigFile cfg(param_file);
-    RegistrationEngine engine(6, 1);
-
-    // engine.set_initial_deformation(starting_guess);
-
-    // engine.set_image_pair_count(3); // Water, fat, mask
-    // engine.set_image_pair(0, fixed_water, moving_water);
-    // engine.set_image_pair(1, fixed_fat, moving_fat);
-    // engine.set_image_pair(2, fixed_mask, moving_mask);
 
     // std::string fi, mi, fixed_file, moving_file;
     // for (int i = 0; ; ++i)
@@ -209,18 +316,6 @@ int main(int argc, char* argv[])
     //         // engine.set_moving_image(i, file);
     //     }
     // }
-
-    // Optimizer* optimizer = new BlockedGraphCut();
-    // engine.set_optimizer(optimizer);
-
-
-    // if (!engine.initialize(cfg))
-    // {
-    //     return 1;
-    // }
-
-
-    // engine.shutdown();
 
     return 0;
 }
