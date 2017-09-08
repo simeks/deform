@@ -4,6 +4,14 @@
 
 #include "types.h"
 
+namespace math
+{
+    inline float length_squared(const float3& v)
+    {
+        return v.x * v.x + v.y * v.y + v.z * v.z;
+    }
+}
+
 inline float3 operator+(const float3& l, const float3& r)
 {
     return { l.x + r.x, l.y + r.y, l.z + r.z };
