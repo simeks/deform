@@ -74,7 +74,7 @@ T VolumeHelper<T>::linear_at(float x, float y, float z, volume::BorderMode borde
         z = std::max(z, 0.0f);
         z = std::min(z, float(_size.depth - 1));
     }
-    
+
     float xt = x - floor(x);
     float yt = y - floor(y);
     float zt = z - floor(z);
@@ -119,6 +119,16 @@ template<typename T>
 T& VolumeHelper<T>::operator()(int x, int y, int z)
 {
     return *((T*)(((uint8_t*)_ptr) + offset(x, y, z)));
+}
+template<typename T>
+const T& VolumeHelper<T>::operator()(const int3& p) const
+{
+    return operator()(p.x, p.y, p.z);
+}
+template<typename T>
+T& VolumeHelper<T>::operator()(const int3& p)
+{
+    return operator()(p.x, p.y, p.z);
 }
 template<typename T>
 inline size_t VolumeHelper<T>::offset(int x, int y, int z) const

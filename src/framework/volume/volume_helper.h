@@ -36,6 +36,9 @@ public:
 
     const T& operator()(int x, int y, int z) const;
     T& operator()(int x, int y, int z);
+    
+    const T& operator()(const int3& p) const;
+    T& operator()(const int3& p);
 
     /// Offset in bytes to the specified element
     size_t offset(int x, int y, int z) const;
