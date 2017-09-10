@@ -2,6 +2,7 @@
 
 #include "volume.h"
 
+#include <algorithm>
 #include <assert.h>
 
 namespace volume

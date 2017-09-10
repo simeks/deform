@@ -1,5 +1,6 @@
 #include "config_file.h"
 #include "registration/blocked_graph_cut_optimizer.h"
+#include "registration/transform.h"
 #include "registration/volume_pyramid.h"
 
 #include <framework/debug/assert.h>
@@ -289,7 +290,8 @@ int main(int argc, char* argv[])
     validate_input(ctx);
 
     Volume def = execute_registration(ctx);
-    def;
+    Volume result = transform_volume(moving_fat, def);
+    vtk::write_volume("result.vtk", result);
 
     // vtk::Reader reader;
     // Volume vol = reader.execute("C:\\data\\test.vtk");//args.token(0).c_str());
