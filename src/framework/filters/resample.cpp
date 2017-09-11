@@ -161,9 +161,9 @@ Volume filters::upsample_vectorfield(const Volume& vol, const Dims& new_dims, co
             new_dims.depth / float(old_dims.depth)
         };
         float3 inv_scale{
-            1.0f / scale.x,
-            1.0f / scale.y,
-            1.0f / scale.z
+            float(old_dims.width) / new_dims.width,
+            float(old_dims.height) / new_dims.height,
+            float(old_dims.depth) / new_dims.depth
         };
 
         VolumeFloat3 out(new_dims);

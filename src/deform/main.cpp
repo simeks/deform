@@ -103,6 +103,7 @@ bool validate_input(RegistrationContext& ctx)
     // Rules:
     // * All volumes for the same subject (i.e. fixed or moving) must have the same dimensions
     // * All volumes for the same subject (i.e. fixed or moving) need to have the same origin and spacing
+    // * For simplicity any given initial deformation field must match the fixed image properties (size, origin, spacing)
     
     Dims fixed_dims = ctx._fixed_pyramids[0].volume(0).size();
     Dims moving_dims = ctx._moving_pyramids[0].volume(0).size();
@@ -148,7 +149,7 @@ bool validate_input(RegistrationContext& ctx)
             fabs(fixed_spacing_i.y - fixed_spacing.y) > 0.0001f ||
             fabs(fixed_spacing_i.z - fixed_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
         {
-            LOG(Error, "Spacing mismatch for fixed image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
+            LOG(Error, "Spacing mismatch for fixed image id %d (spacing: %f %f %f, expected: %f %f %f)\n", i, 
                         fixed_spacing_i.x, fixed_spacing_i.y, fixed_spacing_i.z,
                         fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
             return false;
@@ -170,9 +171,45 @@ bool validate_input(RegistrationContext& ctx)
             fabs(moving_spacing_i.y - moving_spacing.y) > 0.0001f ||
             fabs(moving_spacing_i.z - moving_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
         {
-            LOG(Error, "Spacing mismatch for moving image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
+            LOG(Error, "Spacing mismatch for moving image id %d (spacing: %f %f %f, expected: %f %f %f)\n", i, 
                         moving_spacing_i.x, moving_spacing_i.y, moving_spacing_i.z,
                         moving_spacing.x, moving_spacing.y, moving_spacing.z);
+            return false;
+        }
+    }
+
+    const Volume& initial_def = ctx._deformation_pyramid.volume(0);
+    if (initial_def.valid())
+    {
+        Dims def_dims = initial_def.size();
+        float3 def_origin = initial_def.origin();
+        float3 def_spacing = initial_def.spacing();
+     
+        if (def_dims != fixed_dims)
+        {
+            LOG(Error, "Dimension mismatch for initial deformation field (size: %d %d %d, expected: %d %d %d)\n", 
+                def_dims.width, def_dims.height, def_dims.depth,
+                fixed_dims.width, fixed_dims.height, fixed_dims.depth);
+            return false;
+        }
+
+        if (fabs(def_origin.x - fixed_origin.x) > 0.0001f || 
+            fabs(def_origin.y - fixed_origin.y) > 0.0001f ||
+            fabs(def_origin.z - fixed_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Origin mismatch for initial deformation field (origin: %f %f %f, expected: %f %f %f)\n",
+                        def_origin.x, def_origin.y, def_origin.z,
+                        fixed_origin.x, fixed_origin.y, fixed_origin.z);
+            return false;
+        }
+
+        if (fabs(def_spacing.x - fixed_spacing.x) > 0.0001f || 
+            fabs(def_spacing.y - fixed_spacing.y) > 0.0001f ||
+            fabs(def_spacing.z - fixed_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Spacing mismatch for initial deformation field (spacing: %f %f %f, expected: %f %f %f)\n",
+                        def_spacing.x, def_spacing.y, def_spacing.z,
+                        fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
             return false;
         }
     }
@@ -214,8 +251,11 @@ Volume execute_registration(RegistrationContext& ctx)
         if (l != 0)
         {
             Dims upsampled_dims = ctx._deformation_pyramid.volume(l - 1).size();
+            LOG(Info, "Spacing before %f %f %f\n", ctx._deformation_pyramid.volume(l-1).spacing().x, ctx._deformation_pyramid.volume(l-1).spacing().y, ctx._deformation_pyramid.volume(l-1).spacing().z);
             ctx._deformation_pyramid.set_volume(l - 1,
                 filters::upsample_vectorfield(def, upsampled_dims, ctx._deformation_pyramid.residual(l - 1)));
+            LOG(Info, "Spacing after %f %f %f\n", ctx._deformation_pyramid.volume(l-1).spacing().x, ctx._deformation_pyramid.volume(l-1).spacing().y, ctx._deformation_pyramid.volume(l-1).spacing().z);
+            
         }
         else
         {
@@ -284,14 +324,18 @@ int main(int argc, char* argv[])
     
     set_image_pair(ctx, 0, fixed_fat, moving_fat, filters::downsample_volume_gaussian);
     
-    VolumeFloat3 starting_guess(fixed_fat.size(), float3{0, 0, 0}); 
+    VolumeFloat3 starting_guess(fixed_fat.size(), float3{0, 0, 0});
+    starting_guess.set_origin(fixed_fat.origin());
+    starting_guess.set_spacing(fixed_fat.spacing());
     set_initial_deformation(ctx, starting_guess);
 
     validate_input(ctx);
 
     Volume def = execute_registration(ctx);
+    vtk::write_volume("C:\\projects\\deform-sandbox\\result_def.vtk", def);
+
     Volume result = transform_volume(moving_fat, def);
-    vtk::write_volume("result.vtk", result);
+    vtk::write_volume("C:\\projects\\deform-sandbox\\result.vtk", result);
 
     // vtk::Reader reader;
     // Volume vol = reader.execute("C:\\data\\test.vtk");//args.token(0).c_str());
