@@ -26,6 +26,11 @@ inline float3 operator*(const float3& l, const float3& r)
 {
     return { l.x * r.x, l.y * r.y, l.z * r.z };
 }
+// element-wise division
+inline float3 operator/(const float3& l, const float3& r)
+{
+    return { l.x / r.x, l.y / r.y, l.z / r.z };
+}
 
 inline float3 operator*(float l, const float3& r)
 {

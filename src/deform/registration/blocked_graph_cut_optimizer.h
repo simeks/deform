@@ -30,15 +30,36 @@ struct Regularizer
     float3 _spacing;
 };
 
+template<typename T>
 struct EnergyFunction
 {
+    EnergyFunction(const VolumeHelper<T>& fixed, const VolumeHelper<T>& moving) : _fixed(fixed), _moving(moving) {} 
+
     /// p   : Position in fixed image
-    /// def : Deformation to apply
+    /// def : Deformation to apply [voxels in fixed image]
     inline float operator()(const int3& p, const float3& def)
     {
-        p; def;
-        return 0.0f;
+        float3 fixed_p{
+            float(p.x) + def.x,
+            float(p.y) + def.y,
+            float(p.z) + def.z
+        }; 
+        
+        // TODO: Cleanup
+
+        // [fixed] -> [world] -> [moving]
+        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
+        float3 moving_p = (world_p / _moving.spacing()) - _moving.origin();
+
+        T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
+
+        // TODO: Float cast
+        //printf("(%d, %d, %d) : (%f %f %f)\n", p.x, p.y, p.z, moving_p.x, moving_p.y, moving_p.z);
+        return (1 - default_regularization_weight)*powf(fabs(float(_fixed(p) - moving_v)), 2);
     }
+
+    VolumeHelper<T> _fixed;
+    VolumeHelper<T> _moving;
 };
 
 template<
@@ -65,7 +86,7 @@ private:
         const int3& block_p, 
         const int3& block_dims, 
         const int3& block_offset, 
-        const float3& delta, // delta in mm
+        const float3& delta, // delta in [voxels]
         VolumeFloat3& def);
 
     int3 _neighbors[6];

@@ -20,9 +20,10 @@
 #include <string>
 #include <vector>
 
-namespace defaults
+namespace settings
 {
-    const float step_size = 0.5f; // [mm]
+    float step_size = 0.5f; // [mm]
+    bool output_all_levels = true; // Outputs deformation fields and deformed volumes for all levels in pyramid
 }
 
 struct RegistrationContext
@@ -230,32 +231,34 @@ Volume execute_registration(RegistrationContext& ctx)
         for (int i = 0; i < ctx._image_pair_count; ++i)
         {
             fixed_volumes[i] = ctx._fixed_pyramids[i].volume(l);
-            moving_volumes[i] = ctx._fixed_pyramids[i].volume(l);
+            moving_volumes[i] = ctx._moving_pyramids[i].volume(l);
         }
 
         VolumeFloat3 def = ctx._deformation_pyramid.volume(l);
 
-        BlockedGraphCutOptimizer<EnergyFunction, Regularizer> optimizer;
-        EnergyFunction unary_fn;
+        BlockedGraphCutOptimizer<EnergyFunction<double>, Regularizer> optimizer;
+        EnergyFunction<double> unary_fn(fixed_volumes[0], moving_volumes[0]);
         Regularizer binary_fn(fixed_volumes[0].spacing());
 
         // Calculate step size in voxels
         float3 fixed_spacing = fixed_volumes[0].spacing();
         float3 step_size_voxels{
-            defaults::step_size / fixed_spacing.x,
-            defaults::step_size / fixed_spacing.y,
-            defaults::step_size / fixed_spacing.z
+            settings::step_size / fixed_spacing.x,
+            settings::step_size / fixed_spacing.y,
+            settings::step_size / fixed_spacing.z
         };
         optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
 
         if (l != 0)
         {
             Dims upsampled_dims = ctx._deformation_pyramid.volume(l - 1).size();
-            LOG(Info, "Spacing before %f %f %f\n", ctx._deformation_pyramid.volume(l-1).spacing().x, ctx._deformation_pyramid.volume(l-1).spacing().y, ctx._deformation_pyramid.volume(l-1).spacing().z);
             ctx._deformation_pyramid.set_volume(l - 1,
                 filters::upsample_vectorfield(def, upsampled_dims, ctx._deformation_pyramid.residual(l - 1)));
-            LOG(Info, "Spacing after %f %f %f\n", ctx._deformation_pyramid.volume(l-1).spacing().x, ctx._deformation_pyramid.volume(l-1).spacing().y, ctx._deformation_pyramid.volume(l-1).spacing().z);
             
+            if (settings::output_all_levels)
+            {
+                
+            }
         }
         else
         {
@@ -317,9 +320,9 @@ int main(int argc, char* argv[])
     RegistrationContext ctx;
     initialize(ctx, 6, 1);
 
-    auto fixed_fat = load_volume("C:\\projects\\deform-sandbox\\fixed_fat.vtk");
+    auto fixed_fat = load_volume("sandbox\\fixed_fat.vtk");
     if (!fixed_fat.valid()) return 1;
-    auto moving_fat = load_volume("C:\\projects\\deform-sandbox\\moving_fat.vtk");
+    auto moving_fat = load_volume("sandbox\\moving_fat.vtk");
     if (!moving_fat.valid()) return 1;
     
     set_image_pair(ctx, 0, fixed_fat, moving_fat, filters::downsample_volume_gaussian);
@@ -332,10 +335,10 @@ int main(int argc, char* argv[])
     validate_input(ctx);
 
     Volume def = execute_registration(ctx);
-    vtk::write_volume("C:\\projects\\deform-sandbox\\result_def.vtk", def);
+    vtk::write_volume("sandbox\\result_def.vtk", def);
 
     Volume result = transform_volume(moving_fat, def);
-    vtk::write_volume("C:\\projects\\deform-sandbox\\result.vtk", result);
+    vtk::write_volume("sandbox\\result.vtk", result);
 
     // vtk::Reader reader;
     // Volume vol = reader.execute("C:\\data\\test.vtk");//args.token(0).c_str());

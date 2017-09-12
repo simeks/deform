@@ -28,9 +28,9 @@ namespace
         
         float3 old_spacing = src.spacing();
         float3 new_spacing{
-            old_spacing.x * inv_scale,
-            old_spacing.y * inv_scale,
-            old_spacing.z * inv_scale
+            old_spacing.x * (old_dims.width / float(new_dims.width)),
+            old_spacing.y * (old_dims.height / float(new_dims.height)),
+            old_spacing.z * (old_dims.depth / float(new_dims.depth))
         };
         dest.set_spacing(new_spacing);
 
@@ -95,9 +95,9 @@ Volume filters::downsample_vectorfield(const Volume& vol, float scale, Volume& r
 
         float3 old_spacing = field.spacing();
         float3 new_spacing{
-            old_spacing.x * inv_scale,
-            old_spacing.y * inv_scale,
-            old_spacing.z * inv_scale
+            old_spacing.x * (old_dims.width / float(new_dims.width)),
+            old_spacing.y * (old_dims.height / float(new_dims.height)),
+            old_spacing.z * (old_dims.depth / float(new_dims.depth))
         };
         result.set_spacing(new_spacing);
 
@@ -193,7 +193,7 @@ Volume filters::upsample_vectorfield(const Volume& vol, const Dims& new_dims, co
                     {
                         float3 d = field.linear_at(inv_scale.x*x, inv_scale.y*y, inv_scale.z*z, volume::Border_Replicate) 
                             + residual_float3(x, y, z);
-                        out(x, y, z) = {scale.x * d.x, scale.y * d.y, scale.z * d.z}; 
+                        out(x, y, z) = scale * d; 
                     }
                 }
             }
@@ -209,7 +209,7 @@ Volume filters::upsample_vectorfield(const Volume& vol, const Dims& new_dims, co
                     for (int x = 0; x < int(new_dims.width); ++x)
                     {
                         float3 d = field.linear_at(inv_scale.x*x, inv_scale.y*y, inv_scale.z*z, volume::Border_Replicate);
-                        out(x, y, z) = {scale.x * d.x, scale.y * d.y, scale.z * d.z};
+                        out(x, y, z) = scale * d; 
                     }
                 }
             }

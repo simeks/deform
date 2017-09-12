@@ -54,6 +54,11 @@ T VolumeHelper<T>::at(int x, int y, int z, volume::BorderMode border_mode) const
     return *((T const*)(((uint8_t*)_ptr) + offset(x, y, z)));
 }
 template<typename T>
+T VolumeHelper<T>::at(int3 p, volume::BorderMode border_mode) const
+{
+    return at(p.x, p.y, p.z, border_mode);
+}
+template<typename T>
 T VolumeHelper<T>::linear_at(float x, float y, float z, volume::BorderMode border_mode) const
 {
     if (border_mode == volume::Border_Constant) 
@@ -94,6 +99,11 @@ T VolumeHelper<T>::linear_at(float x, float y, float z, volume::BorderMode borde
         (xt)*operator()(x2, y1, z2)) +
         (yt)*((1 - xt)*operator()(x1, y2, z2) +
         (xt)*operator()(x2, y2, z2))));
+}
+template<typename T>
+T VolumeHelper<T>::linear_at(float3 p, volume::BorderMode border_mode) const
+{
+    return linear_at(p.x, p.y, p.z, border_mode);
 }
 template<typename T>
 VolumeHelper<T>& VolumeHelper<T>::operator=(VolumeHelper& other)

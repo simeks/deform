@@ -168,7 +168,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     const int3& block_p,
     const int3& block_dims,
     const int3& block_offset,
-    const float3& delta, // delta in mm
+    const float3& delta, // delta in voxels
     VolumeFloat3& def)
 {
     Dims dims = def.size();

@@ -30,7 +30,10 @@ public:
     void fill(const T& value);
 
     T at(int x, int y, int z, volume::BorderMode border_mode) const;
+    T at(int3 p, volume::BorderMode border_mode) const;
+
     T linear_at(float x, float y, float z, volume::BorderMode border_mode) const;
+    T linear_at(float3 p, volume::BorderMode border_mode) const;
 
     VolumeHelper& operator=(VolumeHelper& other);
     VolumeHelper& operator=(Volume& other);

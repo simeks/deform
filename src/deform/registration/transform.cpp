@@ -34,12 +34,6 @@ namespace
             1.0f / src.spacing().z
         };
 
-        LOG(Info, "fixed_spacing: %f %f %f\n", fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
-        LOG(Info, "moving_spacing: %f %f %f\n", src.spacing().x, src.spacing().y, src.spacing().z);
-
-        LOG(Info, "fixed_origin: %f %f %f\n", fixed_origin.x, fixed_origin.y, fixed_origin.z);
-        LOG(Info, "moving_origin: %f %f %f\n", moving_origin.x, moving_origin.y, moving_origin.z);
-
         #pragma omp parallel for
         for (int z = 0; z < int(dims.depth); ++z)
         {
