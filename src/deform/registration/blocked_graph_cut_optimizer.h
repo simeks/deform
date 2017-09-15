@@ -5,11 +5,10 @@
 #include <framework/math/types.h>
 #include <framework/volume/volume_helper.h>
 
-const float default_regularization_weight = 0.1f;
 
 struct Regularizer
 {
-    Regularizer(const float3& fixed_spacing) : _spacing(fixed_spacing) {}
+    Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixed_spacing) {}
 
     /// p   : Position in fixed image
     /// def0 : Deformation in active voxel [voxels] (in fixed image space)
@@ -24,16 +23,17 @@ struct Regularizer
         
         float dist_squared = math::length_squared(diff_in_mm);
         float step_squared = math::length_squared(step_in_mm);
-        return default_regularization_weight * dist_squared / step_squared;
+        return _weight * dist_squared / step_squared;
     }
 
+    float _weight;
     float3 _spacing;
 };
 
 template<typename T>
 struct EnergyFunction
 {
-    EnergyFunction(const VolumeHelper<T>& fixed, const VolumeHelper<T>& moving) : _fixed(fixed), _moving(moving) {} 
+    EnergyFunction(float weight, const VolumeHelper<T>& fixed, const VolumeHelper<T>& moving) : _weight(weight), _fixed(fixed), _moving(moving) {} 
 
     /// p   : Position in fixed image
     /// def : Deformation to apply [voxels in fixed image]
@@ -55,9 +55,10 @@ struct EnergyFunction
 
         // TODO: Float cast
         //printf("(%d, %d, %d) : (%f %f %f)\n", p.x, p.y, p.z, moving_p.x, moving_p.y, moving_p.z);
-        return (1 - default_regularization_weight)*powf(fabs(float(_fixed(p) - moving_v)), 2);
+        return _weight*powf(fabs(float(_fixed(p) - moving_v)), 2);
     }
 
+    float _weight;
     VolumeHelper<T> _fixed;
     VolumeHelper<T> _moving;
 };

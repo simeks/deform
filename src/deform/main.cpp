@@ -20,14 +20,20 @@
 #include <string>
 #include <vector>
 
+#define DF_OUTPUT_DEBUG_VOLUMES
+
 namespace settings
 {
     float step_size = 0.5f; // [mm]
+    float regularization_weight = 0.1f;
+
     bool output_all_levels = true; // Outputs deformation fields and deformed volumes for all levels in pyramid
 }
 
 struct RegistrationContext
 {
+    std::string working_dir;
+
     int _pyramid_levels; // Size of the multi-res pyramids
     int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
 
@@ -35,7 +41,7 @@ struct RegistrationContext
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
 
-    RegistrationContext() : _pyramid_levels(-1), _image_pair_count(-1) {}
+    RegistrationContext() : working_dir(""), _pyramid_levels(-1), _image_pair_count(-1) {}
     ~RegistrationContext() {}
 };
 
@@ -218,10 +224,83 @@ bool validate_input(RegistrationContext& ctx)
     return true;
 }
 
+void upsample_and_save(RegistrationContext& ctx, int level)
+{
+    if (level == 0) return;
+
+    int target_level = 0;
+    int diff = level - target_level;
+    assert(diff > 0);
+
+    VolumeHelper<float3> def = ctx._deformation_pyramid.volume(target_level);
+    VolumeHelper<float3> def_low = ctx._deformation_pyramid.volume(level);
+
+    Dims dims = def.size();
+
+    float factor = powf(0.5f, float(diff));
+    
+    #pragma omp parallel for
+    for (int z = 0; z < int(dims.depth); ++z)
+    {
+        for (int y = 0; y < int(dims.height); ++y)
+        {
+            for (int x = 0; x < int(dims.width); ++x)
+            {
+                def(x, y, z) = (1.0f/factor) * def_low.linear_at(factor*x, factor*y, factor*z, volume::Border_Replicate);
+            }
+        }
+    }
+
+    std::stringstream ss;
+    ss << ctx.working_dir << "/deformation_l" << level << ".vtk";
+    vtk::write_volume(ss.str().c_str(), def);
+    
+    ss.str("");
+    ss << ctx.working_dir << "/deformation_low_l" << level << ".vtk";
+    vtk::write_volume(ss.str().c_str(), def_low);
+
+#ifdef DF_OUTPUT_DEBUG_VOLUMES
+    Volume moving = ctx._moving_pyramids[0].volume(0);
+
+    ss.str("");
+    ss << ctx.working_dir << "/transformed_l" << level << ".vtk";
+    vtk::write_volume(ss.str().c_str(), transform_volume(moving, def));
+
+    ss.str("");
+    ss << ctx.working_dir << "/transformed_low_l" << level << ".vtk";
+    vtk::write_volume(ss.str().c_str(), transform_volume(moving, def_low));
+#endif
+}
+
+
+#ifdef DF_OUTPUT_DEBUG_VOLUMES
+void save_volume_pyramid(RegistrationContext& ctx)
+{
+    for (int l = 0; l < ctx._pyramid_levels; ++l)
+    {
+        for (int i = 0; i < ctx._image_pair_count; ++i)
+        {
+            std::stringstream file;
+            file << ctx.working_dir << "/" << "fixed_pyramid_" << i << "_level_" << l << ".vtk";
+            vtk::write_volume(file.str().c_str(), ctx._fixed_pyramids[i].volume(l));
+
+            file.str("");
+            file << ctx.working_dir << "/" << "moving_pyramid_" << i << "_level_" << l << ".vtk";            
+            vtk::write_volume(file.str().c_str(), ctx._moving_pyramids[i].volume(l));
+        }
+    }
+}
+#endif // DF_OUTPUT_DEBUG_VOLUMES
+
+
 /// Runs the registration. 
 /// Returns the resulting deformation field or an invalid volume if registration failed.
 Volume execute_registration(RegistrationContext& ctx)
 {
+#ifdef DF_OUTPUT_DEBUG_VOLUMES
+    save_volume_pyramid(ctx);
+#endif
+    
     // No copying of image data is performed here as Volume is simply a wrapper 
     std::vector<Volume> fixed_volumes(ctx._image_pair_count);
     std::vector<Volume> moving_volumes(ctx._image_pair_count);
@@ -237,8 +316,8 @@ Volume execute_registration(RegistrationContext& ctx)
         VolumeFloat3 def = ctx._deformation_pyramid.volume(l);
 
         BlockedGraphCutOptimizer<EnergyFunction<double>, Regularizer> optimizer;
-        EnergyFunction<double> unary_fn(fixed_volumes[0], moving_volumes[0]);
-        Regularizer binary_fn(fixed_volumes[0].spacing());
+        EnergyFunction<double> unary_fn(1.0f - settings::regularization_weight, fixed_volumes[0], moving_volumes[0]);
+        Regularizer binary_fn(settings::regularization_weight, fixed_volumes[0].spacing());
 
         // Calculate step size in voxels
         float3 fixed_spacing = fixed_volumes[0].spacing();
@@ -257,7 +336,7 @@ Volume execute_registration(RegistrationContext& ctx)
             
             if (settings::output_all_levels)
             {
-                
+                upsample_and_save(ctx, l);
             }
         }
         else
@@ -318,6 +397,7 @@ int main(int argc, char* argv[])
     // }
 
     RegistrationContext ctx;
+    ctx.working_dir = "sandbox";
     initialize(ctx, 6, 1);
 
     auto fixed_fat = load_volume("sandbox\\fixed_fat.vtk");
