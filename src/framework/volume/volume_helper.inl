@@ -145,3 +145,22 @@ inline size_t VolumeHelper<T>::offset(int x, int y, int z) const
 {
     return z * _stride * _size.height + y * _stride + x * sizeof(T);
 }
+template<typename T>
+void VolumeHelper<T>::min_max(T& min, T& max) const
+{
+    min = FLT_MAX;
+    max = -FLT_MAX;
+
+    for (uint32_t z = 0; z < _size.depth; ++z)
+    {
+        for (uint32_t y = 0; y < _size.height; ++y)
+        {
+            for (uint32_t x = 0; x < _size.width; ++x)
+            {
+                min = std::min<T>(min, (*this)(x, y, z));
+                max = std::max<T>(max, (*this)(x, y, z));
+            }
+        }
+    }
+}
+

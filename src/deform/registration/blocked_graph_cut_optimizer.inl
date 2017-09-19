@@ -1,4 +1,5 @@
 #include "block_change_flags.h"
+#include "config.h"
 
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
@@ -156,6 +157,11 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                 }
             }
         }
+
+#if DF_DEBUG_LEVEL >= 3
+        LOG(Debug, "Energy: %f\n", calculate_energy(unary_fn, binary_fn, def));
+#endif
+
     }
 }
 template<
@@ -341,3 +347,53 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     return changed_flag;
 }
+
+
+template<
+    typename TUnaryTerm,
+    typename TBinaryTerm
+>
+float BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
+    TUnaryTerm& unary_fn,
+    TBinaryTerm& binary_fn,
+    VolumeFloat3& def
+)
+{
+    Dims dims = def.size();
+
+    float total_energy = 0;
+    for (int gz = 0; gz < int(dims.depth); ++gz)
+    {
+        for (int gy = 0; gy < int(dims.height); ++gy)
+        {
+            for (int gx = 0; gx < int(dims.width); ++gx)
+            {
+                int3 p{gx, gy, gz};
+                float3 def1 = def(p);
+
+                total_energy += unary_fn(p, def1);
+
+                if (gx + 1 < int(dims.width))
+                {
+                    int3 step{1, 0, 0};
+                    float3 def2 = def(p + step);
+                    total_energy += binary_fn(p, def1, def2, step);
+                }
+                if (gy + 1 < int(dims.height))
+                {
+                    int3 step{0, 1, 0};
+                    float3 def2 = def(p + step);
+                    total_energy += binary_fn(p, def1, def2, step);
+                }
+                if (gz + 1 < int(dims.depth))
+                {
+                    int3 step{0, 0, 1};
+                    float3 def2 = def(p + step);
+                    total_energy += binary_fn(p, def1, def2, step);
+                }
+            }
+        }
+    }
+    return total_energy;
+}
+

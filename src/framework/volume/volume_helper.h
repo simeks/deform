@@ -47,8 +47,15 @@ public:
     /// Offset in bytes to the specified element
     size_t offset(int x, int y, int z) const;
 
+    /// Finds min and max in volume
+    /// min [out]
+    /// max [out]
+    void min_max(T& min, T& max) const;
+
 };
 
+typedef VolumeHelper<float> VolumeFloat;
+typedef VolumeHelper<double> VolumeDouble;
 typedef VolumeHelper<float3> VolumeFloat3;
 
 #include "volume_helper.inl"

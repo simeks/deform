@@ -1,4 +1,6 @@
+#include "config.h"
 #include "config_file.h"
+#include "cost_function.h"
 #include "registration/blocked_graph_cut_optimizer.h"
 #include "registration/transform.h"
 #include "registration/volume_pyramid.h"
@@ -20,12 +22,11 @@
 #include <string>
 #include <vector>
 
-#define DF_OUTPUT_DEBUG_VOLUMES
 
 namespace settings
 {
     float step_size = 0.5f; // [mm]
-    float regularization_weight = 0.1f;
+    float regularization_weight = 0.05f;
 
     bool output_all_levels = true; // Outputs deformation fields and deformed volumes for all levels in pyramid
 }
@@ -398,13 +399,23 @@ int main(int argc, char* argv[])
 
     RegistrationContext ctx;
     ctx.working_dir = "sandbox";
-    initialize(ctx, 6, 1);
+    initialize(ctx, 3, 1);
 
-    auto fixed_fat = load_volume("sandbox\\fixed_fat.vtk");
+    VolumeDouble fixed_fat = load_volume("sandbox\\fixed_fat.vtk");
     if (!fixed_fat.valid()) return 1;
-    auto moving_fat = load_volume("sandbox\\moving_fat.vtk");
+    VolumeDouble moving_fat = load_volume("sandbox\\moving_fat.vtk");
     if (!moving_fat.valid()) return 1;
-    
+
+#if DF_DEBUG_LEVEL >= 1
+    {
+        double min, max;
+        fixed_fat.min_max(min, max);
+        LOG(Info, "fixed_fat: min: %f, max: %f\n", min, max);
+        moving_fat.min_max(min, max);
+        LOG(Info, "moving_fat: min: %f, max: %f\n", min, max);
+    }
+#endif // DF_DEBUG_LEVEL >= 1
+
     set_image_pair(ctx, 0, fixed_fat, moving_fat, filters::downsample_volume_gaussian);
     
     VolumeFloat3 starting_guess(fixed_fat.size(), float3{0, 0, 0});
