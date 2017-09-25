@@ -2,6 +2,8 @@
 
 
 // 0 : No debug
+// 3 : 
+// 4 : Spam
 #define DF_DEBUG_LEVEL 3
 
 

@@ -115,6 +115,14 @@ project "framework"
     src_dir .. "**.cpp",
   }
 
+  filter {"system:windows"}
+    removefiles { src_dir .. "**_posix.*" }
+  filter {}
+
+  filter {"system:linux"}
+    removefiles { src_dir .. "**_win.*" }
+  filter {}
+
   vpaths 
   {
     ["Header Files/*"] = { src_dir .. "**.h", src_dir .. "**.hxx", src_dir .. "**.hpp" },

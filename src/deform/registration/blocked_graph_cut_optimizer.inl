@@ -3,6 +3,7 @@
 
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
+#include <framework/thread/thread.h>
 
 
 template<
@@ -37,9 +38,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
     float3 step_size, 
     VolumeFloat3& def)
 {
-    LOG(Info, "Performing registration.\n");
-
-    Dims dims = def.size();    
+    Dims dims = def.size();
 
     // Setting the block size to (0, 0, 0) will disable blocking and run the whole volume
     int3 block_dims = _block_size;
@@ -102,6 +101,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
 
+#if DF_DEBUG_LEVEL >= 4
+                volatile long num_blocks_changed = 0;
+#endif
                 #pragma omp parallel for
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
                 {
@@ -152,9 +154,17 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                             def);
 
                     }
+
+#if DF_DEBUG_LEVEL >= 4
+                    if (block_changed)
+                        thread::interlocked_increment(&num_blocks_changed);
+#endif
                     change_flags.set_block(block_p, block_changed, use_shift == 1);
                     done = done && !block_changed;
                 }
+#if DF_DEBUG_LEVEL >= 4
+                LOG(Debug, "[num_blocks: %d, use_shift: %d, black_or_red: %d] blocks_changed: %d\n", num_blocks, use_shift, black_or_red, num_blocks_changed);
+#endif
             }
         }
 
@@ -311,9 +321,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     }
 
     float current_emin = graph.minimize();
-
     bool changed_flag = false;
-
     if (current_emin + 0.00001f < cost) //Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++)

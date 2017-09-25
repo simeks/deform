@@ -51,11 +51,6 @@ struct EnergyFunction
 
         T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
 
-        if (p.y > 6)
-        {
-            printf("%d : %f %f %f => %f\n", p.y, moving_p.x, moving_p.y, moving_p.z, moving_v);
-        }
-
         // TODO: Float cast
         //printf("(%d, %d, %d) : (%f %f %f)\n", p.x, p.y, p.z, moving_p.x, moving_p.y, moving_p.z);
         return _weight*powf(fabs(float(_fixed(p) - moving_v)), 2);

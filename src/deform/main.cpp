@@ -26,7 +26,7 @@
 namespace settings
 {
     float step_size = 0.5f; // [mm]
-    float regularization_weight = 0.05f;
+    float regularization_weight = 0.1f;
 
     bool output_all_levels = true; // Outputs deformation fields and deformed volumes for all levels in pyramid
 }
@@ -36,20 +36,24 @@ struct RegistrationContext
     std::string working_dir;
 
     int _pyramid_levels; // Size of the multi-res pyramids
+    int _pyramid_max_level; // Largest level to run (default: 0)
     int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
 
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
 
-    RegistrationContext() : working_dir(""), _pyramid_levels(-1), _image_pair_count(-1) {}
+    RegistrationContext() : 
+        working_dir(""), 
+        _pyramid_levels(-1),
+        _pyramid_max_level(0),
+        _image_pair_count(-1) {}
     ~RegistrationContext() {}
 };
 
 
 // Identifies and loads the given file
 // file : Filename
-// is_2d [out] : Indicates if the volume is a 2d volume
 // Returns the loaded volume, if load failed the returned volume will be flagged as invalid 
 Volume load_volume(const std::string& file)
 {
@@ -87,9 +91,10 @@ Volume load_volume(const std::string& file)
     return Volume();
 }
 
-void initialize(RegistrationContext& ctx, int pyramid_levels, int image_pair_count)
+void initialize(RegistrationContext& ctx, int pyramid_levels, int pyramid_max_level, int image_pair_count)
 {
     ctx._pyramid_levels = pyramid_levels;
+    ctx._pyramid_max_level = pyramid_max_level;
     ctx._image_pair_count = image_pair_count;
 
     ctx._fixed_pyramids.resize(ctx._image_pair_count);
@@ -252,6 +257,7 @@ void upsample_and_save(RegistrationContext& ctx, int level)
         }
     }
 
+#ifdef DF_OUTPUT_DEBUG_VOLUMES
     std::stringstream ss;
     ss << ctx.working_dir << "/deformation_l" << level << ".vtk";
     vtk::write_volume(ss.str().c_str(), def);
@@ -260,7 +266,6 @@ void upsample_and_save(RegistrationContext& ctx, int level)
     ss << ctx.working_dir << "/deformation_low_l" << level << ".vtk";
     vtk::write_volume(ss.str().c_str(), def_low);
 
-#ifdef DF_OUTPUT_DEBUG_VOLUMES
     Volume moving = ctx._moving_pyramids[0].volume(0);
 
     ss.str("");
@@ -308,27 +313,49 @@ Volume execute_registration(RegistrationContext& ctx)
 
     for (int l = ctx._pyramid_levels-1; l >= 0; --l)
     {
-        for (int i = 0; i < ctx._image_pair_count; ++i)
-        {
-            fixed_volumes[i] = ctx._fixed_pyramids[i].volume(l);
-            moving_volumes[i] = ctx._moving_pyramids[i].volume(l);
-        }
-
         VolumeFloat3 def = ctx._deformation_pyramid.volume(l);
 
-        BlockedGraphCutOptimizer<EnergyFunction<double>, Regularizer> optimizer;
-        EnergyFunction<double> unary_fn(1.0f - settings::regularization_weight, fixed_volumes[0], moving_volumes[0]);
-        Regularizer binary_fn(settings::regularization_weight, fixed_volumes[0].spacing());
+        if (l >= ctx._pyramid_max_level)
+        {
+            LOG(Info, "Performing registration level %d\n", l);
 
-        // Calculate step size in voxels
-        float3 fixed_spacing = fixed_volumes[0].spacing();
-        float3 step_size_voxels{
-            settings::step_size / fixed_spacing.x,
-            settings::step_size / fixed_spacing.y,
-            settings::step_size / fixed_spacing.z
-        };
-        optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
+            #if DF_DEBUG_LEVEL >= 1
+                LOG(Debug, "[df%d] size: %d %d %d\n", l, def.size().width, def.size().height, def.size().depth);
+                LOG(Debug, "[df%d] origin: %f %f %f\n", l, def.origin().x, def.origin().y, def.origin().z);
+                LOG(Debug, "[df%d] spacing: %f %f %f\n", l, def.spacing().x, def.spacing().y, def.spacing().z);
+            #endif
+        
+            for (int i = 0; i < ctx._image_pair_count; ++i)
+            {
+                fixed_volumes[i] = ctx._fixed_pyramids[i].volume(l);
+                moving_volumes[i] = ctx._moving_pyramids[i].volume(l);
+            }
 
+            BlockedGraphCutOptimizer<EnergyFunction<double>, Regularizer> optimizer;
+            EnergyFunction<double> unary_fn(1.0f - settings::regularization_weight, fixed_volumes[0], moving_volumes[0]);
+            Regularizer binary_fn(settings::regularization_weight, fixed_volumes[0].spacing());
+
+            // Calculate step size in voxels
+            float3 fixed_spacing = fixed_volumes[0].spacing();
+            float3 step_size_voxels{
+                settings::step_size / fixed_spacing.x,
+                settings::step_size / fixed_spacing.y,
+                settings::step_size / fixed_spacing.z
+            };
+
+
+#if DF_DEBUG_LEVEL >= 3
+            LOG(Debug, "[f%d] spacing: %f, %f, %f\n", l, fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
+            LOG(Debug, "step_size [voxels]: %f, %f, %f\n", step_size_voxels.x, step_size_voxels.y, step_size_voxels.z);
+#endif
+        
+            optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
+        }
+        else
+        {
+            LOG(Info, "Skipping level %d\n", l);
+        }
+        
         if (l != 0)
         {
             Dims upsampled_dims = ctx._deformation_pyramid.volume(l - 1).size();
@@ -399,7 +426,7 @@ int main(int argc, char* argv[])
 
     RegistrationContext ctx;
     ctx.working_dir = "sandbox";
-    initialize(ctx, 3, 1);
+    initialize(ctx, 6, 0, 1);
 
     VolumeDouble fixed_fat = load_volume("sandbox\\fixed_fat.vtk");
     if (!fixed_fat.valid()) return 1;

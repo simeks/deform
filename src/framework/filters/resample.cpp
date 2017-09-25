@@ -191,9 +191,9 @@ Volume filters::upsample_vectorfield(const Volume& vol, const Dims& new_dims, co
                 {
                     for (int x = 0; x < int(new_dims.width); ++x)
                     {
-                        float3 d = field.linear_at(inv_scale.x*x, inv_scale.y*y, inv_scale.z*z, volume::Border_Replicate) 
+                        float3 d = scale * field.linear_at(inv_scale.x*x, inv_scale.y*y, inv_scale.z*z, volume::Border_Replicate) 
                             + residual_float3(x, y, z);
-                        out(x, y, z) = scale * d; 
+                        out(x, y, z) = d; 
                     }
                 }
             }
