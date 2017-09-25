@@ -2,7 +2,7 @@
 
 #include <framework/math/int3.h>
 
-BlockChangeFlags::BlockChangeFlags(const int3& block_count)
+BlockChangeFlags::BlockChangeFlags(const int3& block_count) : _block_count(block_count)
 {
     _flags.resize(2 * (block_count.x + 1) * 2 * (block_count.y + 1) * 2 * (block_count.z + 1));
     std::fill(_flags.begin(), _flags.end(), uint8_t(1));
@@ -42,7 +42,7 @@ void BlockChangeFlags::set_block(const int3& block_p, bool changed, bool shift)
         int z = i / 4;
 
         int3 sb = 2 * block_p + sub_block_offset + int3{x, y, z};
-        set(sb, (flag(sb)  & opposite_mask) | ((changed ? this_mask : 0) & this_mask));
+        set(sb, (flag(sb) & opposite_mask) | ((changed ? this_mask : 0) & this_mask));
     }
 }
 uint8_t BlockChangeFlags::flag(const int3& subblock_p) const
