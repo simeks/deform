@@ -101,9 +101,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
 
-#if DF_DEBUG_LEVEL >= 4
+#ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
                 volatile long num_blocks_changed = 0;
-#endif
+#endif // DF_DEBUG_BLOCK_CHANGE_COUNT
                 #pragma omp parallel for
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
                 {
@@ -134,6 +134,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                         continue;
                     }
 
+
                     bool block_changed = false;
                     for (int n = 0; n < n_count; ++n)
                     {
@@ -151,25 +152,31 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                             block_dims,
                             block_offset,
                             delta,
-                            def);
-
+                            def
+#ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
+                            , block_idx
+#endif // DF_DEBUG_VOXEL_CHANGE_COUNT
+                        );
                     }
 
-#if DF_DEBUG_LEVEL >= 4
+#ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
                     if (block_changed)
+                    {
                         thread::interlocked_increment(&num_blocks_changed);
-#endif
+                    }
+#endif // DF_DEBUG_BLOCK_CHANGE_COUNT
                     change_flags.set_block(block_p, block_changed, use_shift == 1);
                     done = done && !block_changed;
                 }
-#if DF_DEBUG_LEVEL >= 4
-                LOG(Debug, "[num_blocks: %d, use_shift: %d, black_or_red: %d] blocks_changed: %d\n", num_blocks, use_shift, black_or_red, num_blocks_changed);
-#endif
+#ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
+                LOG(Debug, "[num_blocks: %d, use_shift: %d, black_or_red: %d] blocks_changed: %d\n", 
+                    num_blocks, use_shift, black_or_red, num_blocks_changed);
+#endif // DF_DEBUG_BLOCK_CHANGE_COUNT
             }
         }
 
 #if DF_DEBUG_LEVEL >= 3
-        LOG(Debug, "Energy: %f\n", calculate_energy(unary_fn, binary_fn, def));
+        LOG(Debug, "Energy: %.10f\n", calculate_energy(unary_fn, binary_fn, def));
 #endif
 
     }
@@ -185,13 +192,14 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     const int3& block_dims,
     const int3& block_offset,
     const float3& delta, // delta in voxels
-    VolumeFloat3& def)
+    VolumeFloat3& def
+)
 {
     Dims dims = def.size();
 
     GraphCut<float> graph(block_dims);
 
-    float cost = 0;
+    float current_energy = 0;
     {
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z)
         {
@@ -268,7 +276,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
                     graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
 
-                    cost += f0;
+                    current_energy += f0;
 
                     if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.width))
                     {
@@ -283,7 +291,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                             sub_x + 1, sub_y, sub_z, 
                             f_same, f01, f10, f_same);
 
-                        cost += f_same;
+                        current_energy += f_same;
                     }
                     if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.height))
                     {
@@ -298,7 +306,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                             sub_x, sub_y + 1, sub_z,
                             f_same, f01, f10, f_same);
 
-                        cost += f_same;
+                        current_energy += f_same;
                     }
                     if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.depth))
                     {
@@ -313,7 +321,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                             sub_x, sub_y, sub_z + 1,
                             f_same, f01, f10, f_same);
 
-                        cost += f_same;
+                        current_energy += f_same;
                     }
                 }
             }
@@ -322,7 +330,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     float current_emin = graph.minimize();
     bool changed_flag = false;
-    if (current_emin + 0.00001f < cost) //Accept solution
+
+#ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
+    int voxels_changed_ = 0;
+#endif // DF_DEBUG_VOXEL_CHANGE_COUNT
+
+    if (current_emin /*+ 0.00001f*/ < current_energy) //Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++)
         {
@@ -347,11 +360,20 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     {
                         def(gx, gy, gz) = def(gx, gy, gz) + delta;
                         changed_flag = true;
+#ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
+                        ++voxels_changed_;
+#endif // DF_DEBUG_VOXEL_CHANGE_COUNT
                     }
                 }
             }
         }
     }
+
+#ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
+    if (voxels_changed_)
+        LOG(Debug, "[voxels changed] delta: %f %f %f, block_p: %d %d %d, n: %d (emin: %f, current_energy: %f)\n", 
+            delta.x, delta.y, delta.z, block_p.x, block_p.y, block_p.z, voxels_changed_, current_emin, current_energy);
+#endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
     return changed_flag;
 }

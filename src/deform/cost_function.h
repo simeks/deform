@@ -17,7 +17,7 @@ struct Regularizer
         float3 step_in_mm {step.x*_spacing.x, step.y*_spacing.y, step.z*_spacing.z};
         
         float3 diff = def0 - def1;
-        float3 diff_in_mm {diff.x*_spacing.x, step.y*_spacing.y, step.z*_spacing.z};
+        float3 diff_in_mm {diff.x*_spacing.x, diff.y*_spacing.y, diff.z*_spacing.z};
         
         float dist_squared = math::length_squared(diff_in_mm);
         float step_squared = math::length_squared(step_in_mm);
