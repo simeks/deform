@@ -8,7 +8,6 @@
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
 #include <framework/filters/resample.h>
-#include <framework/platform/arg_parser.h>
 #include <framework/platform/file_path.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
@@ -21,6 +20,90 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+struct Args
+{
+    const char* param_file;
+    
+    const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
+    const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
+};
+
+void print_help_and_exit()
+{
+    std::cout << "Arguments:" << std::endl
+              << "-f<i> <file> : Filename of the i:th fixed image (i < " 
+                << DF_MAX_IMAGE_PAIR_COUNT << ")." << std::endl
+              << "-m<i> <file> : Filename of the i:th moving image (i < " 
+                << DF_MAX_IMAGE_PAIR_COUNT << ")." << std::endl
+              << "-p <file> : Filename of the parameter file (required)." << std::endl
+              << "--help : Shows this help section." << std::endl;
+    exit(0);
+}
+void parse_command_line(Args& args, int argc, char** argv)
+{
+    args = {0};
+
+    /// Skip i=0 (name of executable)
+    int i = 1;
+    while (i < argc)
+    {
+        std::string token = argv[i];
+        if (token[0] == '-')
+        {
+            int b = token[1] == '-' ? 2 : 1;
+            std::string key = token.substr(b);
+
+            if (key == "help")
+            {
+                print_help_and_exit();
+            }
+            else if (key == "p")
+            {
+                if (++i >= argc) 
+                    print_help_and_exit();
+                args.param_file = argv[i];
+            }
+            else if (key[0] == 'f')
+            {
+                if (++i >= argc) 
+                    print_help_and_exit();
+                
+                int img_index = std::stoi(key.substr(1));
+                if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
+                    print_help_and_exit();
+
+                if (++i >= argc)
+                    print_help_and_exit();
+                
+                args.fixed_files[img_index] = argv[i];
+            }
+            else if (key[0] == 'm')
+            {
+                if (++i >= argc) 
+                    print_help_and_exit();
+                
+                int img_index = std::stoi(key.substr(1));
+                if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
+                    print_help_and_exit();
+
+                if (++i >= argc)
+                    print_help_and_exit();
+                
+                args.moving_files[img_index] = argv[i];
+            }
+            else
+            {
+                print_help_and_exit();
+            }
+        }
+        else
+        {
+            print_help_and_exit();
+        }
+        ++i;
+    }
+}
 
 
 namespace settings
@@ -397,32 +480,14 @@ void set_image_pair(
     ctx._moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
 
-void print_help()
-{
-    std::cout   << "Arguments:" << std::endl
-                << "-p=<filename> : parameter file (obligatory)" << std::endl
-                << "-f<i>=<filename> : Filename for the i:th fixed image" << std::endl
-                << "-m<i>=<filename> : Filename for the i:th moving image" << std::endl
-                << "-h, --help : Show this help section" << std::endl;
-
-}
-
 
 int main(int argc, char* argv[])
 {
-    ArgParser args(argc, argv);
+    Args args = {0};
+    parse_command_line(args, argc, argv);
 
-    // if (args.is_set("help") || args.is_set("h"))
-    // {
-    //     print_help();
-    //     return 1;
-    // }
-
-    // if (args.num_tokens() < 1)
-    // {
-    //     print_help();
-    //     return 1;
-    // }
+    if (args.param_file == 0)
+        print_help_and_exit();
 
     RegistrationContext ctx;
     ctx.working_dir = "sandbox";
