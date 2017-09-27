@@ -29,15 +29,63 @@ struct Args
     const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
 };
 
-void print_help_and_exit()
+struct Settings
 {
+    int pyramid_levels;
+    int max_pyramid_level;
+
+    float step_size;
+    float regularization_weight;
+   
+    bool normalize_images;
+
+    Settings() : 
+        pyramid_levels(6),
+        max_pyramid_level(0),
+        step_size(0.5f),
+        regularization_weight(0.05f),
+        normalize_images(true)
+    {
+    }
+};
+
+struct RegistrationContext
+{
+    int _pyramid_levels; // Size of the multi-res pyramids
+    int _pyramid_max_level; // Largest level to run (default: 0)
+    int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
+
+    float _step_size;
+    float _regularization_weight;
+
+    std::vector<VolumePyramid> _fixed_pyramids;
+    std::vector<VolumePyramid> _moving_pyramids;
+    VolumePyramid _deformation_pyramid;
+
+    RegistrationContext() : 
+        _pyramid_levels(-1),
+        _pyramid_max_level(0),
+        _image_pair_count(-1),
+        _step_size(0),
+        _regularization_weight(0) 
+        {}
+    ~RegistrationContext() {}
+};
+
+
+void print_help_and_exit(const char* err = 0)
+{
+    if (err)
+        std::cout << "Error: " << err << std::endl;
+
     std::cout << "Arguments:" << std::endl
               << "-f<i> <file> : Filename of the i:th fixed image (i < " 
-                << DF_MAX_IMAGE_PAIR_COUNT << ")." << std::endl
+                << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
               << "-m<i> <file> : Filename of the i:th moving image (i < " 
-                << DF_MAX_IMAGE_PAIR_COUNT << ")." << std::endl
+                << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
               << "-p <file> : Filename of the parameter file (required)." << std::endl
-              << "--help : Shows this help section." << std::endl;
+              << "--help : Shows this help section." << std::endl
+              << "*Requires a matching number of fixed and moving images";
     exit(0);
 }
 void parse_command_line(Args& args, int argc, char** argv)
@@ -61,79 +109,68 @@ void parse_command_line(Args& args, int argc, char** argv)
             else if (key == "p")
             {
                 if (++i >= argc) 
-                    print_help_and_exit();
+                    print_help_and_exit("Missing arguments");
                 args.param_file = argv[i];
             }
             else if (key[0] == 'f')
             {
-                if (++i >= argc) 
-                    print_help_and_exit();
-                
                 int img_index = std::stoi(key.substr(1));
                 if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
                     print_help_and_exit();
 
                 if (++i >= argc)
-                    print_help_and_exit();
+                    print_help_and_exit("Missing arguments");
                 
                 args.fixed_files[img_index] = argv[i];
             }
             else if (key[0] == 'm')
             {
-                if (++i >= argc) 
-                    print_help_and_exit();
-                
                 int img_index = std::stoi(key.substr(1));
                 if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
                     print_help_and_exit();
 
                 if (++i >= argc)
-                    print_help_and_exit();
+                    print_help_and_exit("Missing arguments");
                 
                 args.moving_files[img_index] = argv[i];
             }
             else
             {
-                print_help_and_exit();
+                print_help_and_exit("Unrecognized option");
             }
         }
         else
         {
-            print_help_and_exit();
+            print_help_and_exit("Unrecognized option");
         }
         ++i;
     }
 }
-
-
-namespace settings
+/// Returns true if parsing was successful, false if not
+void parse_parameter_file(Settings& settings, const char* file)
 {
-    float step_size = 0.5f; // [mm]
-    float regularization_weight = 0.1f;
+    // Assumes settings is filled with the default values beforehand
 
-    bool output_all_levels = true; // Outputs deformation fields and deformed volumes for all levels in pyramid
+    ConfigFile cfg(file);
+
+    if (cfg.keyExists("REGISTRATION_METHOD"))
+    {
+        LOG(Warning, "Parameter REGISTRATION_METHOD not applicable, ignoring.\n");
+    }
+
+    settings.pyramid_levels = cfg.getValueOfKey<int>("PYRAMID_LEVELS", settings.pyramid_levels);
+    settings.max_pyramid_level = cfg.getValueOfKey<int>("MAX_RESOLUTION", settings.max_pyramid_level);
+    settings.step_size = cfg.getValueOfKey<float>("STEPSIZE", settings.step_size);
+    settings.regularization_weight = cfg.getValueOfKey<float>("REGULARIZATION_WEIGHT", settings.regularization_weight);
+    settings.normalize_images = cfg.getValueOfKey<bool>("NORMALIZE_IMAGES", settings.normalize_images);
+    
+    LOG(Info, "Settings:\n");
+    LOG(Info, "pyramid_levels = %d\n", settings.pyramid_levels);
+    LOG(Info, "max_pyramid_level = %d\n", settings.max_pyramid_level);
+    LOG(Info, "step_size = %f\n", settings.step_size);
+    LOG(Info, "regularization_weight = %f\n", settings.regularization_weight);
+    LOG(Info, "normalize_images = %d\n", settings.normalize_images);
 }
-
-struct RegistrationContext
-{
-    std::string working_dir;
-
-    int _pyramid_levels; // Size of the multi-res pyramids
-    int _pyramid_max_level; // Largest level to run (default: 0)
-    int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
-
-    std::vector<VolumePyramid> _fixed_pyramids;
-    std::vector<VolumePyramid> _moving_pyramids;
-    VolumePyramid _deformation_pyramid;
-
-    RegistrationContext() : 
-        working_dir(""), 
-        _pyramid_levels(-1),
-        _pyramid_max_level(0),
-        _image_pair_count(-1) {}
-    ~RegistrationContext() {}
-};
-
 
 // Identifies and loads the given file
 // file : Filename
@@ -174,11 +211,14 @@ Volume load_volume(const std::string& file)
     return Volume();
 }
 
-void initialize(RegistrationContext& ctx, int pyramid_levels, int pyramid_max_level, int image_pair_count)
+void initialize(RegistrationContext& ctx, const Settings& settings, int image_pair_count)
 {
-    ctx._pyramid_levels = pyramid_levels;
-    ctx._pyramid_max_level = pyramid_max_level;
+    ctx._pyramid_levels = settings.pyramid_levels;
+    ctx._pyramid_max_level = settings.max_pyramid_level;
     ctx._image_pair_count = image_pair_count;
+
+    ctx._step_size = settings.step_size;
+    ctx._regularization_weight = settings.regularization_weight;
 
     ctx._fixed_pyramids.resize(ctx._image_pair_count);
     ctx._moving_pyramids.resize(ctx._image_pair_count);
@@ -342,21 +382,21 @@ void upsample_and_save(RegistrationContext& ctx, int level)
 
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
     std::stringstream ss;
-    ss << ctx.working_dir << "/deformation_l" << level << ".vtk";
+    ss << "deformation_l" << level << ".vtk";
     vtk::write_volume(ss.str().c_str(), def);
     
     ss.str("");
-    ss << ctx.working_dir << "/deformation_low_l" << level << ".vtk";
+    ss << "deformation_low_l" << level << ".vtk";
     vtk::write_volume(ss.str().c_str(), def_low);
 
     Volume moving = ctx._moving_pyramids[0].volume(0);
 
     ss.str("");
-    ss << ctx.working_dir << "/transformed_l" << level << ".vtk";
+    ss << "transformed_l" << level << ".vtk";
     vtk::write_volume(ss.str().c_str(), transform_volume(moving, def));
 
     ss.str("");
-    ss << ctx.working_dir << "/transformed_low_l" << level << ".vtk";
+    ss << "transformed_low_l" << level << ".vtk";
     vtk::write_volume(ss.str().c_str(), transform_volume(moving, def_low));
 #endif
 }
@@ -370,11 +410,11 @@ void save_volume_pyramid(RegistrationContext& ctx)
         for (int i = 0; i < ctx._image_pair_count; ++i)
         {
             std::stringstream file;
-            file << ctx.working_dir << "/" << "fixed_pyramid_" << i << "_level_" << l << ".vtk";
+            file << "fixed_pyramid_" << i << "_level_" << l << ".vtk";
             vtk::write_volume(file.str().c_str(), ctx._fixed_pyramids[i].volume(l));
 
             file.str("");
-            file << ctx.working_dir << "/" << "moving_pyramid_" << i << "_level_" << l << ".vtk";            
+            file << "moving_pyramid_" << i << "_level_" << l << ".vtk";            
             vtk::write_volume(file.str().c_str(), ctx._moving_pyramids[i].volume(l));
         }
     }
@@ -415,15 +455,15 @@ Volume execute_registration(RegistrationContext& ctx)
             }
 
             BlockedGraphCutOptimizer<EnergyFunction<double>, Regularizer> optimizer;
-            EnergyFunction<double> unary_fn(1.0f - settings::regularization_weight, fixed_volumes[0], moving_volumes[0]);
-            Regularizer binary_fn(settings::regularization_weight, fixed_volumes[0].spacing());
+            EnergyFunction<double> unary_fn(1.0f - ctx._regularization_weight, fixed_volumes[0], moving_volumes[0]);
+            Regularizer binary_fn(ctx._regularization_weight, fixed_volumes[0].spacing());
 
             // Calculate step size in voxels
             float3 fixed_spacing = fixed_volumes[0].spacing();
             float3 step_size_voxels{
-                settings::step_size / fixed_spacing.x,
-                settings::step_size / fixed_spacing.y,
-                settings::step_size / fixed_spacing.z
+                ctx._step_size / fixed_spacing.x,
+                ctx._step_size / fixed_spacing.y,
+                ctx._step_size / fixed_spacing.z
             };
 
 
@@ -445,10 +485,9 @@ Volume execute_registration(RegistrationContext& ctx)
             ctx._deformation_pyramid.set_volume(l - 1,
                 filters::upsample_vectorfield(def, upsampled_dims, ctx._deformation_pyramid.residual(l - 1)));
             
-            if (settings::output_all_levels)
-            {
+#ifdef DF_OUTPUT_DEBUG_VOLUMES
                 upsample_and_save(ctx, l);
-            }
+#endif // DF_OUTPUT_DEBUG_VOLUMES
         }
         else
         {
@@ -489,9 +528,27 @@ int main(int argc, char* argv[])
     if (args.param_file == 0)
         print_help_and_exit();
 
+    Settings settings;
+    parse_parameter_file(settings, args.param_file);
+
+    int image_pair_count = 0;
+    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
+    {
+        if (args.fixed_files[i] && 
+            args.moving_files[i] &&
+            image_pair_count == i)
+            ++image_pair_count;
+    }
+
+    if (image_pair_count == 0)
+    {
+        LOG(Error, "No (or invalid) input images, are you sure you (1) gave a matching \
+            number of fixed and moving images, and (2) filled the slots incrementally (0, 1, ... n)?\n");
+        return 1;
+    }
+
     RegistrationContext ctx;
-    ctx.working_dir = "sandbox";
-    initialize(ctx, 6, 0, 1);
+    initialize(ctx, settings, image_pair_count);
 
     VolumeDouble fixed_fat = load_volume("sandbox\\fixed_fat.vtk");
     if (!fixed_fat.valid()) return 1;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <framework/debug/log.h>
+
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -23,7 +25,10 @@ namespace convert
         std::istringstream istr(val);
         T returnVal;
         if (!(istr >> returnVal))
-            exitWithError("CFG: Not a valid " + (std::string)typeid(T).name() + " received!\n");
+        {
+            LOG(Error, "CFG: Not a valid %s received!\n", typeid(T).name());
+            exit(1);
+        }
 
         return returnVal;
     }
@@ -58,7 +63,7 @@ public:
         if (!keyExists(key))
             return defaultValue;
 
-        return Convert::string_to_T<ValueType>(contents.find(key)->second);
+        return convert::string_to_T<ValueType>(contents.find(key)->second);
     }
 };
 
