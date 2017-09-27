@@ -153,9 +153,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                             block_offset,
                             delta,
                             def
-#ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
-                            , block_idx
-#endif // DF_DEBUG_VOXEL_CHANGE_COUNT
                         );
                     }
 
