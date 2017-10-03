@@ -25,6 +25,8 @@ struct Args
     
     const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
     const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
+    const char* initial_deformation;
+
 };
 
 
@@ -38,6 +40,7 @@ void print_help_and_exit(const char* err = 0)
                 << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
               << "-m<i> <file> : Filename of the i:th moving image (i < " 
                 << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
+              << "-d0 <file> : Filename for initial deformation field" << std::endl
               << "-p <file> : Filename of the parameter file (required)." << std::endl
               << "--help : Shows this help section." << std::endl
               << "*Requires a matching number of fixed and moving images";
@@ -88,6 +91,12 @@ void parse_command_line(Args& args, int argc, char** argv)
                     print_help_and_exit("Missing arguments");
                 
                 args.moving_files[img_index] = argv[i];
+            }
+            else if (key == "d0")
+            {
+                if (++i >= argc) 
+                    print_help_and_exit("Missing arguments");
+                args.initial_deformation = argv[i];
             }
             else
             {
