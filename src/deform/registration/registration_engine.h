@@ -37,6 +37,11 @@ public:
         const Volume& moving,
         Volume (*downsample_fn)(const Volume&, float));
 
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+    /// Sets mask and values for hard constraints
+    void set_hard_constraints(const VolumeUInt8& mask, const VolumeFloat3& values);
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+
     /// Runs the registration. 
     /// Returns the resulting deformation field or an invalid volume if registration failed.
     Volume execute();
@@ -65,4 +70,9 @@ private:
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
+
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+    VolumePyramid _constraints_pyramid;
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+
 };

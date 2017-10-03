@@ -13,6 +13,14 @@
 #include <sstream>
 #include <string>
 
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+namespace
+{
+    
+}
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+
+
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
     _pyramid_levels(settings.pyramid_levels),
     _pyramid_max_level(settings.max_pyramid_level),
@@ -57,7 +65,12 @@ void RegistrationEngine::set_image_pair(
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
-
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+void RegistrationEngine::set_hard_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
+{
+    _deformation_pyramid.build_from_base()
+}
+#endif // DF_ENABLE_HARD_CONSTRAINTS
 
 Volume RegistrationEngine::execute()
 {

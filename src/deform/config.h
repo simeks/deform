@@ -1,6 +1,7 @@
 #pragma once
 
 #define DF_MAX_IMAGE_PAIR_COUNT 8
+#define DF_ENABLE_HARD_CONSTRAINTS
 
 #ifdef DF_BUILD_DEBUG
 // 0 : No debug

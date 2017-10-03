@@ -61,3 +61,49 @@ struct EnergyFunction
     VolumeHelper<T> _moving;
 };
 
+template<typename T>
+struct EnergyFunctionWithConstraints
+{
+    EnergyFunctionWithConstraints(
+        float weight, 
+        const VolumeHelper<T>& fixed, 
+        const VolumeHelper<T>& moving,
+        const VolumeUInt8& constraint_mask) 
+        : 
+        _weight(weight), 
+        _fixed(fixed), 
+        _moving(moving),
+        _constraint_mask(constraint_mask) {} 
+
+    /// p   : Position in fixed image
+    /// def : Deformation to apply [voxels in fixed image]
+    inline float operator()(const int3& p, const float3& def)
+    {
+        if (_constraint_mask(p) != 0)
+            return FLT_MAX;
+
+        float3 fixed_p{
+            float(p.x) + def.x,
+            float(p.y) + def.y,
+            float(p.z) + def.z
+        }; 
+        
+        // TODO: Cleanup
+
+        // [fixed] -> [world] -> [moving]
+        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
+        float3 moving_p = (world_p / _moving.spacing()) - _moving.origin();
+
+        T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
+
+        // TODO: Float cast
+        //printf("(%d, %d, %d) : (%f %f %f)\n", p.x, p.y, p.z, moving_p.x, moving_p.y, moving_p.z);
+        return _weight*powf(fabs(float(_fixed(p) - moving_v)), 2);
+    }
+
+    float _weight;
+    VolumeHelper<T> _fixed;
+    VolumeHelper<T> _moving;
+    VolumeUInt8 _constraint_mask;
+};
+

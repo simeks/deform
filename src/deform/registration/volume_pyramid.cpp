@@ -1,6 +1,7 @@
 #include "volume_pyramid.h"
 
 #include <framework/debug/assert.h>
+#include <framework/filters/resample.h>
 #include <framework/volume/volume.h>
 
 
@@ -30,7 +31,6 @@ void VolumePyramid::build_from_base(const Volume& base, DownsampleFn downsample_
     {
         _volumes[i+1] = downsample_fn(_volumes[i], 0.5f);
     }
-
 }
 void VolumePyramid::build_from_base_with_residual(const Volume& base, 
     DownsampleWithResidualFn downsample_fn)
@@ -48,6 +48,18 @@ void VolumePyramid::build_from_base_with_residual(const Volume& base,
         _volumes[i+1] = downsample_fn(_volumes[i], 0.5f, _residuals[i]);
     }
 }
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+void VolumePyramid::build_constraints_pyramid(const VolumeUInt8& mask, const VolumeFloat3& base)
+{
+    _save_residuals = false;
+    _volumes[0] = base;
+    for (int i = 0; i < _levels-1; ++i)
+    {
+        _volumes[i+1] = downsample_fn(_volumes[i], 0.5f);
+    }    
+}
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+
 void VolumePyramid::set_volume(int level, const Volume& vol)
 {
     assert(level < _levels);
