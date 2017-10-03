@@ -179,7 +179,14 @@ namespace vtk
                     if (num_comp == 3) voxel_type = voxel::Type_Float3;
                     if (num_comp == 4) voxel_type = voxel::Type_Float4;
                 }
-                
+                else if (data_type == "unsigned_char")
+                {
+                    if (num_comp == 1) voxel_type = voxel::Type_UChar;
+                    if (num_comp == 2) voxel_type = voxel::Type_UChar2;
+                    if (num_comp == 3) voxel_type = voxel::Type_UChar3;
+                    if (num_comp == 4) voxel_type = voxel::Type_UChar4;
+                }
+
                 if (voxel_type == voxel::Type_Unknown)
                 {
                     error << "Unsupported data type: " << data_type << " " << num_comp;
