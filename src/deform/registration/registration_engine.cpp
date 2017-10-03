@@ -14,12 +14,78 @@
 #include <string>
 
 #ifdef DF_ENABLE_HARD_CONSTRAINTS
-namespace
-{
-    
-}
+#include "hard_constraints.h"
 #endif // DF_ENABLE_HARD_CONSTRAINTS
 
+
+namespace
+{
+    /// name : Name for printout
+    bool validate_volume_properties(
+        const Volume& vol, 
+        const Dims& expected_dims,
+        const float3& expected_origin, 
+        const float3& expected_spacing, 
+        const char* name)
+    {
+        Dims dims = vol.size();
+        float3 origin = vol.origin();
+        float3 spacing = vol.spacing();
+     
+        if (dims != expected_dims)
+        {
+            LOG(Error, "Dimension mismatch for %s (size: %d %d %d, expected: %d %d %d)\n", 
+                name,
+                dims.width, dims.height, dims.depth,
+                expected_dims.width, expected_dims.height, expected_dims.depth);
+            return false;
+        }
+
+        if (fabs(origin.x - expected_origin.x) > 0.0001f || 
+            fabs(origin.y - expected_origin.y) > 0.0001f ||
+            fabs(origin.z - expected_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Origin mismatch for %s (origin: %f %f %f, expected: %f %f %f)\n",
+                        name,
+                        origin.x, origin.y, origin.z,
+                        expected_origin.x, expected_origin.y, expected_origin.z);
+            return false;
+        }
+
+        if (fabs(spacing.x - expected_spacing.x) > 0.0001f || 
+            fabs(spacing.y - expected_spacing.y) > 0.0001f ||
+            fabs(spacing.z - expected_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
+        {
+            LOG(Error, "Spacing mismatch for %s (spacing: %f %f %f, expected: %f %f %f)\n",
+                        name,
+                        spacing.x, spacing.y, spacing.z,
+                        expected_spacing.x, expected_spacing.y, expected_spacing.z);
+            return false;
+        }
+        return true;
+    }
+
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+    void constrain_deformation_field(VolumeFloat3& def, const VolumeUInt8& mask, const VolumeFloat3& values)
+    {
+        assert(def.size() == mask.size() && def.size() == values.size());
+        Dims dims = def.size();
+        for (int z = 0; z < int(dims.depth); ++z)
+        {
+            for (int y = 0; y < int(dims.height); ++y)
+            {
+                for (int x = 0; x < int(dims.width); ++x)
+                {
+                    if (mask(x, y, z) > 0)
+                    {
+                        def(x, y, z) = values(x, y, z);
+                    }
+                }
+            }
+        }
+    }
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+}
 
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
     _pyramid_levels(settings.pyramid_levels),
@@ -46,6 +112,11 @@ void RegistrationEngine::initialize(int image_pair_count)
         _moving_pyramids[i].set_level_count(_pyramid_levels);
     }
     _deformation_pyramid.set_level_count(_pyramid_levels);
+
+    #ifdef DF_ENABLE_HARD_CONSTRAINTS
+    _constraints_pyramid.set_level_count(_pyramid_levels);
+    _constraints_mask_pyramid.set_level_count(_pyramid_levels);
+#endif // DF_ENABLE_HARD_CONSTRAINTS
 }
 void RegistrationEngine::set_initial_deformation(const Volume& def)
 {
@@ -68,7 +139,18 @@ void RegistrationEngine::set_image_pair(
 #ifdef DF_ENABLE_HARD_CONSTRAINTS
 void RegistrationEngine::set_hard_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
 {
-    _deformation_pyramid.build_from_base()
+    _constraints_mask_pyramid.set_volume(0, mask);
+    _constraints_pyramid.set_volume(0, values);
+    for (int i = 0; i < _pyramid_levels-1; ++i)
+    {
+        VolumeUInt8 prev_mask = _constraints_mask_pyramid.volume(i);
+        VolumeFloat3 prev_values = _constraints_pyramid.volume(i);
+
+        _constraints_mask_pyramid.set_volume(i+1, 
+            hard_constraints::downsample_mask_by_2(prev_mask));
+        _constraints_pyramid.set_volume(i+1, 
+            hard_constraints::downsample_values_by_2(prev_mask, prev_values));
+    }
 }
 #endif // DF_ENABLE_HARD_CONSTRAINTS
 
@@ -120,8 +202,37 @@ Volume RegistrationEngine::execute()
                 moving_volumes[i] = _moving_pyramids[i].volume(l);
             }
 
-            BlockedGraphCutOptimizer<EnergyFunction<double>, Regularizer> optimizer;
-            EnergyFunction<double> unary_fn(1.0f - _regularization_weight, fixed_volumes[0], moving_volumes[0]);
+            #ifdef DF_ENABLE_HARD_CONSTRAINTS
+                BlockedGraphCutOptimizer<
+                    EnergyFunctionWithConstraints<float>, 
+                    Regularizer> optimizer;
+
+                EnergyFunctionWithConstraints<float> unary_fn(
+                    1.0f - _regularization_weight, 
+                    fixed_volumes[0], 
+                    moving_volumes[0],
+                    _constraints_mask_pyramid.volume(l)
+                );
+
+                // Fix constrained voxels by updating the initial deformation field
+                constrain_deformation_field(
+                    def, 
+                    _constraints_mask_pyramid.volume(l),
+                    _constraints_pyramid.volume(l)
+                );
+
+            #else
+                BlockedGraphCutOptimizer<
+                    EnergyFunction<float>,
+                    Regularizer> optimizer;
+                
+                    EnergyFunction<float> unary_fn(
+                        1.0f - _regularization_weight, 
+                        fixed_volumes[0], 
+                        moving_volumes[0]
+                    );
+            #endif
+            
             Regularizer binary_fn(_regularization_weight, fixed_volumes[0].spacing());
 
             // Calculate step size in voxels
@@ -131,7 +242,6 @@ Volume RegistrationEngine::execute()
                 _step_size / fixed_spacing.y,
                 _step_size / fixed_spacing.z
             };
-
 
             #if DF_DEBUG_LEVEL >= 3
                 LOG(Debug, "[f%d] spacing: %f, %f, %f\n", l, fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
@@ -170,7 +280,10 @@ bool RegistrationEngine::validate_input()
     // * All volumes for the same subject (i.e. fixed or moving) must have the same dimensions
     // * All volumes for the same subject (i.e. fixed or moving) need to have the same origin and spacing
     // * For simplicity any given initial deformation field must match the fixed image properties (size, origin, spacing)
-    
+    // If hard constraints are enabled:
+    // * Constraint mask and values must match fixed image
+
+
     Dims fixed_dims = _fixed_pyramids[0].volume(0).size();
     Dims moving_dims = _moving_pyramids[0].volume(0).size();
 
@@ -182,103 +295,43 @@ bool RegistrationEngine::validate_input()
 
     for (int i = 1; i < _image_pair_count; ++i)
     {
-        Dims fixed_dims_i = _fixed_pyramids[i].volume(0).size();
-        if (fixed_dims_i != fixed_dims)
+        if (!_fixed_pyramids[i].volume(0).valid() ||
+            !_moving_pyramids[i].volume(0).valid())
         {
-            LOG(Error, "Dimension mismatch for fixed image id %d (size: %d %d %d, expected: %d %d %d)\n", i, 
-                fixed_dims_i.width, fixed_dims_i.height, fixed_dims_i.depth,
-                fixed_dims.width, fixed_dims.height, fixed_dims.depth);
-            return false;
-        }
-        Dims moving_dims_i = _moving_pyramids[i].volume(0).size();
-        if (moving_dims_i != moving_dims)
-        {
-            LOG(Error, "Dimension mismatch for moving image id %d (size: %d %d %d, expected: %d %d %d)\n", i, 
-                moving_dims_i.width, moving_dims_i.height, moving_dims_i.depth,
-                moving_dims.width, moving_dims.height, moving_dims.depth);
-            return false;
-        }
-        
-        float3 fixed_origin_i = _fixed_pyramids[i].volume(0).origin();
-        if (fabs(fixed_origin_i.x - fixed_origin.x) > 0.0001f || 
-            fabs(fixed_origin_i.y - fixed_origin.y) > 0.0001f ||
-            fabs(fixed_origin_i.z - fixed_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
-        {
-            LOG(Error, "Origin mismatch for fixed image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
-                        fixed_origin_i.x, fixed_origin_i.y, fixed_origin_i.z,
-                        fixed_origin.x, fixed_origin.y, fixed_origin.z);
+            LOG(Error, "Missing image(s) at index %d\n", i);
             return false;
         }
 
-        float3 fixed_spacing_i = _fixed_pyramids[i].volume(0).spacing();
-        if (fabs(fixed_spacing_i.x - fixed_spacing.x) > 0.0001f || 
-            fabs(fixed_spacing_i.y - fixed_spacing.y) > 0.0001f ||
-            fabs(fixed_spacing_i.z - fixed_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
-        {
-            LOG(Error, "Spacing mismatch for fixed image id %d (spacing: %f %f %f, expected: %f %f %f)\n", i, 
-                        fixed_spacing_i.x, fixed_spacing_i.y, fixed_spacing_i.z,
-                        fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
-            return false;
-        }
-        
-        float3 moving_origin_i = _moving_pyramids[i].volume(0).origin();
-        if (fabs(moving_origin_i.x - moving_origin.x) > 0.0001f || 
-            fabs(moving_origin_i.y - moving_origin.y) > 0.0001f ||
-            fabs(moving_origin_i.z - moving_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
-        {
-            LOG(Error, "Origin mismatch for moving image id %d (origin: %f %f %f, expected: %f %f %f)\n", i, 
-                        moving_origin_i.x, moving_origin_i.y, moving_origin_i.z,
-                        moving_origin.x, moving_origin.y, moving_origin.z);
-            return false;
-        }
+        std::stringstream ss; ss << "fixed image id " << i;
+        std::string fixed_name = ss.str();
 
-        float3 moving_spacing_i = _moving_pyramids[i].volume(0).spacing();
-        if (fabs(moving_spacing_i.x - moving_spacing.x) > 0.0001f || 
-            fabs(moving_spacing_i.y - moving_spacing.y) > 0.0001f ||
-            fabs(moving_spacing_i.z - moving_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
-        {
-            LOG(Error, "Spacing mismatch for moving image id %d (spacing: %f %f %f, expected: %f %f %f)\n", i, 
-                        moving_spacing_i.x, moving_spacing_i.y, moving_spacing_i.z,
-                        moving_spacing.x, moving_spacing.y, moving_spacing.z);
+        if (!validate_volume_properties(_fixed_pyramids[i].volume(0), 
+                fixed_dims, fixed_origin, fixed_spacing, fixed_name.c_str()))
             return false;
-        }
+    
+        ss.str(""); 
+        ss << "moving image id " << i;
+        std::string moving_name = ss.str();
+
+        if (!validate_volume_properties(_moving_pyramids[i].volume(0), 
+                moving_dims, moving_origin, moving_spacing, moving_name.c_str()))
+            return false;
     }
 
-    const Volume& initial_def = _deformation_pyramid.volume(0);
-    if (initial_def.valid())
-    {
-        Dims def_dims = initial_def.size();
-        float3 def_origin = initial_def.origin();
-        float3 def_spacing = initial_def.spacing();
-     
-        if (def_dims != fixed_dims)
-        {
-            LOG(Error, "Dimension mismatch for initial deformation field (size: %d %d %d, expected: %d %d %d)\n", 
-                def_dims.width, def_dims.height, def_dims.depth,
-                fixed_dims.width, fixed_dims.height, fixed_dims.depth);
-            return false;
-        }
+    if (_deformation_pyramid.volume(0).valid() && !validate_volume_properties(_deformation_pyramid.volume(0), 
+            fixed_dims, fixed_origin, fixed_spacing, "initial deformation field"))
+        return false;
 
-        if (fabs(def_origin.x - fixed_origin.x) > 0.0001f || 
-            fabs(def_origin.y - fixed_origin.y) > 0.0001f ||
-            fabs(def_origin.z - fixed_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
-        {
-            LOG(Error, "Origin mismatch for initial deformation field (origin: %f %f %f, expected: %f %f %f)\n",
-                        def_origin.x, def_origin.y, def_origin.z,
-                        fixed_origin.x, fixed_origin.y, fixed_origin.z);
+    #ifdef DF_ENABLE_HARD_CONSTRAINTS
+        if (_constraints_pyramid.volume(0).valid() && !validate_volume_properties(_constraints_pyramid.volume(0), 
+                fixed_dims, fixed_origin, fixed_spacing, "constraints values"))
             return false;
-        }
 
-        if (fabs(def_spacing.x - fixed_spacing.x) > 0.0001f || 
-            fabs(def_spacing.y - fixed_spacing.y) > 0.0001f ||
-            fabs(def_spacing.z - fixed_spacing.z) > 0.0001f) // arbitrary epsilon but should suffice
-        {
-            LOG(Error, "Spacing mismatch for initial deformation field (spacing: %f %f %f, expected: %f %f %f)\n",
-                        def_spacing.x, def_spacing.y, def_spacing.z,
-                        fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
+        if (_constraints_mask_pyramid.volume(0).valid() && !validate_volume_properties(_constraints_mask_pyramid.volume(0), 
+                fixed_dims, fixed_origin, fixed_spacing, "constraints mask"))
             return false;
-        }
-    }
+
+    #endif // DF_ENABLE_HARD_CONSTRAINTS
 
     return true;
 }
@@ -312,21 +365,25 @@ void RegistrationEngine::upsample_and_save(int level)
 
     std::stringstream ss;
     ss << "deformation_l" << level << ".vtk";
-    vtk::write_volume(ss.str().c_str(), def);
+    std::string tmp = ss.str();
+    vtk::write_volume(tmp.c_str(), def);
     
     ss.str("");
     ss << "deformation_low_l" << level << ".vtk";
-    vtk::write_volume(ss.str().c_str(), def_low);
+    tmp = ss.str();
+    vtk::write_volume(tmp.c_str(), def_low);
 
     Volume moving = _moving_pyramids[0].volume(0);
 
     ss.str("");
     ss << "transformed_l" << level << ".vtk";
-    vtk::write_volume(ss.str().c_str(), transform_volume(moving, def));
+    tmp = ss.str();
+    vtk::write_volume(tmp.c_str(), transform_volume(moving, def));
 
     ss.str("");
     ss << "transformed_low_l" << level << ".vtk";
-    vtk::write_volume(ss.str().c_str(), transform_volume(moving, def_low));
+    tmp = ss.str();
+    vtk::write_volume(tmp.c_str(), transform_volume(moving, def_low));
 }
 void RegistrationEngine::save_volume_pyramid()
 {

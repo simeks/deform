@@ -243,6 +243,24 @@ int main(int argc, char* argv[])
         engine.set_image_pair(i, fixed, moving, filters::downsample_volume_gaussian);
     }
 
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+    if (input_args.constraint_mask && input_args.constraint_values)
+    {
+        Volume constraint_mask = load_volume(input_args.constraint_mask);
+        if (!constraint_mask.valid()) return 1;
+
+        Volume constraint_values = load_volume(input_args.constraint_values);
+        if (!constraint_values.valid()) return 1;
+
+        engine.set_hard_constraints(constraint_mask, constraint_values);
+    }
+    else if (input_args.constraint_mask || input_args.constraint_values)
+    {
+        // Just a check to make sure the user didn't forget something
+        LOG(Warning, "No constraints used, to use constraints, specify both a mask and a vectorfield\n");
+    }
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+
     if (!engine.validate_input())
         exit(1);
 

@@ -39,13 +39,6 @@ public:
     /// downsample_fn : Resampling function, required to support downsampling
     void build_from_base_with_residual(const Volume& base, DownsampleWithResidualFn downsample_fn);
 
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
-
-    /// Special case for building a constraints pyramid, as such pyramid requires a mask when resampling
-    void build_constraints_pyramid(const VolumeUInt8& mask, const VolumeFloat3& base);
-
-#endif // DF_ENABLE_HARD_CONSTRAINTS
-
     /// Sets the volume at the given level without rebuilding any other levels of the pyramid. 
     void set_volume(int level, const Volume& vol);
 

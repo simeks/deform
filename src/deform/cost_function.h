@@ -73,13 +73,13 @@ struct EnergyFunctionWithConstraints
         _weight(weight), 
         _fixed(fixed), 
         _moving(moving),
-        _constraint_mask(constraint_mask) {} 
+        _constraints_mask(constraint_mask) {} 
 
     /// p   : Position in fixed image
     /// def : Deformation to apply [voxels in fixed image]
     inline float operator()(const int3& p, const float3& def)
     {
-        if (_constraint_mask(p) != 0)
+        if (_constraints_mask(p) != 0)
             return FLT_MAX;
 
         float3 fixed_p{
@@ -104,6 +104,6 @@ struct EnergyFunctionWithConstraints
     float _weight;
     VolumeHelper<T> _fixed;
     VolumeHelper<T> _moving;
-    VolumeUInt8 _constraint_mask;
+    VolumeUInt8 _constraints_mask;
 };
 

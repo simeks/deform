@@ -3,6 +3,10 @@
 #include "config.h"
 #include "volume_pyramid.h"
 
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#include <framework/volume/volume_helper.h>
+#endif // DF_ENABLE_HARD_CONSTRAINTS
+
 #include <vector>
 
 class RegistrationEngine
@@ -73,6 +77,7 @@ private:
 
 #ifdef DF_ENABLE_HARD_CONSTRAINTS
     VolumePyramid _constraints_pyramid;
+    VolumePyramid _constraints_mask_pyramid;
 #endif // DF_ENABLE_HARD_CONSTRAINTS
 
 };
