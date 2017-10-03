@@ -44,6 +44,12 @@ VolumeUInt8 hard_constraints::downsample_mask_by_2(const VolumeUInt8& mask)
                 uint8_t max = 0;
                 for (int i = 0; i < 8; ++i)
                 {
+					int3 p = 2 * src_p + subvoxels[i];
+					if (p.x >= int(old_dims.width) ||
+						p.y >= int(old_dims.height) ||
+						p.z >= int(old_dims.depth))
+						continue;
+
                     max = std::max(max, mask(src_p + subvoxels[i]));
                 }
                 result(x, y, z) = max; 
@@ -96,10 +102,16 @@ VolumeFloat3 hard_constraints::downsample_values_by_2(
                 float3 val{0};
                 for (int i = 0; i < 8; ++i)
                 {
-                    if (mask(src_p + subvoxels[i]) > 0)
+					int3 p = src_p + subvoxels[i];
+					if (p.x >= int(old_dims.width) ||
+						p.y >= int(old_dims.height) ||
+						p.z >= int(old_dims.depth))
+						continue;
+
+                    if (mask(p) > 0)
                     {
                         ++nmask;
-                        val = val + values(src_p);
+                        val = val + values(p);
                     }
                 }
                 result(x, y, z) = 0.5f * val / float(nmask);
