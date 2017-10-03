@@ -80,7 +80,7 @@ struct EnergyFunctionWithConstraints
     inline float operator()(const int3& p, const float3& def)
     {
         if (_constraints_mask(p) != 0)
-            return FLT_MAX;
+            return 10000.0f;
 
         float3 fixed_p{
             float(p.x) + def.x,
