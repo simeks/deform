@@ -68,19 +68,27 @@ struct EnergyFunctionWithConstraints
         float weight, 
         const VolumeHelper<T>& fixed, 
         const VolumeHelper<T>& moving,
-        const VolumeUInt8& constraint_mask) 
+        const VolumeUInt8& constraint_mask,
+        const VolumeFloat3& _constraints_values)
         : 
         _weight(weight), 
         _fixed(fixed), 
         _moving(moving),
-        _constraints_mask(constraint_mask) {} 
+        _constraints_mask(constraint_mask),
+        _constraints_values(_constraints_values) {} 
 
     /// p   : Position in fixed image
     /// def : Deformation to apply [voxels in fixed image]
     inline float operator()(const int3& p, const float3& def)
     {
         if (_constraints_mask(p) != 0)
-            return 10000.0f;
+        {
+            float dist = math::length_squared(def - _constraints_values(p));
+            if (dist <= 0.0001f)
+                return 0.0f;
+            else
+                return 10.0f;
+        }
 
         float3 fixed_p{
             float(p.x) + def.x,
@@ -105,5 +113,6 @@ struct EnergyFunctionWithConstraints
     VolumeHelper<T> _fixed;
     VolumeHelper<T> _moving;
     VolumeUInt8 _constraints_mask;
+    VolumeFloat3 _constraints_values;
 };
 
