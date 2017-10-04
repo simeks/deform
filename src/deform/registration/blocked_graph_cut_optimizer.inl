@@ -83,22 +83,26 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
                 continue;
 
+            /*
+                We only do shifting in the directions that requires it
+            */
+
             int3 block_offset{0, 0, 0};
             if (use_shift == 1)
             {
-                block_offset.x = (block_dims.x / 2);
-                block_offset.y = (block_dims.y / 2);
-                block_offset.z = (block_dims.z / 2);
+                block_offset.x = block_count.x == 1 ? 0 : (block_dims.x / 2);
+                block_offset.y = block_count.y == 1 ? 0 : (block_dims.y / 2);
+                block_offset.z = block_count.z == 1 ? 0 : (block_dims.z / 2);
             }
+
+            int3 real_block_count{
+                block_count.x + ((block_count.x > 1 && use_shift == 1) ? 1 : 0),
+                block_count.y + ((block_count.y > 1 && use_shift == 1) ? 1 : 0),
+                block_count.z + ((block_count.z > 1 && use_shift == 1) ? 1 : 0)
+            };
 
             for (int black_or_red = 0; black_or_red < 2; black_or_red++)
             {
-                int3 real_block_count{
-                    block_count.x + (use_shift == 1 ? 1 : 0),
-                    block_count.y + (use_shift == 1 ? 1 : 0),
-                    block_count.z + (use_shift == 1 ? 1 : 0)
-                };
-
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
 
 #ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
@@ -172,7 +176,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             }
         }
 
-#if DF_DEBUG_LEVEL >= 3
+#if DF_DEBUG_LEVEL >= 1
         LOG(Debug, "Energy: %.10f\n", calculate_energy(unary_fn, binary_fn, def));
 #endif
 
@@ -332,7 +336,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     int voxels_changed_ = 0;
 #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
-    if (current_emin /*+ 0.00001f*/ < current_energy) //Accept solution
+    if (current_emin /*+ 0.0001f*/ < current_energy) //Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++)
         {
