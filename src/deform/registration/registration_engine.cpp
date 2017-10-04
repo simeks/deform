@@ -211,7 +211,8 @@ Volume RegistrationEngine::execute()
                     1.0f - _regularization_weight, 
                     fixed_volumes[0], 
                     moving_volumes[0],
-                    _constraints_mask_pyramid.volume(l)
+                    _constraints_mask_pyramid.volume(l),
+                    _constraints_pyramid.volume(l)
                 );
 
                 // Fix constrained voxels by updating the initial deformation field

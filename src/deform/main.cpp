@@ -6,6 +6,7 @@
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
+#include <framework/filters/normalize.h>
 #include <framework/filters/resample.h>
 #include <framework/platform/file_path.h>
 #include <framework/volume/volume.h>
@@ -239,8 +240,20 @@ int main(int argc, char* argv[])
         Volume moving = load_volume(input_args.moving_files[i]);
         if (!moving.valid()) return 1;
 
+        // TODO: This should probably not be performed for all image types
+        fixed = filters::normalize<float>(fixed, 0.0f, 1.0f);
+        moving = filters::normalize<float>(moving, 0.0f, 1.0f);
+
         moving_volumes.push_back(moving);
         engine.set_image_pair(i, fixed, moving, filters::downsample_volume_gaussian);
+    }
+
+    if (input_args.initial_deformation)
+    {
+        Volume initial_deformation = load_volume(input_args.initial_deformation);
+        if (!initial_deformation.valid()) return 1;
+
+        engine.set_initial_deformation(initial_deformation);
     }
 
 #ifdef DF_ENABLE_HARD_CONSTRAINTS
