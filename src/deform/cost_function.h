@@ -87,7 +87,7 @@ struct EnergyFunctionWithConstraints
             if (dist <= 0.0001f)
                 return 0.0f;
             else
-                return 10.0f;
+                return 1000.0f;
         }
 
         float3 fixed_p{
