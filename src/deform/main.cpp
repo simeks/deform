@@ -204,6 +204,10 @@ Volume load_volume(const std::string& file)
 
 int main(int argc, char* argv[])
 {
+    #ifdef DF_BUILD_DEBUG
+        LOG(Warning, "Running debug build!\n");
+    #endif
+
     Args input_args = {0};
     parse_command_line(input_args, argc, argv);
 
