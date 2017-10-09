@@ -9,6 +9,7 @@
 #include <framework/filters/normalize.h>
 #include <framework/filters/resample.h>
 #include <framework/platform/file_path.h>
+#include <framework/platform/timer.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
 #include <framework/volume/stb.h>
@@ -204,6 +205,8 @@ Volume load_volume(const std::string& file)
 
 int main(int argc, char* argv[])
 {
+    timer::initialize();
+
     #ifdef DF_BUILD_DEBUG
         LOG(Warning, "Running debug build!\n");
     #endif
