@@ -1,6 +1,7 @@
 #include "blocked_graph_cut_optimizer.h"
 #include "cost_function.h"
 #include "registration_engine.h"
+#include "stats.h"
 #include "transform.h"
 
 #include <framework/debug/assert.h>
@@ -114,9 +115,9 @@ void RegistrationEngine::initialize(int image_pair_count)
     _deformation_pyramid.set_level_count(_pyramid_levels);
 
     #ifdef DF_ENABLE_HARD_CONSTRAINTS
-    _constraints_pyramid.set_level_count(_pyramid_levels);
-    _constraints_mask_pyramid.set_level_count(_pyramid_levels);
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+        _constraints_pyramid.set_level_count(_pyramid_levels);
+        _constraints_mask_pyramid.set_level_count(_pyramid_levels);
+    #endif // DF_ENABLE_HARD_CONSTRAINTS
 }
 void RegistrationEngine::set_initial_deformation(const Volume& def)
 {
@@ -184,6 +185,8 @@ Volume RegistrationEngine::execute()
 
     for (int l = _pyramid_levels-1; l >= 0; --l)
     {
+        STATS_RESET("Stat_Energy");
+
         VolumeFloat3 def = _deformation_pyramid.volume(l);
 
         if (l >= _pyramid_max_level)
@@ -261,15 +264,23 @@ Volume RegistrationEngine::execute()
             Dims upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
                 filters::upsample_vectorfield(def, upsampled_dims, _deformation_pyramid.residual(l - 1)));
-            
-#ifdef DF_OUTPUT_DEBUG_VOLUMES
+                        
+            #ifdef DF_OUTPUT_DEBUG_VOLUMES
                 upsample_and_save(l);
-#endif // DF_OUTPUT_DEBUG_VOLUMES
+            #endif // DF_OUTPUT_DEBUG_VOLUMES
         }
         else
         {
             _deformation_pyramid.set_volume(0, def);
         }
+
+        #ifdef DF_ENABLE_STATS
+            std::stringstream ss;
+            ss << "stat_energy_level_" << l << ".txt";
+            std::string energy_log = ss.str();
+
+            STATS_DUMP("Stat_Energy", energy_log.c_str());
+        #endif // DF_ENABLE_STATS
     }
 
     return _deformation_pyramid.volume(0);

@@ -1,5 +1,6 @@
 #include "block_change_flags.h"
 #include "config.h"
+#include "stats.h"
 
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
@@ -208,10 +209,11 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             }
         }
 
-#ifdef DF_OUTPUT_VOLUME_ENERGY
-        LOG(Debug, "Energy: %.10f\n", calculate_energy(unary_fn, binary_fn, def));
-#endif
+        #ifdef DF_OUTPUT_VOLUME_ENERGY
+            LOG(Debug, "Energy: %.10f\n", calculate_energy(unary_fn, binary_fn, def));
+        #endif
 
+        STATS_ADD_VALUE("Stat_Energy", calculate_energy(unary_fn, binary_fn, def));
     }
 }
 template<
@@ -375,7 +377,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     out_block_energy = std::min(current_emin, current_energy);
 #endif
 
-    if (current_emin /*+ 0.00001f*/ < current_energy) //Accept solution
+    if (current_emin + 0.00001f < current_energy) // Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++)
         {
