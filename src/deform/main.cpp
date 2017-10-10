@@ -55,7 +55,7 @@ void print_help_and_exit(const char* err = 0)
               << "-p <file> : Filename of the parameter file (required)." << std::endl
               << "--help : Shows this help section." << std::endl
               << "*Requires a matching number of fixed and moving images";
-    exit(0);
+    exit(1);
 }
 void parse_command_line(Args& args, int argc, char** argv)
 {
@@ -203,6 +203,31 @@ Volume load_volume(const std::string& file)
     return Volume();
 }
 
+int run_transform(int argc, char* argv[])
+{
+    // Usage:
+    // ./deform transform <src> <deformation> <out>
+
+    if (argc < 5)
+    {
+        std::cout << "Usage: " << argv[0] << " transform <src> <deformation> <out>" << std::endl;
+        return 1;
+    }
+
+    Volume src = load_volume(argv[2]);
+    if (!src.valid())
+        return 1;
+
+    Volume def = load_volume(argv[3]);
+    if (!def.valid())
+        return 1;
+
+    Volume result = transform_volume(src, def);
+    vtk::write_volume(argv[4], result);
+    
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
     timer::initialize();
@@ -210,6 +235,9 @@ int main(int argc, char* argv[])
     #ifdef DF_BUILD_DEBUG
         LOG(Warning, "Running debug build!\n");
     #endif
+
+    if (argc >= 2 && strcmp(argv[1], "transform"))
+        return run_transform(argc, argv);
 
     Args input_args = {0};
     parse_command_line(input_args, argc, argv);
