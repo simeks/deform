@@ -2,6 +2,7 @@
 
 #define DF_MAX_IMAGE_PAIR_COUNT 8
 #define DF_ENABLE_HARD_CONSTRAINTS
+//#define DF_OUTPUT_VOLUME_ENERGY
 
 #ifdef DF_BUILD_DEBUG
 // 0 : No debug

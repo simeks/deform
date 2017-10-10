@@ -185,8 +185,6 @@ Volume RegistrationEngine::execute()
 
     for (int l = _pyramid_levels-1; l >= 0; --l)
     {
-        STATS_RESET("Stat_Energy");
-
         VolumeFloat3 def = _deformation_pyramid.volume(l);
 
         if (l >= _pyramid_max_level)
@@ -206,21 +204,37 @@ Volume RegistrationEngine::execute()
             }
 
             #ifdef DF_ENABLE_HARD_CONSTRAINTS
+                typedef UnaryFunction<
+                        SquaredDistanceFunction<float>,
+                        SquaredDistanceFunction<float>,
+                        ConstraintsFunction
+                    > UnaryFn;
+
+                UnaryFn unary_fn(
+                    1.0f - _regularization_weight, 
+                    SquaredDistanceFunction<float>(
+                        fixed_volumes[0],
+                        moving_volumes[0]
+                    ),
+                    SquaredDistanceFunction<float>(
+                        fixed_volumes[1],
+                        moving_volumes[1]
+                    ),
+                    ConstraintsFunction(
+                        _constraints_mask_pyramid.volume(l),
+                        _constraints_pyramid.volume(l)
+                    )
+                );
+
+
                 BlockedGraphCutOptimizer<
-                    EnergyFunctionWithConstraints<float>, 
+                    UnaryFn, 
                     Regularizer> optimizer;
 
-                EnergyFunctionWithConstraints<float> unary_fn(
-                    1.0f - _regularization_weight, 
-                    fixed_volumes[0], 
-                    moving_volumes[0],
-                    _constraints_mask_pyramid.volume(l),
-                    _constraints_pyramid.volume(l)
-                );
 
                 // Fix constrained voxels by updating the initial deformation field
                 constrain_deformation_field(
-                    def, 
+                    def,
                     _constraints_mask_pyramid.volume(l),
                     _constraints_pyramid.volume(l)
                 );
@@ -229,12 +243,12 @@ Volume RegistrationEngine::execute()
                 BlockedGraphCutOptimizer<
                     EnergyFunction<float>,
                     Regularizer> optimizer;
-                
-                    EnergyFunction<float> unary_fn(
-                        1.0f - _regularization_weight, 
-                        fixed_volumes[0], 
-                        moving_volumes[0]
-                    );
+            
+                EnergyFunction<float> unary_fn(
+                    1.0f - _regularization_weight, 
+                    fixed_volumes[0], 
+                    moving_volumes[0]
+                );
             #endif
             
             Regularizer binary_fn(_regularization_weight, fixed_volumes[0].spacing());
@@ -252,7 +266,17 @@ Volume RegistrationEngine::execute()
                 LOG(Debug, "step_size [voxels]: %f, %f, %f\n", step_size_voxels.x, step_size_voxels.y, step_size_voxels.z);
             #endif
         
+            STATS_RESET("Stat_Energy");
+            
             optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
+
+            #ifdef DF_ENABLE_STATS
+                std::stringstream ss;
+                ss << "stat_energy_level_" << l << ".txt";
+                std::string energy_log = ss.str();
+    
+                STATS_DUMP("Stat_Energy", energy_log.c_str());
+            #endif // DF_ENABLE_STATS
         }
         else
         {
@@ -274,13 +298,6 @@ Volume RegistrationEngine::execute()
             _deformation_pyramid.set_volume(0, def);
         }
 
-        #ifdef DF_ENABLE_STATS
-            std::stringstream ss;
-            ss << "stat_energy_level_" << l << ".txt";
-            std::string energy_log = ss.str();
-
-            STATS_DUMP("Stat_Energy", energy_log.c_str());
-        #endif // DF_ENABLE_STATS
     }
 
     return _deformation_pyramid.volume(0);

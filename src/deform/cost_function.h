@@ -4,6 +4,15 @@
 #include <framework/math/int3.h>
 #include <framework/volume/volume_helper.h>
 
+#include <tuple>
+
+/*
+    Tissue-specific regularization
+    Per edge weight: Mean term of neighboring voxels 
+
+    w = 0.5f*(weights(p) + weights(p+step)) 
+*/
+
 struct Regularizer
 {
     Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixed_spacing) {}
@@ -29,12 +38,14 @@ struct Regularizer
 };
 
 template<typename T>
-struct EnergyFunction
+struct SquaredDistanceFunction
 {
-    EnergyFunction(float weight, const VolumeHelper<T>& fixed, const VolumeHelper<T>& moving) : _weight(weight), _fixed(fixed), _moving(moving) {} 
+    SquaredDistanceFunction(const VolumeHelper<T>& fixed,
+                            const VolumeHelper<T>& moving) :
+        _fixed(fixed),
+        _moving(moving)
+    {}
 
-    /// p   : Position in fixed image
-    /// def : Deformation to apply [voxels in fixed image]
     inline float operator()(const int3& p, const float3& def)
     {
         float3 fixed_p{
@@ -43,8 +54,6 @@ struct EnergyFunction
             float(p.z) + def.z
         }; 
         
-        // TODO: Cleanup
-
         // [fixed] -> [world] -> [moving]
         float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
         float3 moving_p = (world_p / _moving.spacing()) - _moving.origin();
@@ -52,33 +61,21 @@ struct EnergyFunction
         T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
 
         // TODO: Float cast
-        //printf("(%d, %d, %d) : (%f %f %f)\n", p.x, p.y, p.z, moving_p.x, moving_p.y, moving_p.z);
-        return _weight*powf(fabs(float(_fixed(p) - moving_v)), 2);
+        return powf(fabs(float(_fixed(p) - moving_v)), 2);
     }
 
-    float _weight;
     VolumeHelper<T> _fixed;
     VolumeHelper<T> _moving;
 };
 
-template<typename T>
-struct EnergyFunctionWithConstraints
+struct ConstraintsFunction
 {
-    EnergyFunctionWithConstraints(
-        float weight, 
-        const VolumeHelper<T>& fixed, 
-        const VolumeHelper<T>& moving,
-        const VolumeUInt8& constraint_mask,
-        const VolumeFloat3& _constraints_values)
-        : 
-        _weight(weight), 
-        _fixed(fixed), 
-        _moving(moving),
+    ConstraintsFunction(const VolumeUInt8& constraint_mask,
+                        const VolumeFloat3& constraints_values) :
         _constraints_mask(constraint_mask),
-        _constraints_values(_constraints_values) {} 
+        _constraints_values(constraints_values)
+    {}
 
-    /// p   : Position in fixed image
-    /// def : Deformation to apply [voxels in fixed image]
     inline float operator()(const int3& p, const float3& def)
     {
         if (_constraints_mask(p) != 0)
@@ -89,30 +86,54 @@ struct EnergyFunctionWithConstraints
             else
                 return 1000.0f;
         }
+        return 0.0f;
+    }
+    VolumeUInt8 _constraints_mask;
+    VolumeFloat3 _constraints_values;
+};
 
-        float3 fixed_p{
-            float(p.x) + def.x,
-            float(p.y) + def.y,
-            float(p.z) + def.z
-        }; 
-        
-        // TODO: Cleanup
 
-        // [fixed] -> [world] -> [moving]
-        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p / _moving.spacing()) - _moving.origin();
+template<typename T, size_t I>
+struct evaluate_functions
+{
+    static float eval(T& func, const int3& p, const float3& def)
+    {
+        return std::get<I>(func)(p, def) + 
+            evaluate_functions<T, I-1>::eval(func, p, def);
+    }
+};
 
-        T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
+template<typename T>
+struct evaluate_functions<T, 0>
+{
+    static float eval(T& func, const int3& p, const float3& def)
+    {
+        return std::get<0>(func)(p, def);
+    }
+};
 
-        // TODO: Float cast
-        //printf("(%d, %d, %d) : (%f %f %f)\n", p.x, p.y, p.z, moving_p.x, moving_p.y, moving_p.z);
-        return _weight*powf(fabs(float(_fixed(p) - moving_v)), 2);
+template<typename ... TFunction>
+struct UnaryFunction
+{
+    UnaryFunction(
+        float weight,
+        TFunction... functions
+    ) : 
+        _weight(weight),
+        _functions(functions...)
+    {}
+    
+    /// p   : Position in fixed image
+    /// def : Deformation to apply [voxels in fixed image]
+    inline float operator()(const int3& p, const float3& def)
+    {
+        return _weight * 
+            evaluate_functions<std::tuple<TFunction...>, sizeof...(TFunction)-1>::eval(
+                _functions, p, def
+        );
     }
 
     float _weight;
-    VolumeHelper<T> _fixed;
-    VolumeHelper<T> _moving;
-    VolumeUInt8 _constraints_mask;
-    VolumeFloat3 _constraints_values;
+    std::tuple<TFunction...> _functions;
 };
 
