@@ -312,7 +312,11 @@ int main(int argc, char* argv[])
     if (!engine.validate_input())
         exit(1);
 
+    double t_start = timer::seconds();
     Volume def = engine.execute();
+    double t_end = timer::seconds();
+    int elapsed = int(round(t_end - t_start));
+    LOG(Info, "Registration completed in %d:%02d\n", elapsed / 60, elapsed % 60);
 
     vtk::write_volume("result_def.vtk", def);
 
