@@ -6,8 +6,10 @@
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
+#include <framework/filters/normalize.h>
 #include <framework/filters/resample.h>
 #include <framework/platform/file_path.h>
+#include <framework/platform/timer.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
 #include <framework/volume/stb.h>
@@ -25,8 +27,13 @@ struct Args
     
     const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
     const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
+
     const char* initial_deformation;
 
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+    const char* constraint_mask;
+    const char* constraint_values;
+#endif // DF_ENABLE_HARD_CONSTRAINTS
 };
 
 
@@ -41,10 +48,14 @@ void print_help_and_exit(const char* err = 0)
               << "-m<i> <file> : Filename of the i:th moving image (i < " 
                 << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
               << "-d0 <file> : Filename for initial deformation field" << std::endl
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+              << "-constraint_mask <file> : Filename for constraint mask" << std::endl
+              << "-constraint_values <file> : Filename for constraint values" << std::endl
+#endif // DF_ENABLE_HARD_CONSTRAINTS
               << "-p <file> : Filename of the parameter file (required)." << std::endl
               << "--help : Shows this help section." << std::endl
               << "*Requires a matching number of fixed and moving images";
-    exit(0);
+    exit(1);
 }
 void parse_command_line(Args& args, int argc, char** argv)
 {
@@ -98,6 +109,20 @@ void parse_command_line(Args& args, int argc, char** argv)
                     print_help_and_exit("Missing arguments");
                 args.initial_deformation = argv[i];
             }
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+            else if (key == "constraint_mask")
+            {
+                if (++i >= argc) 
+                    print_help_and_exit("Missing arguments");
+                args.constraint_mask = argv[i];
+            }
+            else if (key == "constraint_values")
+            {
+                if (++i >= argc) 
+                    print_help_and_exit("Missing arguments");
+                args.constraint_values = argv[i];
+            }
+#endif // DF_ENABLE_HARD_CONSTRAINTS
             else
             {
                 print_help_and_exit("Unrecognized option");
@@ -178,8 +203,42 @@ Volume load_volume(const std::string& file)
     return Volume();
 }
 
+int run_transform(int argc, char* argv[])
+{
+    // Usage:
+    // ./deform transform <src> <deformation> <out>
+
+    if (argc < 5)
+    {
+        std::cout << "Usage: " << argv[0] << " transform <src> <deformation> <out>" << std::endl;
+        return 1;
+    }
+
+    Volume src = load_volume(argv[2]);
+    if (!src.valid())
+        return 1;
+
+    Volume def = load_volume(argv[3]);
+    if (!def.valid())
+        return 1;
+
+    Volume result = transform_volume(src, def);
+    vtk::write_volume(argv[4], result);
+    
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
+    timer::initialize();
+
+    #ifdef DF_BUILD_DEBUG
+        LOG(Warning, "Running debug build!\n");
+    #endif
+
+    if (argc >= 2 && strcmp(argv[1], "transform"))
+        return run_transform(argc, argv);
+
     Args input_args = {0};
     parse_command_line(input_args, argc, argv);
 
@@ -216,9 +275,39 @@ int main(int argc, char* argv[])
         Volume moving = load_volume(input_args.moving_files[i]);
         if (!moving.valid()) return 1;
 
+        // TODO: This should probably not be performed for all image types
+        fixed = filters::normalize<float>(fixed, 0.0f, 1.0f);
+        moving = filters::normalize<float>(moving, 0.0f, 1.0f);
+
         moving_volumes.push_back(moving);
         engine.set_image_pair(i, fixed, moving, filters::downsample_volume_gaussian);
     }
+
+    if (input_args.initial_deformation)
+    {
+        Volume initial_deformation = load_volume(input_args.initial_deformation);
+        if (!initial_deformation.valid()) return 1;
+
+        engine.set_initial_deformation(initial_deformation);
+    }
+
+#ifdef DF_ENABLE_HARD_CONSTRAINTS
+    if (input_args.constraint_mask && input_args.constraint_values)
+    {
+        Volume constraint_mask = load_volume(input_args.constraint_mask);
+        if (!constraint_mask.valid()) return 1;
+
+        Volume constraint_values = load_volume(input_args.constraint_values);
+        if (!constraint_values.valid()) return 1;
+
+        engine.set_hard_constraints(constraint_mask, constraint_values);
+    }
+    else if (input_args.constraint_mask || input_args.constraint_values)
+    {
+        // Just a check to make sure the user didn't forget something
+        LOG(Warning, "No constraints used, to use constraints, specify both a mask and a vectorfield\n");
+    }
+#endif // DF_ENABLE_HARD_CONSTRAINTS
 
     if (!engine.validate_input())
         exit(1);

@@ -1,6 +1,7 @@
 #include "volume_pyramid.h"
 
 #include <framework/debug/assert.h>
+#include <framework/filters/resample.h>
 #include <framework/volume/volume.h>
 
 
@@ -30,7 +31,6 @@ void VolumePyramid::build_from_base(const Volume& base, DownsampleFn downsample_
     {
         _volumes[i+1] = downsample_fn(_volumes[i], 0.5f);
     }
-
 }
 void VolumePyramid::build_from_base_with_residual(const Volume& base, 
     DownsampleWithResidualFn downsample_fn)

@@ -54,6 +54,8 @@ public:
 
 };
 
+typedef VolumeHelper<uint8_t> VolumeUInt8;
+
 typedef VolumeHelper<float> VolumeFloat;
 typedef VolumeHelper<double> VolumeDouble;
 typedef VolumeHelper<float3> VolumeFloat3;

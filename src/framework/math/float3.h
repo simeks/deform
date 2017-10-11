@@ -36,3 +36,8 @@ inline float3 operator*(float l, const float3& r)
 {
     return { r.x * l, r.y * l, r.z * l };
 }
+inline float3 operator/(const float3& l, float r)
+{
+    return { l.x / r, l.y / r, l.z / r };
+}
+

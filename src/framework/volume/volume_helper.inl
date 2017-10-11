@@ -143,6 +143,9 @@ T& VolumeHelper<T>::operator()(const int3& p)
 template<typename T>
 inline size_t VolumeHelper<T>::offset(int x, int y, int z) const
 {
+    assert(x < int(_size.width));
+    assert(y < int(_size.height));
+    assert(z < int(_size.depth));
     return z * _stride * _size.height + y * _stride + x * sizeof(T);
 }
 template<typename T>
