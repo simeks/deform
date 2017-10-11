@@ -1,4 +1,4 @@
-require "premake-ninja/ninja"
+require "tools/premake-ninja/ninja"
 
 local ROOT = "./"
 local SRC = ROOT .. "src/"
@@ -23,12 +23,16 @@ workspace "deform"                   -- Solution Name
 
   defines { "_UNICODE", "UNICODE" }
 
-  defines{"DF_ENABLE_OPENMP"}
-  buildoptions { "/openmp" }
+  filter { "system:windows" }
+    buildoptions { "/openmp" }
+    linkoptions { "/DEBUG:FULL" }
+  filter { "system:linux" }
+    buildoptions { "-fopenmp", "-std=c++0x", "-Wno-missing-field-initializers" }
+    linkoptions { "-fopenmp" }
+  filter {}
 
   --defines{"DF_ENABLE_CUDA"} Not currently supported
   
-  linkoptions { "/DEBUG:FULL" }
 
   -- Debug info for release builds
   filter "configurations:Release"
@@ -58,9 +62,17 @@ workspace "deform"                   -- Solution Name
       '_SCL_SECURE_NO_DEPRECATE', 
     }
 
+  filter "system:linux"
+    defines 
+    { 
+      "DF_PLATFORM_LINUX",
+    }
+
   filter {"system:windows", "platforms:*64"}
     defines { "DF_PLATFORM_WIN64" }
 
+  filter {"system:linux", "platforms:*64"}
+    defines { "DF_PLATFORM_LINUX64" }
 
   filter {}
   project "deform"

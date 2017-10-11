@@ -2,18 +2,25 @@
 
 /// Interface for using the GCO graph cut solver.
 
+#include <framework/platform/gcc.h>
+
 #if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wparentheses"
-#pragma GCC diagnostic ignored "-Wdeprecated-register"
+
+    // Older versions of GCC do not support push/pop
+    #if GCC_VERSION > 40604 // 4.6.4
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wdeprecated-register"
+    #endif
+
+    #pragma GCC diagnostic ignored "-Wparentheses"
 #else
-#pragma warning(push)
-#pragma warning(disable: 4512)
-#pragma warning(disable: 4100)
-#pragma warning(disable: 4189)
-#pragma warning(disable: 4701)
-#pragma warning(disable: 4706)
-#pragma warning(disable: 4463)
+    #pragma warning(push)
+    #pragma warning(disable: 4512)
+    #pragma warning(disable: 4100)
+    #pragma warning(disable: 4189)
+    #pragma warning(disable: 4701)
+    #pragma warning(disable: 4706)
+    #pragma warning(disable: 4463)
 #endif
 namespace gco
 {
@@ -22,9 +29,11 @@ namespace gco
     #include <gco/maxflow.cpp>
 }
 #if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic pop
+    #if GCC_VERSION > 40604 // 4.6.4
+        #pragma GCC diagnostic pop
+    #endif
 #else
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 template<typename T>

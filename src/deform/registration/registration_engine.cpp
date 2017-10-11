@@ -91,9 +91,9 @@ namespace
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
     _pyramid_levels(settings.pyramid_levels),
     _pyramid_max_level(settings.max_pyramid_level),
+    _image_pair_count(0),
     _step_size(settings.step_size),
-    _regularization_weight(settings.regularization_weight),
-    _image_pair_count(0)
+    _regularization_weight(settings.regularization_weight)
 {
 }
 RegistrationEngine::~RegistrationEngine()

@@ -112,20 +112,23 @@ bool ConfigFile::keyExists(const std::string &key) const
     return contents.find(key) != contents.end();
 }
 
-template <>
-std::string convert::string_to_T(std::string const &val)
+namespace convert
 {
-    return val;
-}
+    template <>
+    std::string string_to_T(std::string const &val)
+    {
+        return val;
+    }
 
-template <>
-int3 convert::string_to_T(std::string const& val)
-{
-    std::istringstream istr(val);
-    int3 ret = {0};
-    istr >> ret.x;
-    istr >> ret.y;
-    istr >> ret.z;
+    template <>
+    int3 string_to_T(std::string const& val)
+    {
+        std::istringstream istr(val);
+        int3 ret = {0};
+        istr >> ret.x;
+        istr >> ret.y;
+        istr >> ret.z;
 
-    return ret;
+        return ret;
+    }
 }

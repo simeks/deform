@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <iostream>
+#include <string.h>
 
 
 namespace
@@ -30,7 +31,7 @@ namespace
     }
 }
 
-VolumeData::VolumeData() : data(nullptr), size(0)
+VolumeData::VolumeData() : data(NULL), size(0)
 {
 }
 VolumeData::VolumeData(size_t size) : size(size)
@@ -43,7 +44,7 @@ VolumeData::~VolumeData()
         free(data);
 }
 
-Volume::Volume() : _ptr(nullptr), _stride(0)
+Volume::Volume() : _ptr(NULL), _stride(0)
 {
     _origin = {0, 0, 0};
     _spacing = {1, 1, 1};
@@ -116,7 +117,7 @@ Volume Volume::as_type(uint8_t type) const
 }
 bool Volume::valid() const
 {
-    return _ptr != nullptr;
+    return _ptr != NULL;
 }
 void* Volume::ptr()
 {
@@ -197,8 +198,8 @@ void Volume::allocate(const Dims& size, uint8_t voxel_type)
 }
 void Volume::release()
 {
-    _data = nullptr;
-    _ptr = nullptr;
+    _data.reset();
+    _ptr = NULL;
     _size = { 0, 0, 0 };
     _stride = 0;
     _origin = { 0, 0, 0 };
@@ -219,7 +220,7 @@ GpuVolume Volume::upload() const
 }
 void Volume::upload(const GpuVolume& gpu_volume) const
 {
-    assert(gpu_volume.ptr != nullptr); // Requires gpu memory to be allocated
+    assert(gpu_volume.ptr != NULL); // Requires gpu memory to be allocated
     assert(valid()); // Requires cpu memory to be allocated as well
 
     // We also assume both volumes have same dimensions
@@ -238,7 +239,7 @@ void Volume::upload(const GpuVolume& gpu_volume) const
 }
 void Volume::download(const GpuVolume& gpu_volume)
 {
-    assert(gpu_volume.ptr != nullptr); // Requires gpu memory to be allocated
+    assert(gpu_volume.ptr != NULL); // Requires gpu memory to be allocated
     assert(valid()); // Requires cpu memory to be allocated as well
 
     // We also assume both volumes have same dimensions

@@ -21,8 +21,8 @@ namespace
         size_t _current_index;
 
         Samples() : 
-            _timestamps(nullptr),
-            _values(nullptr),
+            _timestamps(NULL),
+            _values(NULL),
             _values_size(0),
             _current_index(0)
         {
@@ -123,7 +123,7 @@ namespace stats
 
         std::ofstream f;
         f.open(filename, std::ios::out);
-        for (int i = 0; i < stat.samples._current_index; ++i)
+        for (int i = 0; i < int(stat.samples._current_index); ++i)
         {
             f << stat.samples._timestamps[i] << ";" << stat.samples._values[i] << std::endl;
         }

@@ -1,10 +1,12 @@
 #include "stb.h"
 #include "volume.h"
 
-#pragma warning(push)
-#pragma warning(disable: 4456) // declaration of 'k' hides previous local declaration
-#pragma warning(disable: 4996) // 'fopen': This function or variable may be unsafe...
-#pragma warning(disable: 4244) // '=': conversion from 'int' to 'stbi__uint16', possible loss of data
+#ifdef DF_BUILD_WINDOWS
+    #pragma warning(push)
+    #pragma warning(disable: 4456) // declaration of 'k' hides previous local declaration
+    #pragma warning(disable: 4996) // 'fopen': This function or variable may be unsafe...
+    #pragma warning(disable: 4244) // '=': conversion from 'int' to 'stbi__uint16', possible loss of data
+#endif // DF_BUILD_WINDOWS
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -12,7 +14,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#pragma warning(pop)
+#ifdef DF_BUILD_WINDOWS
+    #pragma warning(pop)
+#endif // DF_BUILD_WINDOWS
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
@@ -28,7 +32,7 @@ namespace stb
             return Volume(); // Return "invalid" volume
         }
 
-        Dims size = { size_t(x), size_t(y), 1 };
+        Dims size = { uint32_t(x), uint32_t(y), 1 };
         voxel::Type voxel_type = voxel::Type_Unknown;
         if (n == 1) voxel_type = voxel::Type_UChar;
         if (n == 2) voxel_type = voxel::Type_UChar2;
@@ -58,7 +62,14 @@ namespace stb
         /// Supported formats: .png, .bmp, .tga
 
         const char* ext = file + strlen(file) - 4;
-        if (_stricmp(ext, ".png") == 0)
+
+        #ifdef DF_BUILD_WINDOWS        
+            #define strcmp_ignore_case _stricmp
+        #else
+            #define strcmp_ignore_case strcasecmp
+        #endif
+        
+        if (strcmp_ignore_case(ext, ".png") == 0)
         {
             int ret = stbi_write_png(file, int(size.width), int(size.height), num_comps, volume.ptr(), int(size.width * num_comps));
             assert(ret != 0);
@@ -68,7 +79,7 @@ namespace stb
                 return false;
             }
         }
-        else if (_stricmp(ext, ".bmp") == 0)
+        else if (strcmp_ignore_case(ext, ".bmp") == 0)
         {
             int ret = stbi_write_bmp(file, int(size.width), int(size.height), num_comps, volume.ptr());
             assert(ret != 0);
@@ -78,7 +89,7 @@ namespace stb
                 return false;
             }
         }
-        else if (_stricmp(ext, ".tga") == 0)
+        else if (strcmp_ignore_case(ext, ".tga") == 0)
         {
             int ret = stbi_write_tga(file, int(size.width), int(size.height), num_comps, volume.ptr());
             assert(ret != 0);
@@ -93,6 +104,9 @@ namespace stb
             assert(false && "Unsupported image extension");
             return false;
         }
+
+        #undef strcmp_ignore_case
+        
         return true;
     }
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 namespace logging
 {
     enum Level
@@ -15,4 +17,4 @@ namespace logging
     // TODO: Extend logging
 }
 
-#define LOG(level, fmt, ...) printf(fmt, __VA_ARGS__)
+#define LOG(level, fmt, ...) printf(fmt, ##__VA_ARGS__)
