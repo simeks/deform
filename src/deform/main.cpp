@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
         LOG(Warning, "Running debug build!\n");
     #endif
 
-    if (argc >= 2 && strcmp(argv[1], "transform"))
+    if (argc >= 2 && strcmp(argv[1], "transform") == 0)
         return run_transform(argc, argv);
 
     Args input_args = {0};
