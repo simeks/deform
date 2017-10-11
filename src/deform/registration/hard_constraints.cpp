@@ -1,6 +1,6 @@
 #include "hard_constraints.h"
 
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
 
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
@@ -121,4 +121,4 @@ VolumeFloat3 hard_constraints::downsample_values_by_2(
     return result;
 }
 
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS

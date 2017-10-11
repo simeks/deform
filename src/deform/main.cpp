@@ -30,10 +30,10 @@ struct Args
 
     const char* initial_deformation;
 
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     const char* constraint_mask;
     const char* constraint_values;
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
 };
 
 
@@ -48,10 +48,10 @@ void print_help_and_exit(const char* err = 0)
               << "-m<i> <file> : Filename of the i:th moving image (i < " 
                 << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
               << "-d0 <file> : Filename for initial deformation field" << std::endl
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
               << "-constraint_mask <file> : Filename for constraint mask" << std::endl
               << "-constraint_values <file> : Filename for constraint values" << std::endl
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
               << "-p <file> : Filename of the parameter file (required)." << std::endl
               << "--help : Shows this help section." << std::endl
               << "*Requires a matching number of fixed and moving images";
@@ -109,7 +109,7 @@ void parse_command_line(Args& args, int argc, char** argv)
                     print_help_and_exit("Missing arguments");
                 args.initial_deformation = argv[i];
             }
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
             else if (key == "constraint_mask")
             {
                 if (++i >= argc) 
@@ -122,7 +122,7 @@ void parse_command_line(Args& args, int argc, char** argv)
                     print_help_and_exit("Missing arguments");
                 args.constraint_values = argv[i];
             }
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
             else
             {
                 print_help_and_exit("Unrecognized option");
@@ -291,7 +291,7 @@ int main(int argc, char* argv[])
         engine.set_initial_deformation(initial_deformation);
     }
 
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     if (input_args.constraint_mask && input_args.constraint_values)
     {
         Volume constraint_mask = load_volume(input_args.constraint_mask);
@@ -307,7 +307,7 @@ int main(int argc, char* argv[])
         // Just a check to make sure the user didn't forget something
         LOG(Warning, "No constraints used, to use constraints, specify both a mask and a vectorfield\n");
     }
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
     if (!engine.validate_input())
         exit(1);

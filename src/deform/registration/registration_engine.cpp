@@ -14,9 +14,9 @@
 #include <sstream>
 #include <string>
 
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
 #include "hard_constraints.h"
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
 
 namespace
@@ -66,7 +66,7 @@ namespace
         return true;
     }
 
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     void constrain_deformation_field(VolumeFloat3& def, const VolumeUInt8& mask, const VolumeFloat3& values)
     {
         assert(def.size() == mask.size() && def.size() == values.size());
@@ -85,7 +85,7 @@ namespace
             }
         }
     }
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
 }
 
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
@@ -114,10 +114,10 @@ void RegistrationEngine::initialize(int image_pair_count)
     }
     _deformation_pyramid.set_level_count(_pyramid_levels);
 
-    #ifdef DF_ENABLE_HARD_CONSTRAINTS
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
         _constraints_pyramid.set_level_count(_pyramid_levels);
         _constraints_mask_pyramid.set_level_count(_pyramid_levels);
-    #endif // DF_ENABLE_HARD_CONSTRAINTS
+    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
 }
 void RegistrationEngine::set_initial_deformation(const Volume& def)
 {
@@ -137,7 +137,7 @@ void RegistrationEngine::set_image_pair(
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
-#ifdef DF_ENABLE_HARD_CONSTRAINTS
+#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
 void RegistrationEngine::set_hard_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
 {
     _constraints_mask_pyramid.set_volume(0, mask);
@@ -153,7 +153,7 @@ void RegistrationEngine::set_hard_constraints(const VolumeUInt8& mask, const Vol
             hard_constraints::downsample_values_by_2(prev_mask, prev_values));
     }
 }
-#endif // DF_ENABLE_HARD_CONSTRAINTS
+#endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
 Volume RegistrationEngine::execute()
 {
@@ -203,7 +203,7 @@ Volume RegistrationEngine::execute()
                 moving_volumes[i] = _moving_pyramids[i].volume(l);
             }
 
-            #ifdef DF_ENABLE_HARD_CONSTRAINTS
+            #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
                 typedef UnaryFunction<
                         SquaredDistanceFunction<float>,
                         SquaredDistanceFunction<float>,
@@ -351,7 +351,7 @@ bool RegistrationEngine::validate_input()
             fixed_dims, fixed_origin, fixed_spacing, "initial deformation field"))
         return false;
 
-    #ifdef DF_ENABLE_HARD_CONSTRAINTS
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
         if (_constraints_pyramid.volume(0).valid() && !validate_volume_properties(_constraints_pyramid.volume(0), 
                 fixed_dims, fixed_origin, fixed_spacing, "constraints values"))
             return false;
@@ -360,7 +360,7 @@ bool RegistrationEngine::validate_input()
                 fixed_dims, fixed_origin, fixed_spacing, "constraints mask"))
             return false;
 
-    #endif // DF_ENABLE_HARD_CONSTRAINTS
+    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
     return true;
 }
