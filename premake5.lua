@@ -23,6 +23,9 @@ workspace "deform"                   -- Solution Name
 
   defines { "_UNICODE", "UNICODE" }
 
+  filter { "platforms:*32" } architecture "x86"
+  filter { "platforms:*64" } architecture "x64"
+  
   filter { "system:windows" }
     buildoptions { "/openmp" }
     linkoptions { "/DEBUG:FULL" }
@@ -47,8 +50,6 @@ workspace "deform"                   -- Solution Name
     defines { "NDEBUG", "DF_BUILD_RELEASE" } 
     optimize "Speed"
 
-  filter { "platforms:*32" } architecture "x86"
-  filter { "platforms:*64" } architecture "x64"
 
   -- when building any visual studio project
   filter { "system:windows", "action:vs*"}
