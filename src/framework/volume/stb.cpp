@@ -1,7 +1,7 @@
 #include "stb.h"
 #include "volume.h"
 
-#ifdef DF_BUILD_WINDOWS
+#ifdef DF_PLATFORM_WINDOWS
     #pragma warning(push)
     #pragma warning(disable: 4456) // declaration of 'k' hides previous local declaration
     #pragma warning(disable: 4996) // 'fopen': This function or variable may be unsafe...
@@ -18,9 +18,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#ifdef DF_BUILD_WINDOWS
+#ifdef DF_PLATFORM_WINDOWS
     #pragma warning(pop)
-#endif // DF_BUILD_WINDOWS
+#endif // DF_PLATFORM_WINDOWS
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
@@ -67,7 +67,7 @@ namespace stb
 
         const char* ext = file + strlen(file) - 4;
 
-        #ifdef DF_BUILD_WINDOWS        
+        #ifdef DF_PLATFORM_WINDOWS        
             #define strcmp_ignore_case _stricmp
         #else
             #define strcmp_ignore_case strcasecmp
