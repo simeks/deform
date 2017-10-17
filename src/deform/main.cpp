@@ -181,7 +181,7 @@ Volume load_volume(const std::string& file)
         Volume vol = reader.execute(file.c_str());
         if (!vol.valid())        
         {
-            LOG(Error, "Failed to read image: %s\n", reader.last_error());
+            LOG(Error, "Failed to read '%s': %s\n", file.c_str(), reader.last_error());
         }
         return vol;
     }
@@ -191,13 +191,13 @@ Volume load_volume(const std::string& file)
         Volume vol = stb::read_image(file.c_str());
         if (!vol.valid())
         {
-            LOG(Error, "Failed to read image: %s\n", stb::last_read_error());
+            LOG(Error, "Failed to read '%s': %s\n", file.c_str(), stb::last_read_error());
         }
         return vol;
     }
     else
     {
-        LOG(Error, "Unsupported file extension: '%s'\n", ext.c_str());
+        LOG(Error, "Unsupported file extension: '%s'\n", file.c_str());
     }
     // Returning an "invalid" volume
     return Volume();
