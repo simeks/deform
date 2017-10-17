@@ -35,7 +35,7 @@ workspace "deform"                   -- Solution Name
   
 
   -- Debug info for release builds
-  filter "configurations:Release"
+  filter { "configurations:Release", "system:windows" }
     buildoptions { "/FS /Zi" }
 
   -- see 'filter' in the wiki pages
