@@ -6,7 +6,11 @@
     #pragma warning(disable: 4456) // declaration of 'k' hides previous local declaration
     #pragma warning(disable: 4996) // 'fopen': This function or variable may be unsafe...
     #pragma warning(disable: 4244) // '=': conversion from 'int' to 'stbi__uint16', possible loss of data
-#endif // DF_BUILD_WINDOWS
+#else
+    // TODO: Old gcc does not support push/pop
+    #pragma GCC diagnostic ignored "-Wstrict-aliasing"
+    #pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
