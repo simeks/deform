@@ -41,6 +41,10 @@ public:
         const Volume& moving,
         Volume (*downsample_fn)(const Volume&, float));
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    void set_regularization_weight_map(const Volume& map);
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     /// Sets mask and values for constraints
     void set_voxel_constraints(const VolumeUInt8& mask, const VolumeFloat3& values);
@@ -69,11 +73,16 @@ private:
     int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
 
     float _step_size;
-    float _regularization_weight;
+    float _regularization_weight; // Only used if no regularization map is present
 
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
+
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    VolumePyramid _regularization_weight_map;
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
 
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     VolumePyramid _constraints_pyramid;

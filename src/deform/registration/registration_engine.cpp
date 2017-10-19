@@ -114,6 +114,10 @@ void RegistrationEngine::initialize(int image_pair_count)
     }
     _deformation_pyramid.set_level_count(_pyramid_levels);
 
+    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        _regularization_weight_map.set_level_count(_pyramid_levels);
+    #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
         _constraints_pyramid.set_level_count(_pyramid_levels);
         _constraints_mask_pyramid.set_level_count(_pyramid_levels);
@@ -137,6 +141,13 @@ void RegistrationEngine::set_image_pair(
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+void RegistrationEngine::set_regularization_weight_map(const Volume& map)
+{
+    _regularization_weight_map.build_from_base(map, filters::downsample_volume_gaussian);
+}
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
 void RegistrationEngine::set_voxel_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
 {
