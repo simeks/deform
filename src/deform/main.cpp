@@ -3,6 +3,7 @@
 #include "registration/registration_engine.h"
 #include "registration/transform.h"
 #include "registration/volume_pyramid.h"
+#include "regularize.h"
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
@@ -21,147 +22,149 @@
 #include <string>
 #include <vector>
 
-struct Args
+namespace
 {
-    const char* param_file;
-    
-    const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
-    const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
-
-    const char* initial_deformation;
-
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-    const char* constraint_mask;
-    const char* constraint_values;
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
-};
-
-
-void print_help_and_exit(const char* err = 0)
-{
-    if (err)
-        std::cout << "Error: " << err << std::endl;
-
-    std::cout << "Arguments:" << std::endl
-              << "-f<i> <file> : Filename of the i:th fixed image (i < " 
-                << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
-              << "-m<i> <file> : Filename of the i:th moving image (i < " 
-                << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
-              << "-d0 <file> : Filename for initial deformation field" << std::endl
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-              << "-constraint_mask <file> : Filename for constraint mask" << std::endl
-              << "-constraint_values <file> : Filename for constraint values" << std::endl
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
-              << "-p <file> : Filename of the parameter file (required)." << std::endl
-              << "--help : Shows this help section." << std::endl
-              << "*Requires a matching number of fixed and moving images";
-    exit(1);
-}
-void parse_command_line(Args& args, int argc, char** argv)
-{
-    args = {0};
-
-    /// Skip i=0 (name of executable)
-    int i = 1;
-    while (i < argc)
+    struct Args
     {
-        std::string token = argv[i];
-        if (token[0] == '-')
+        const char* param_file;
+        
+        const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
+        const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
+
+        const char* initial_deformation;
+
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+        const char* constraint_mask;
+        const char* constraint_values;
+    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+    };
+
+    void print_help_and_exit(const char* err = 0)
+    {
+        if (err)
+            std::cout << "Error: " << err << std::endl;
+
+        std::cout << "Arguments:" << std::endl
+                << "-f<i> <file> : Filename of the i:th fixed image (i < " 
+                    << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
+                << "-m<i> <file> : Filename of the i:th moving image (i < " 
+                    << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
+                << "-d0 <file> : Filename for initial deformation field" << std::endl
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+                << "-constraint_mask <file> : Filename for constraint mask" << std::endl
+                << "-constraint_values <file> : Filename for constraint values" << std::endl
+    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+                << "-p <file> : Filename of the parameter file (required)." << std::endl
+                << "--help : Shows this help section." << std::endl
+                << "*Requires a matching number of fixed and moving images";
+        exit(1);
+    }
+    void parse_command_line(Args& args, int argc, char** argv)
+    {
+        args = {0};
+
+        /// Skip i=0 (name of executable)
+        int i = 1;
+        while (i < argc)
         {
-            int b = token[1] == '-' ? 2 : 1;
-            std::string key = token.substr(b);
+            std::string token = argv[i];
+            if (token[0] == '-')
+            {
+                int b = token[1] == '-' ? 2 : 1;
+                std::string key = token.substr(b);
 
-            if (key == "help")
-            {
-                print_help_and_exit();
-            }
-            else if (key == "p")
-            {
-                if (++i >= argc) 
-                    print_help_and_exit("Missing arguments");
-                args.param_file = argv[i];
-            }
-            else if (key[0] == 'f')
-            {
-                int img_index = std::stoi(key.substr(1));
-                if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
+                if (key == "help")
+                {
                     print_help_and_exit();
+                }
+                else if (key == "p")
+                {
+                    if (++i >= argc) 
+                        print_help_and_exit("Missing arguments");
+                    args.param_file = argv[i];
+                }
+                else if (key[0] == 'f')
+                {
+                    int img_index = std::stoi(key.substr(1));
+                    if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
+                        print_help_and_exit();
 
-                if (++i >= argc)
-                    print_help_and_exit("Missing arguments");
-                
-                args.fixed_files[img_index] = argv[i];
-            }
-            else if (key[0] == 'm')
-            {
-                int img_index = std::stoi(key.substr(1));
-                if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
-                    print_help_and_exit();
+                    if (++i >= argc)
+                        print_help_and_exit("Missing arguments");
+                    
+                    args.fixed_files[img_index] = argv[i];
+                }
+                else if (key[0] == 'm')
+                {
+                    int img_index = std::stoi(key.substr(1));
+                    if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
+                        print_help_and_exit();
 
-                if (++i >= argc)
-                    print_help_and_exit("Missing arguments");
-                
-                args.moving_files[img_index] = argv[i];
+                    if (++i >= argc)
+                        print_help_and_exit("Missing arguments");
+                    
+                    args.moving_files[img_index] = argv[i];
+                }
+                else if (key == "d0")
+                {
+                    if (++i >= argc) 
+                        print_help_and_exit("Missing arguments");
+                    args.initial_deformation = argv[i];
+                }
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+                else if (key == "constraint_mask")
+                {
+                    if (++i >= argc) 
+                        print_help_and_exit("Missing arguments");
+                    args.constraint_mask = argv[i];
+                }
+                else if (key == "constraint_values")
+                {
+                    if (++i >= argc) 
+                        print_help_and_exit("Missing arguments");
+                    args.constraint_values = argv[i];
+                }
+    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+                else
+                {
+                    print_help_and_exit("Unrecognized option");
+                }
             }
-            else if (key == "d0")
-            {
-                if (++i >= argc) 
-                    print_help_and_exit("Missing arguments");
-                args.initial_deformation = argv[i];
-            }
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-            else if (key == "constraint_mask")
-            {
-                if (++i >= argc) 
-                    print_help_and_exit("Missing arguments");
-                args.constraint_mask = argv[i];
-            }
-            else if (key == "constraint_values")
-            {
-                if (++i >= argc) 
-                    print_help_and_exit("Missing arguments");
-                args.constraint_values = argv[i];
-            }
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
             else
             {
                 print_help_and_exit("Unrecognized option");
             }
+            ++i;
         }
-        else
+    }
+    /// Returns true if parsing was successful, false if not
+    void parse_parameter_file(RegistrationEngine::Settings& settings, const char* file)
+    {
+        // Assumes settings is filled with the default values beforehand
+
+        ConfigFile cfg(file);
+
+        if (cfg.keyExists("REGISTRATION_METHOD"))
         {
-            print_help_and_exit("Unrecognized option");
+            LOG(Warning, "Parameter REGISTRATION_METHOD not applicable, ignoring.\n");
         }
-        ++i;
+
+        if (cfg.keyExists("NORMALIZE_IMAGES"))
+        {
+            LOG(Warning, "Parameter NORMALIZE_IMAGES not applicable (depends on image type), ignoring.\n");
+        }
+
+        settings.pyramid_levels = cfg.getValueOfKey<int>("PYRAMID_LEVELS", settings.pyramid_levels);
+        settings.max_pyramid_level = cfg.getValueOfKey<int>("MAX_RESOLUTION", settings.max_pyramid_level);
+        settings.step_size = cfg.getValueOfKey<float>("STEPSIZE", settings.step_size);
+        settings.regularization_weight = cfg.getValueOfKey<float>("REGULARIZATION_WEIGHT", settings.regularization_weight);
+        
+        LOG(Info, "Settings:\n");
+        LOG(Info, "pyramid_levels = %d\n", settings.pyramid_levels);
+        LOG(Info, "max_pyramid_level = %d\n", settings.max_pyramid_level);
+        LOG(Info, "step_size = %f\n", settings.step_size);
+        LOG(Info, "regularization_weight = %f\n", settings.regularization_weight);
     }
-}
-/// Returns true if parsing was successful, false if not
-void parse_parameter_file(RegistrationEngine::Settings& settings, const char* file)
-{
-    // Assumes settings is filled with the default values beforehand
-
-    ConfigFile cfg(file);
-
-    if (cfg.keyExists("REGISTRATION_METHOD"))
-    {
-        LOG(Warning, "Parameter REGISTRATION_METHOD not applicable, ignoring.\n");
-    }
-
-    if (cfg.keyExists("NORMALIZE_IMAGES"))
-    {
-        LOG(Warning, "Parameter NORMALIZE_IMAGES not applicable (depends on image type), ignoring.\n");
-    }
-
-    settings.pyramid_levels = cfg.getValueOfKey<int>("PYRAMID_LEVELS", settings.pyramid_levels);
-    settings.max_pyramid_level = cfg.getValueOfKey<int>("MAX_RESOLUTION", settings.max_pyramid_level);
-    settings.step_size = cfg.getValueOfKey<float>("STEPSIZE", settings.step_size);
-    settings.regularization_weight = cfg.getValueOfKey<float>("REGULARIZATION_WEIGHT", settings.regularization_weight);
-    
-    LOG(Info, "Settings:\n");
-    LOG(Info, "pyramid_levels = %d\n", settings.pyramid_levels);
-    LOG(Info, "max_pyramid_level = %d\n", settings.max_pyramid_level);
-    LOG(Info, "step_size = %f\n", settings.step_size);
-    LOG(Info, "regularization_weight = %f\n", settings.regularization_weight);
 }
 
 // Identifies and loads the given file
@@ -238,6 +241,8 @@ int main(int argc, char* argv[])
 
     if (argc >= 2 && strcmp(argv[1], "transform") == 0)
         return run_transform(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "regularize") == 0)
+        return run_regularize(argc, argv);
 
     Args input_args = {0};
     parse_command_line(input_args, argc, argv);
