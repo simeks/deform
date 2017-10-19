@@ -300,7 +300,7 @@ int main(int argc, char* argv[])
         Volume constraint_values = load_volume(input_args.constraint_values);
         if (!constraint_values.valid()) return 1;
 
-        engine.set_hard_constraints(constraint_mask, constraint_values);
+        engine.set_voxel_constraints(constraint_mask, constraint_values);
     }
     else if (input_args.constraint_mask || input_args.constraint_values)
     {

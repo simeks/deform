@@ -15,7 +15,7 @@
 #include <string>
 
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-#include "hard_constraints.h"
+#include "voxel_constraints.h"
 #endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
 
@@ -138,7 +138,7 @@ void RegistrationEngine::set_image_pair(
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-void RegistrationEngine::set_hard_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
+void RegistrationEngine::set_voxel_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
 {
     _constraints_mask_pyramid.set_volume(0, mask);
     _constraints_pyramid.set_volume(0, values);
@@ -148,9 +148,9 @@ void RegistrationEngine::set_hard_constraints(const VolumeUInt8& mask, const Vol
         VolumeFloat3 prev_values = _constraints_pyramid.volume(i);
 
         _constraints_mask_pyramid.set_volume(i+1, 
-            hard_constraints::downsample_mask_by_2(prev_mask));
+            voxel_constraints::downsample_mask_by_2(prev_mask));
         _constraints_pyramid.set_volume(i+1, 
-            hard_constraints::downsample_values_by_2(prev_mask, prev_values));
+            voxel_constraints::downsample_values_by_2(prev_mask, prev_values));
     }
 }
 #endif // DF_ENABLE_VOXEL_CONSTRAINTS

@@ -1,11 +1,11 @@
-#include "hard_constraints.h"
+#include "constraints.h"
 
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
 
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
 
-VolumeUInt8 hard_constraints::downsample_mask_by_2(const VolumeUInt8& mask)
+VolumeUInt8 voxel_constraints::downsample_mask_by_2(const VolumeUInt8& mask)
 {
     /*
         Downsampling of mask volumes by a factor of 2. Designed specifically for binary masks.
@@ -58,7 +58,7 @@ VolumeUInt8 hard_constraints::downsample_mask_by_2(const VolumeUInt8& mask)
     }
     return result;
 }
-VolumeFloat3 hard_constraints::downsample_values_by_2(
+VolumeFloat3 voxel_constraints::downsample_values_by_2(
     const VolumeUInt8& mask, const VolumeFloat3& values)
 {
     /*

@@ -42,8 +42,8 @@ public:
         Volume (*downsample_fn)(const Volume&, float));
 
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-    /// Sets mask and values for hard constraints
-    void set_hard_constraints(const VolumeUInt8& mask, const VolumeFloat3& values);
+    /// Sets mask and values for constraints
+    void set_voxel_constraints(const VolumeUInt8& mask, const VolumeFloat3& values);
 #endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
     /// Runs the registration. 
