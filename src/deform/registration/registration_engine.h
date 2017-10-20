@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config.h"
+#include "settings.h"
 #include "volume_pyramid.h"
 
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
@@ -12,23 +13,6 @@
 class RegistrationEngine
 {
 public:
-    struct Settings
-    {
-        int pyramid_levels;
-        int max_pyramid_level;
-    
-        float step_size;
-        float regularization_weight;
-    
-        Settings() : 
-            pyramid_levels(6),
-            max_pyramid_level(0),
-            step_size(0.5f),
-            regularization_weight(0.05f)
-        {
-        }
-    };
-
     RegistrationEngine(const Settings& settings);
     ~RegistrationEngine();
 
@@ -68,12 +52,8 @@ private:
     void save_volume_pyramid();
 #endif
     
-    int _pyramid_levels; // Size of the multi-res pyramids
-    int _pyramid_max_level; // Largest level to run (default: 0)
+    Settings _settings;
     int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
-
-    float _step_size;
-    float _regularization_weight; // Only used if no regularization map is present
 
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;

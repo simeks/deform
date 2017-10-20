@@ -1,6 +1,6 @@
 #include "config.h"
-#include "config_file.h"
 #include "registration/registration_engine.h"
+#include "registration/settings.h"
 #include "registration/transform.h"
 #include "registration/volume_pyramid.h"
 
@@ -135,34 +135,6 @@ void parse_command_line(Args& args, int argc, char** argv)
         ++i;
     }
 }
-/// Returns true if parsing was successful, false if not
-void parse_parameter_file(RegistrationEngine::Settings& settings, const char* file)
-{
-    // Assumes settings is filled with the default values beforehand
-
-    ConfigFile cfg(file);
-
-    if (cfg.keyExists("REGISTRATION_METHOD"))
-    {
-        LOG(Warning, "Parameter REGISTRATION_METHOD not applicable, ignoring.\n");
-    }
-
-    if (cfg.keyExists("NORMALIZE_IMAGES"))
-    {
-        LOG(Warning, "Parameter NORMALIZE_IMAGES not applicable (depends on image type), ignoring.\n");
-    }
-
-    settings.pyramid_levels = cfg.getValueOfKey<int>("PYRAMID_LEVELS", settings.pyramid_levels);
-    settings.max_pyramid_level = cfg.getValueOfKey<int>("MAX_RESOLUTION", settings.max_pyramid_level);
-    settings.step_size = cfg.getValueOfKey<float>("STEPSIZE", settings.step_size);
-    settings.regularization_weight = cfg.getValueOfKey<float>("REGULARIZATION_WEIGHT", settings.regularization_weight);
-    
-    LOG(Info, "Settings:\n");
-    LOG(Info, "pyramid_levels = %d\n", settings.pyramid_levels);
-    LOG(Info, "max_pyramid_level = %d\n", settings.max_pyramid_level);
-    LOG(Info, "step_size = %f\n", settings.step_size);
-    LOG(Info, "regularization_weight = %f\n", settings.regularization_weight);
-}
 
 // Identifies and loads the given file
 // file : Filename
@@ -245,8 +217,9 @@ int main(int argc, char* argv[])
     if (input_args.param_file == 0)
         print_help_and_exit();
 
-    RegistrationEngine::Settings settings;
-    parse_parameter_file(settings, input_args.param_file);
+    Settings settings;
+    if (!parse_registration_settings(settings, input_args.param_file))
+        return 1;
 
     int image_pair_count = 0;
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
@@ -275,12 +248,34 @@ int main(int argc, char* argv[])
         Volume moving = load_volume(input_args.moving_files[i]);
         if (!moving.valid()) return 1;
 
-        // TODO: This should probably not be performed for all image types
-        fixed = filters::normalize<float>(fixed, 0.0f, 1.0f);
-        moving = filters::normalize<float>(moving, 0.0f, 1.0f);
+        auto& slot = settings.image_slots[i];
+    
+        if (slot.normalize)
+        {
+            if (fixed.voxel_type() == voxel::Type_Float &&
+                moving.voxel_type() == voxel::Type_Float)
+            {
+                fixed = filters::normalize<float>(fixed, 0.0f, 1.0f);
+                moving = filters::normalize<float>(moving, 0.0f, 1.0f);
+            }
+            else if (fixed.voxel_type() == voxel::Type_Double &&
+                     moving.voxel_type() == voxel::Type_Double)
+            {
+                fixed = filters::normalize<double>(fixed, 0.0, 1.0);
+                moving = filters::normalize<double>(moving, 0.0, 1.0);
+            }
+            else
+            {
+                LOG(Error, "Normalize only supported on volumes of type float or double\n");
+                return 1;
+            }
+        }
+        
+        // It's the only available fn for now
+        Volume (*downsample_fn)(const Volume&, float) = filters::downsample_volume_gaussian;
 
         moving_volumes.push_back(moving);
-        engine.set_image_pair(i, fixed, moving, filters::downsample_volume_gaussian);
+        engine.set_image_pair(i, fixed, moving, downsample_fn);
     }
 
     if (input_args.initial_deformation)

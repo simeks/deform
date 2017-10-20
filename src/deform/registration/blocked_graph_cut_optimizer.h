@@ -14,7 +14,7 @@ template<
 class BlockedGraphCutOptimizer
 {
 public:
-    BlockedGraphCutOptimizer();
+    BlockedGraphCutOptimizer(const int3& block_size);
     ~BlockedGraphCutOptimizer();
 
     /// step_size : Step size in [voxels]

@@ -89,17 +89,13 @@ namespace
 }
 
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
-    _pyramid_levels(settings.pyramid_levels),
-    _pyramid_max_level(settings.max_pyramid_level),
-    _step_size(settings.step_size),
-    _regularization_weight(settings.regularization_weight),
+    _settings(settings),
     _image_pair_count(0)
 {
 }
 RegistrationEngine::~RegistrationEngine()
 {
 }
-
 
 void RegistrationEngine::initialize(int image_pair_count)
 {
@@ -109,24 +105,24 @@ void RegistrationEngine::initialize(int image_pair_count)
 
     for (int i = 0; i < _image_pair_count; ++i)
     {
-        _fixed_pyramids[i].set_level_count(_pyramid_levels);
-        _moving_pyramids[i].set_level_count(_pyramid_levels);
+        _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
+        _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     }
-    _deformation_pyramid.set_level_count(_pyramid_levels);
+    _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-        _regularization_weight_map.set_level_count(_pyramid_levels);
+        _regularization_weight_map.set_level_count(_settings.num_pyramid_levels);
     #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        _constraints_pyramid.set_level_count(_pyramid_levels);
-        _constraints_mask_pyramid.set_level_count(_pyramid_levels);
+        _constraints_pyramid.set_level_count(_settings.num_pyramid_levels);
+        _constraints_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
     #endif // DF_ENABLE_VOXEL_CONSTRAINTS
 }
 void RegistrationEngine::set_initial_deformation(const Volume& def)
 {
     assert(def.voxel_type() == voxel::Type_Float3); // Only single-precision supported for now
-    assert(_pyramid_levels);
+    assert(_settings.num_pyramid_levels);
 
     _deformation_pyramid.build_from_base_with_residual(def, filters::downsample_vectorfield);
 }
@@ -137,7 +133,7 @@ void RegistrationEngine::set_image_pair(
     Volume (*downsample_fn)(const Volume&, float))
 {
     assert(i < DF_MAX_IMAGE_PAIR_COUNT);
-
+    
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
@@ -153,7 +149,7 @@ void RegistrationEngine::set_voxel_constraints(const VolumeUInt8& mask, const Vo
 {
     _constraints_mask_pyramid.set_volume(0, mask);
     _constraints_pyramid.set_volume(0, values);
-    for (int i = 0; i < _pyramid_levels-1; ++i)
+    for (int i = 0; i < _settings.num_pyramid_levels-1; ++i)
     {
         VolumeUInt8 prev_mask = _constraints_mask_pyramid.volume(i);
         VolumeFloat3 prev_values = _constraints_pyramid.volume(i);
@@ -194,11 +190,11 @@ Volume RegistrationEngine::execute()
     std::vector<Volume> fixed_volumes(_image_pair_count);
     std::vector<Volume> moving_volumes(_image_pair_count);
 
-    for (int l = _pyramid_levels-1; l >= 0; --l)
+    for (int l = _settings.num_pyramid_levels-1; l >= 0; --l)
     {
         VolumeFloat3 def = _deformation_pyramid.volume(l);
 
-        if (l >= _pyramid_max_level)
+        if (l >= _settings.pyramid_start_level)
         {
             LOG(Info, "Performing registration level %d\n", l);
 
@@ -240,7 +236,7 @@ Volume RegistrationEngine::execute()
 
                 BlockedGraphCutOptimizer<
                     UnaryFn, 
-                    Regularizer> optimizer;
+                    Regularizer> optimizer(_settings.block_size);
 
 
                 // Fix constrained voxels by updating the initial deformation field
@@ -253,7 +249,7 @@ Volume RegistrationEngine::execute()
             #else
                 BlockedGraphCutOptimizer<
                     EnergyFunction<float>,
-                    Regularizer> optimizer;
+                    Regularizer> optimizer(_settings.block_size);
             
                 EnergyFunction<float> unary_fn(
                     1.0f - _regularization_weight, 
@@ -267,9 +263,9 @@ Volume RegistrationEngine::execute()
             // Calculate step size in voxels
             float3 fixed_spacing = fixed_volumes[0].spacing();
             float3 step_size_voxels{
-                _step_size / fixed_spacing.x,
-                _step_size / fixed_spacing.y,
-                _step_size / fixed_spacing.z
+                _settings.step_size / fixed_spacing.x,
+                _settings.step_size / fixed_spacing.y,
+                _settings.step_size / fixed_spacing.z
             };
 
             #if DF_DEBUG_LEVEL >= 3
@@ -320,9 +316,9 @@ bool RegistrationEngine::validate_input()
     // * All volumes for the same subject (i.e. fixed or moving) must have the same dimensions
     // * All volumes for the same subject (i.e. fixed or moving) need to have the same origin and spacing
     // * For simplicity any given initial deformation field must match the fixed image properties (size, origin, spacing)
+    // * Pairs must have a matching data type
     // If hard constraints are enabled:
     // * Constraint mask and values must match fixed image
-
 
     Dims fixed_dims = _fixed_pyramids[0].volume(0).size();
     Dims moving_dims = _moving_pyramids[0].volume(0).size();
@@ -339,6 +335,13 @@ bool RegistrationEngine::validate_input()
             !_moving_pyramids[i].volume(0).valid())
         {
             LOG(Error, "Missing image(s) at index %d\n", i);
+            return false;
+        }
+
+        if (_fixed_pyramids[i].volume(0).voxel_type() != 
+            _moving_pyramids[i].volume(0).voxel_type())
+        {
+            LOG(Error, "Mismatch in voxel type between pairs at index %d\n", i);
             return false;
         }
 
@@ -427,7 +430,7 @@ void RegistrationEngine::upsample_and_save(int level)
 }
 void RegistrationEngine::save_volume_pyramid()
 {
-    for (int l = 0; l < _pyramid_levels; ++l)
+    for (int l = 0; l < _settings.num_pyramid_levels; ++l)
     {
         for (int i = 0; i < _image_pair_count; ++i)
         {

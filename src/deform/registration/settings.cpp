@@ -1,18 +1,16 @@
 #include "settings.h"
 
+#include <framework/debug/log.h>
 #include <framework/json/json.h>
 
 /*
-    "pyramid":
-    {
-        "pyramid_levels": 6,
-        "max_resolution": 0,
-    },
+    "pyramid_levels": 6,
+    "pyramid_start_level": 0,
 
-    "constraints":
-    {
-        "weight": 1000
-    },
+    "constraints_weight": 1000,
+
+    "block_size": [12, 12, 12],
+    "step_size": 0.5,
 
     "image_slots":
     {
@@ -39,11 +37,6 @@
         },
     },
 
-    "optimizer":
-    {
-        "block_size": [12, 12, 12],
-        "step_size": 0.5,
-    }
     */
 
 
@@ -136,6 +129,55 @@ bool read_value<Settings::ImageSlot::ResampleMethod>(const json::JsonObject& obj
     return true;
 }
 
+const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
+{
+    switch (fn)
+    {
+        case Settings::ImageSlot::CostFunction_SSD:
+            return "squared_distance";
+        default:
+        case Settings::ImageSlot::CostFunction_None:
+            return "none";
+    }
+}
+const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
+{
+    switch (fn)
+    {
+        case Settings::ImageSlot::Resample_Gaussian:
+            return "gaussian";
+    };
+}
+
+void print_registration_settings(const Settings& settings)
+{
+    LOG(Info, "Settings:\n");
+    LOG(Info, "pyramid_start_level=%d\n",settings.pyramid_start_level);
+    LOG(Info, "num_pyramid_levels=%d\n",settings.num_pyramid_levels);
+    LOG(Info, "\n");
+    LOG(Info, "block_size=[%d, %d, %d]\n", 
+        settings.block_size.x, settings.block_size.y, settings.block_size.z);
+    LOG(Info, "step_size=%f\n", settings.step_size);
+    LOG(Info, "\n");
+    
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+        LOG(Info, "constraints_weight=%f\n", settings.constraints_weight);
+        LOG(Info, "\n");
+    #endif
+
+    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
+    {
+        auto& slot = settings.image_slots[i];
+
+        LOG(Info, "image_slot[%d]={\n", i);
+        LOG(Info, "\tcost_function=%s\n", cost_function_to_str(slot.cost_function));        
+        LOG(Info, "\tresample_method=%s\n", resample_method_to_str(slot.resample_method));        
+        LOG(Info, "\tnormalize=%s\n", slot.normalize ? "true" : "false");        
+        LOG(Info, "}\n");
+    }
+
+}
+
 bool load_registration_settings(const char* parameter_file, Settings& settings)
 {
     // Defaults
@@ -149,17 +191,44 @@ bool load_registration_settings(const char* parameter_file, Settings& settings)
         return false;
     }
 
-    auto pyramid = root["pyramid"];
-    if (pyramid.is_object())
-    {
-        if (!pyramid["pyramid_levels"].is_null() &&
-            !read_value(pyramid, "pyramid_levels", settings.num_pyramid_levels))
-            return false;
+    if (!root["pyramid_levels"].is_null() &&
+        !read_value(root, "pyramid_levels", settings.num_pyramid_levels))
+        return false;
 
-        if (!pyramid["start_level"].is_null() &&
-            !read_value(pyramid, "start_level", settings.pyramid_start_level))
+    if (!root["pyramid_start_level"].is_null() &&
+        !read_value(root, "start_level", settings.pyramid_start_level))
+        return false;
+
+    if (!root["step_size"].is_null() &&
+        !read_value(root, "step_size", settings.step_size))
+        return false;
+
+    auto block_size = root["block_size"];
+    if (!block_size.is_null())
+    {
+        if (!block_size.is_array() || 
+            block_size.size() != 3 ||
+            !block_size[0].is_number() ||
+            !block_size[1].is_number() ||
+            !block_size[2].is_number())
+        {
+            LOG(Error, "Settings: 'block_size', expected a array of 3 integers.\n");
             return false;
+        }
+
+        settings.block_size = {
+            block_size[0].as_int(),
+            block_size[1].as_int(),
+            block_size[2].as_int()
+        };
     }
+
+
+    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+        if (!root["constraints_weight"].is_null() &&
+            !read_variable(root, "constraints_weight", settings.constraints_weight))
+            return false;
+    #endif
 
     auto image_slots = root["image_slots"];
     if (image_slots.is_object())
@@ -186,43 +255,7 @@ bool load_registration_settings(const char* parameter_file, Settings& settings)
         }
     }
 
-    auto optimizer = root["optimizer"];
-    if (optimizer.is_object())
-    {
-        if (!optimizer["step_size"].is_null() &&
-            !read_value(optimizer, "step_size", settings.step_size))
-            return false;
 
-        auto block_size = optimizer["block_size"];
-        if (!block_size.is_null())
-        {
-            if (!block_size.is_array() || 
-                block_size.size() != 3 ||
-                !block_size[0].is_number() ||
-                !block_size[1].is_number() ||
-                !block_size[2].is_number())
-            {
-                LOG(Error, "Settings: 'block_size', expected a array of 3 integers.\n");
-                return false;
-            }
-
-            settings.block_size = {
-                block_size[0].as_int(),
-                block_size[1].as_int(),
-                block_size[2].as_int()
-            };
-        }
-    }
-
-
-    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        auto constraints = root["constraints"];
-        if (constraints.is_object())
-        {
-            if (read_variable(constraints, "weight", settings.constraint_weight))
-                return false;
-        }
-    #endif
 
 
     return true;

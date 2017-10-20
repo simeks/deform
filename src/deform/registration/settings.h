@@ -2,6 +2,8 @@
 
 #include "config.h"
 
+#include <framework/math/int3.h>
+
 struct Settings
 {
     // Settings for a specific image slot, each image pair (i.e. fixed and moving) is considered
@@ -56,7 +58,7 @@ struct Settings
     // Only applicable when constraints are present
 
     // High weight means harder constraints, a high value (>1000.0f) will act as hard constraints
-    float constraint_weight;
+    float constraints_weight;
 #endif
 
     Settings() :
@@ -70,6 +72,6 @@ struct Settings
     {}
 };
 
-// Return true if loading was successful, false if not
-bool load_registration_settings(const char* parameter_file, Settings& settings);
+// Return true if parsing was successful, false if not
+bool parse_registration_settings(const char* parameter_file, Settings& settings);
 

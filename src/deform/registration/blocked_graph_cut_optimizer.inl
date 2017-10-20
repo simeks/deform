@@ -11,7 +11,7 @@ template<
     typename TUnaryTerm,
     typename TBinaryTerm
 >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer()
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(const int3& block_size)
 {
     _neighbors[0] = {1, 0, 0};
     _neighbors[1] = {-1, 0, 0};
@@ -20,7 +20,7 @@ BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer()
     _neighbors[4] = {0, 0, 1};
     _neighbors[5] = {0, 0, -1};
 
-    _block_size = {12, 12, 12};
+    _block_size = block_size;
 }
 template<
     typename TUnaryTerm,
@@ -119,7 +119,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                     #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
                         block_energy[block_idx] = 100000000.0f;
                     #endif
-
 
                     int block_x = (block_idx % real_block_count.x) % real_block_count.y;
                     int block_y = (block_idx / real_block_count.x) % real_block_count.y;
