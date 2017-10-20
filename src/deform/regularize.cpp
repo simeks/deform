@@ -287,13 +287,20 @@ int run_regularize(int argc, char* argv[])
 
     double t_start = timer::seconds();
 
-    Volume src = load_volume(argv[2]);
-    if (!src.valid()) return 1;
+    VolumePyramid deformation_pyramid;
+    deformation_pyramid.set_level_count(pyramid_levels);
     
-    if (src.voxel_type() != voxel::Type_Float3)
     {
-        LOG(Error, "Invalid voxel type for deformation field, expected float3\n");
-        return 1;
+        Volume src = load_volume(argv[2]);
+        if (!src.valid()) return 1;
+            
+        if (src.voxel_type() != voxel::Type_Float3)
+        {
+            LOG(Error, "Invalid voxel type for deformation field, expected float3\n");
+            return 1;
+        }
+        
+        deformation_pyramid.build_from_base_with_residual(src, filters::downsample_vectorfield);
     }
 
     bool use_constraints = false;
@@ -310,13 +317,9 @@ int run_regularize(int argc, char* argv[])
     }
     else
     {
-        constraints_mask = VolumeUInt8(src.size(), 0);
-        constraints_values = VolumeFloat3(src.size(), float3{0});
+        constraints_mask = VolumeUInt8(deformation_pyramid.volume(0).size(), 0);
+        constraints_values = VolumeFloat3(deformation_pyramid.volume(0).size(), float3{0});
     }
-
-    VolumePyramid deformation_pyramid;
-    deformation_pyramid.set_level_count(pyramid_levels);
-    deformation_pyramid.build_from_base_with_residual(src, filters::downsample_vectorfield);
 
     VolumePyramid constraints_mask_pyramid, constraints_pyramid;
     voxel_constraints::build_pyramids(
