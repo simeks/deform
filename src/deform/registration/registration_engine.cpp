@@ -147,6 +147,7 @@ void RegistrationEngine::set_regularization_weight_map(const Volume& map)
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
 void RegistrationEngine::set_voxel_constraints(const VolumeUInt8& mask, const VolumeFloat3& values)
 {
+<<<<<<< HEAD
     _constraints_mask_pyramid.set_volume(0, mask);
     _constraints_pyramid.set_volume(0, values);
     for (int i = 0; i < _settings.num_pyramid_levels-1; ++i)
@@ -159,6 +160,15 @@ void RegistrationEngine::set_voxel_constraints(const VolumeUInt8& mask, const Vo
         _constraints_pyramid.set_volume(i+1, 
             voxel_constraints::downsample_values_by_2(prev_mask, prev_values));
     }
+=======
+    voxel_constraints::build_pyramids(
+        mask, 
+        values,
+        _pyramid_levels,
+        _constraints_mask_pyramid,
+        _constraints_pyramid
+    );
+>>>>>>> smoothen
 }
 #endif // DF_ENABLE_VOXEL_CONSTRAINTS
 

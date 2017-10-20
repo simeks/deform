@@ -61,10 +61,10 @@ struct FatWaterRegularizer
 
         // w = 0.08 + 0.02 + avg(water, water+step)
 
-        float water1 = fixed_water(p); // Water should be 0-1
-        float water2 = fixed_water(p+step);
+        float water1 = _fixed_water(p); // Water should be 0-1
+        float water2 = _fixed_water(p+step);
 
-        float w = 0.08f + 0.02f * 0.5f * (water1+water2)
+        float w = 0.08f + 0.02f * 0.5f * (water1+water2);
         return w * dist_squared / step_squared;
     }
 
