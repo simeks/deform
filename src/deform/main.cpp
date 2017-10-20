@@ -33,10 +33,10 @@ namespace
 
         const char* initial_deformation;
 
-    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        const char* constraint_mask;
-        const char* constraint_values;
-    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+        #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+            const char* constraint_mask;
+            const char* constraint_values;
+        #endif // DF_ENABLE_VOXEL_CONSTRAINTS
     };
 
     void print_help_and_exit(const char* err = 0)
@@ -50,10 +50,10 @@ namespace
                 << "-m<i> <file> : Filename of the i:th moving image (i < " 
                     << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
                 << "-d0 <file> : Filename for initial deformation field" << std::endl
-    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+        #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
                 << "-constraint_mask <file> : Filename for constraint mask" << std::endl
                 << "-constraint_values <file> : Filename for constraint values" << std::endl
-    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+        #endif // DF_ENABLE_VOXEL_CONSTRAINTS
                 << "-p <file> : Filename of the parameter file (required)." << std::endl
                 << "--help : Shows this help section." << std::endl
                 << "*Requires a matching number of fixed and moving images";

@@ -1,8 +1,14 @@
 #include "registration/volume_pyramid.h"
+#include "registration/voxel_constraints.h"
 #include "regularize.h"
 
+#include <framework/debug/log.h>
+#include <framework/filters/resample.h>
 #include <framework/math/float3.h>
-#include <framework/volume/volume.h>
+#include <framework/math/int3.h>
+#include <framework/platform/timer.h>
+#include <framework/volume/volume_helper.h>
+#include <framework/volume/vtk.h>
 #include <iostream>
 
 // From main
@@ -23,21 +29,113 @@ namespace
     };
 }
 
-void print_help_and_exit(const char* exe, const char* err)
+void print_help_and_exit(const char* exe, const char* err=NULL)
 {
     if (err) std::cout << "Error: " << err << std::endl;
     std::cout << "Usage: " << exe << " regularize <deformation field>" << std::endl;
     std::cout << "Arguments: " << std::endl
               << "-p : Precision (Default: " << default_precision << ")" << std::endl
-              << "-l : Number of pyramid levels (Default: " << default_pyramid_levels << ")" << std::endl;
+              << "-l : Number of pyramid levels (Default: " << default_pyramid_levels << ")" << std::endl
+              << "-o, --output : Output file" << std::endl;
               
     exit(1);
 }
 
+void initialize_regularization(
+    VolumeFloat3& def, 
+    const VolumeUInt8& constraints_mask,
+    const VolumeFloat3& constraints_values
+)
+{
+    float3 spacing = def.spacing();
+    float3 inv_spacing {
+        1.0f / spacing.x,
+        1.0f / spacing.y,
+        1.0f / spacing.z
+    };
+
+    float neighbor_weight[6];
+    for (int i = 0; i < 6; ++i)
+    {
+        float3 n = {
+            inv_spacing.x * neighbors[i].x,
+            inv_spacing.y * neighbors[i].y,
+            inv_spacing.z * neighbors[i].z
+        };
+        neighbor_weight[i] = math::length_squared(n);
+    }
+
+    Dims dims = def.size();
+    VolumeUInt8 visited(dims, 0);
+
+    size_t nvisited = 0;
+    for (int z = 0; z < int(dims.depth); ++z)
+    {
+        for (int y = 0; y < int(dims.height); ++y)
+        {
+            for (int x = 0; x < int(dims.width); ++x)
+            {
+                if (constraints_mask(x, y, z) > 0)
+                {
+                    visited(x, y, z) = 1;
+                    def(x, y, z) = constraints_values(x, y, z);
+                    ++nvisited;
+                }
+            }
+        }
+    }
+
+    size_t nelems = dims.width * dims.height * dims.depth;
+    while (nvisited < nelems)
+    {
+        for (int z = 0; z < int(dims.depth); ++z)
+        {
+            for (int y = 0; y < int(dims.height); ++y)
+            {
+                for (int x = 0; x < int(dims.width); ++x)
+                {
+                    int3 p{x, y, z};
+
+                    if (constraints_mask(p) > 0)
+                    {
+                        def(p) = constraints_values(p);
+                        continue;
+                    }
+                    
+                    float3 new_def{0};
+                    float3 old_def = def(p);
+
+                    float weight_sum = 0;
+
+                    for (int i = 0; i < 6; ++i)
+                    {
+                        if (visited.at(p + neighbors[i], volume::Border_Replicate) > 0)
+                        {
+                            if (visited(p) == 0)
+                            {
+                                ++nvisited;
+                                visited(p) = 1;
+                            }
+
+                            weight_sum += neighbor_weight[i];
+                            new_def = new_def + neighbor_weight[i] * def.at(p + neighbors[i], volume::Border_Replicate);
+
+                        }
+                    }
+                    if (weight_sum > 0)
+                    {
+                        def(p) = new_def / weight_sum;
+                    }
+                }
+            }
+        }
+   }
+}
+
 void do_regularization(
     VolumeFloat3& def, 
-    VolumeUInt8& constraints_mask,
-    VolumeFloat3& constraints_values,
+    const VolumeUInt8& constraints_mask,
+    const VolumeFloat3& constraints_values,
     float precision
 )
 {
@@ -58,7 +156,7 @@ void do_regularization(
             inv_spacing.y * neighbors[i].y,
             inv_spacing.z * neighbors[i].z
         };
-        neighbor_weight[i] = float3::length_squared(n);
+        neighbor_weight[i] = math::length_squared(n);
     }
 
     bool done = false;
@@ -83,7 +181,7 @@ void do_regularization(
     
                         if (off == black_or_red) continue;
 
-                        if (constraint_mask(p) > 0)
+                        if (constraints_mask(p) > 0)
                         {
                             def(p) = constraints_values(p);
                             continue;
@@ -96,7 +194,8 @@ void do_regularization(
                         for (int i = 0; i < 6; ++i)
                         {
                             weight_sum += neighbor_weight[i];
-                            new_def = new_def + def.at(p + neightbors[i], volume::Border_Replicate);
+                            new_def = new_def + neighbor_weight[i] 
+                                * def.at(p + neighbors[i], volume::Border_Replicate);
                         }
 
                         new_def = new_def / weight_sum;
@@ -104,7 +203,7 @@ void do_regularization(
                         new_def = old_def + 1.5f*(new_def - old_def);
 
                         def(p) = new_def;
-                        float diff = float3::length_squared(new_def - old_def);
+                        float diff = math::length_squared(new_def - old_def);
                         if (diff > precision)
                         {
                             done = false;
@@ -121,13 +220,17 @@ void do_regularization(
 int run_regularize(int argc, char* argv[])
 {
     if (argc < 3)
-        print_usage(argv[0]);
+        print_help_and_exit(argv[0]);
 
     float precision = default_precision;
     int pyramid_levels = default_pyramid_levels;
+
+    const char* constraint_mask_file = NULL;
+    const char* constraint_values_file = NULL;
+    const char* output_file = "result_def.vtk";
         
-    /// Skip i=0,1 (name of executable + "regularize")
-    int i = 2;
+    /// Skip i=0,1,3 (name of executable + "regularize" + "<deformation field>")
+    int i = 3;
     while (i < argc)
     {
         std::string token = argv[i];
@@ -150,8 +253,25 @@ int run_regularize(int argc, char* argv[])
             {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");
-
                 pyramid_levels = atoi(argv[i]);
+            }
+            else if (key == "constraint_mask")
+            {
+                if (++i >= argc) 
+                    print_help_and_exit(argv[0], "Missing arguments");
+                constraint_mask_file = argv[i];
+            }
+            else if (key == "constraint_values")
+            {
+                if (++i >= argc) 
+                    print_help_and_exit(argv[0], "Missing arguments");
+                constraint_values_file = argv[i];
+            }
+            else if (key == "o" || key == "output")
+            {
+                if (++i >= argc)
+                    print_help_and_exit(argv[0], "Missing arguments");
+                output_file = argv[i];
             }
             else
             {
@@ -165,28 +285,89 @@ int run_regularize(int argc, char* argv[])
         ++i;
     }
 
+    double t_start = timer::seconds();
+
     Volume src = load_volume(argv[2]);
     if (!src.valid()) return 1;
     
-    if (!src.voxel_type() != voxel::Type_Float3)
+    if (src.voxel_type() != voxel::Type_Float3)
     {
         LOG(Error, "Invalid voxel type for deformation field, expected float3\n");
         return 1;
     }
 
-    VolumePyramid src_pyramid;
-    src_pyramid.set_level_count(pyramid_levels);
-    src_pyramid.build_from_base_with_residual(df, filters::downsample_vectorfield);
+    bool use_constraints = false;
+    Volume constraints_mask, constraints_values;
+    if (constraint_mask_file && constraint_values_file)
+    {
+        constraints_mask = load_volume(constraint_mask_file);
+        if (!constraints_mask.valid()) return 1;
 
+        constraints_values = load_volume(constraint_values_file);
+        if (!constraints_values.valid()) return 1;
+    
+        use_constraints = true;
+    }
+    else
+    {
+        constraints_mask = VolumeUInt8(src.size(), 0);
+        constraints_values = VolumeFloat3(src.size(), float3{0});
+    }
+
+    VolumePyramid deformation_pyramid;
+    deformation_pyramid.set_level_count(pyramid_levels);
+    deformation_pyramid.build_from_base_with_residual(src, filters::downsample_vectorfield);
+
+    VolumePyramid constraints_mask_pyramid, constraints_pyramid;
+    voxel_constraints::build_pyramids(
+        constraints_mask, 
+        constraints_values,
+        pyramid_levels,
+        constraints_mask_pyramid,
+        constraints_pyramid
+    );
+
+    // Initialization is only needed if we have constraints
+    if (use_constraints)
+    {
+        // Perform initialization at the coarsest resolution
+        VolumeFloat3 def = deformation_pyramid.volume(pyramid_levels-1);
+        initialize_regularization(
+            def,
+            constraints_mask_pyramid.volume(pyramid_levels-1),
+            constraints_pyramid.volume(pyramid_levels-1)
+        );
+    }
     
     for (int l = pyramid_levels-1; l >= 0; --l)
     {
-        VolumeFloat3 def = src_pyramid.volume(l);
+        VolumeFloat3 def = deformation_pyramid.volume(l);
         
         LOG(Info, "Performing regularization level %d\n", l);
         
-        do_regularization();
-        
-    }
+        do_regularization(
+            def,
+            constraints_mask_pyramid.volume(l),
+            constraints_pyramid.volume(l),
+            precision
+        );
 
+        if (l != 0)
+        {
+            Dims upsampled_dims = deformation_pyramid.volume(l - 1).size();
+            deformation_pyramid.set_volume(l - 1,
+                filters::upsample_vectorfield(def, upsampled_dims, deformation_pyramid.residual(l - 1)));
+        }
+        else
+        {
+            deformation_pyramid.set_volume(0, def);
+        }
+    }
+    double t_end = timer::seconds();
+    int elapsed = int(round(t_end - t_start));
+    LOG(Info, "Regularization completed in %d:%02d\n", elapsed / 60, elapsed % 60);
+
+    vtk::write_volume(output_file, deformation_pyramid.volume(0));
+
+    return 0;
 }

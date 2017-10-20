@@ -1,6 +1,5 @@
-#include "constraints.h"
-
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+#include "volume_pyramid.h"
+#include "voxel_constraints.h"
 
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
@@ -121,4 +120,22 @@ VolumeFloat3 voxel_constraints::downsample_values_by_2(
     return result;
 }
 
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
+
+void voxel_constraints::build_pyramids(const VolumeUInt8& mask, const VolumeFloat3& values,
+    int num_levels, VolumePyramid& mask_pyramid, VolumePyramid& values_pyramid)
+{
+    mask_pyramid.set_level_count(num_levels);
+    values_pyramid.set_level_count(num_levels);
+    
+    mask_pyramid.set_volume(0, mask);
+    values_pyramid.set_volume(0, values);
+
+    for (int i = 0; i < num_levels-1; ++i)
+    {
+        VolumeUInt8 prev_mask = mask_pyramid.volume(i);
+        VolumeFloat3 prev_values = values_pyramid.volume(i);
+
+        mask_pyramid.set_volume(i+1, downsample_mask_by_2(prev_mask));
+        values_pyramid.set_volume(i+1, downsample_values_by_2(prev_mask, prev_values));
+    }
+}
