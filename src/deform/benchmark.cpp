@@ -1,8 +1,80 @@
 #include "config.h"
 
 #ifdef DF_ENABLE_BENCHMARK
+
+#include "registration/blocked_graph_cut_optimizer.h"
+
+#include <framework/math/float3.h>
+#include <framework/math/int3.h>
+#include <framework/platform/timer.h>
+
+struct UnaryFn
+{
+    inline float operator()(const int3& p, const float3& def)
+    {
+        p; def;
+        return 1.0f;
+    }
+};
+struct BinaryFn
+{
+    BinaryFn(const float3& spacing) : _spacing(spacing) {}
+
+    inline float operator()(const int3& /*p*/, const float3& def0, const float3& def1, const int3& step)
+    {
+        float3 step_in_mm {step.x*_spacing.x, step.y*_spacing.y, step.z*_spacing.z};
+        
+        float3 diff = def0 - def1;
+        float3 diff_in_mm {diff.x*_spacing.x, diff.y*_spacing.y, diff.z*_spacing.z};
+        
+        float dist_squared = math::length_squared(diff_in_mm);
+        float step_squared = math::length_squared(step_in_mm);
+        
+        float w = 0.1f;
+        return w * dist_squared / step_squared;
+    }
+
+    float3 _spacing;
+};
+
+
+void do_blocked_graph_cut_benchmark()
+{
+    typedef BlockedGraphCutOptimizer<
+        UnaryFn,
+        BinaryFn
+    > Optimizer;
+
+    VolumeFloat3 def(Dims{100,100,100}, float3{0});
+    for (int z = 0; z < 100; ++z)
+    {
+        for (int y = 0; y < 100; ++y)
+        {
+            for (int x = 0; x < 100; ++x)
+            {
+                def(x,y,z) = float3{ float(rand() % 2), float(rand() % 2), float(rand() % 2) };
+            }
+        }
+    }
+
+    Optimizer optimizer(int3{12, 12, 12});
+    
+    UnaryFn unary_fn;
+    BinaryFn binary_fn(float3{1,1,1});
+
+    double t_begin = timer::seconds();
+    optimizer.execute(unary_fn, binary_fn, float3{1.0f, 1.0f, 1.0f}, def);
+    double t_end = timer::seconds();
+
+    printf("Elapsed: %f\n", t_end - t_begin);
+}
+
 int run_benchmark(int argc, char* argv[])
 {
+    argc; argv;
+
+    do_blocked_graph_cut_benchmark();
+
     return 0;
 }
 #endif // DF_ENABLE_BENCHMARK
