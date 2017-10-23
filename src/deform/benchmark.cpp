@@ -10,11 +10,32 @@
 
 struct UnaryFn
 {
+    UnaryFn(VolumeFloat& fixed, VolumeFloat& moving) : 
+        _fixed(fixed),
+        _moving(moving)
+    {}
+
     inline float operator()(const int3& p, const float3& def)
     {
-        p; def;
-        return 1.0f;
+        float3 fixed_p{
+            float(p.x) + def.x,
+            float(p.y) + def.y,
+            float(p.z) + def.z
+        }; 
+        
+        // [fixed] -> [world] -> [moving]
+        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
+        float3 moving_p = (world_p / _moving.spacing()) - _moving.origin();
+
+        float moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
+
+        // TODO: Float cast
+        float f = fabs(float(_fixed(p) - moving_v));
+        return f*f;// PERF: f*f around 10% faster than powf(f, 2.0f);
     }
+
+    VolumeFloat _fixed;
+    VolumeFloat _moving;
 };
 struct BinaryFn
 {
@@ -46,20 +67,25 @@ void do_blocked_graph_cut_benchmark()
     > Optimizer;
 
     VolumeFloat3 def(Dims{100,100,100}, float3{0});
+
+    VolumeFloat fixed(Dims{100,100,100}, 0.0f);
+    VolumeFloat moving(Dims{100,100,100}, 0.0f);
+
     for (int z = 0; z < 100; ++z)
     {
         for (int y = 0; y < 100; ++y)
         {
             for (int x = 0; x < 100; ++x)
             {
-                def(x,y,z) = float3{ float(rand() % 2), float(rand() % 2), float(rand() % 2) };
+                fixed(x, y, z) = sinf(float(x))+1.0f;
+                moving(x, y, z) = cosf(float(x))+1.0f;
             }
         }
     }
 
     Optimizer optimizer(int3{12, 12, 12});
     
-    UnaryFn unary_fn;
+    UnaryFn unary_fn(fixed, moving);
     BinaryFn binary_fn(float3{1,1,1});
 
     double t_begin = timer::seconds();
