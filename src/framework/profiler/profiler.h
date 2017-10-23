@@ -1,8 +1,8 @@
-#if 0
-
 #pragma once
 
-#define DF_USE_PROFILING 0
+#ifndef DF_PLATFORM_LINUX
+    #define DF_USE_PROFILING
+#endif
 
 #ifdef DF_USE_PROFILING
 #include "microprofile.h"
@@ -32,4 +32,3 @@ namespace profiler
 #endif
 
 }
-#endif

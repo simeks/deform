@@ -1,8 +1,8 @@
-#if 0
-#include "microprofile.h"
 #include "profiler.h"
 
 #ifdef DF_USE_PROFILING
+
+#include "microprofile.h"
 
 void profiler::initialize()
 {
@@ -22,5 +22,4 @@ void profiler::frame_tick()
 {
     MicroProfileFlip(nullptr);
 }
-#endif
 #endif
