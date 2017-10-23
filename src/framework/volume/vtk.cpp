@@ -3,35 +3,49 @@
 
 #include <assert.h>
 #include <fstream>
-#include <intrin.h>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef DF_PLATFORM_WINDOWS
+    #include <intrin.h>
+
+    #define __byteswap_u16 _byteswap_ushort
+    #define __byteswap_u32 _byteswap_ulong
+    #define __byteswap_u64 _byteswap_uint64
+#else
+    // @bug Missing __builtin_bswap16 in GCC
+    #define __byteswap_u16(a) (a<<8)|(a>>8)
+    #define __byteswap_u32 __builtin_bswap32
+    #define __byteswap_u64 __builtin_bswap64
+#endif
+
+
 
 namespace
 {
     void byteswap_16(uint16_t* p, size_t n)
     {
         for (size_t i = 0; i < n; ++i)
-            p[i] = _byteswap_ushort(p[i]);
+            p[i] = __byteswap_u16(p[i]);
     }
     void byteswap_32(uint32_t* p, size_t n)
     {
         for (size_t i = 0; i < n; ++i)
-            p[i] = _byteswap_ulong(p[i]);
+            p[i] = __byteswap_u32(p[i]);
     }
     void byteswap_64(uint64_t* p, size_t n)
     {
         for (size_t i = 0; i < n; ++i)
-            p[i] = _byteswap_uint64(p[i]);
+            p[i] = __byteswap_u64(p[i]);
     }
 
     void write_big_endian_16(uint16_t* p, size_t n, std::ofstream& f)
     {
         for (size_t i = 0; i < n; ++i)
         {
-            uint16_t c = _byteswap_ushort(p[i]);
+            uint16_t c = __byteswap_u16(p[i]);
             f.write((const char*)&c, 2);
         }
     }
@@ -39,7 +53,7 @@ namespace
     {
         for (size_t i = 0; i < n; ++i)
         {
-            uint32_t c = _byteswap_ulong(p[i]);
+            uint32_t c = __byteswap_u32(p[i]);
             f.write((const char*)&c, 4);
         }
     }
@@ -47,11 +61,15 @@ namespace
     {
         for (size_t i = 0; i < n; ++i)
         {
-            uint64_t c = _byteswap_uint64(p[i]);
+            uint64_t c = __byteswap_u64(p[i]);
             f.write((const char*)&c, 8);
         }
     }
 }
+
+#undef __byteswap_u16
+#undef __byteswap_u32
+#undef __byteswap_u64
 
 namespace vtk
 {

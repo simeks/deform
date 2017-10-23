@@ -3,6 +3,7 @@
 #include "volume/volume_helper.h"
 
 #include <algorithm>
+#include <math.h>
 
 namespace
 {
@@ -22,7 +23,7 @@ namespace
 
         // X dimension
         int size = (int)ceil(3 * sigma / spacing_x);
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int y = 0; y < int(dims.height); ++y)
         {
             for (int z = 0; z < int(dims.depth); ++z)
@@ -48,7 +49,7 @@ namespace
 
         //Y dimension
         size = (int)ceil(3 * sigma / spacing_y);
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int x = 0; x < int(dims.width); ++x)
         {
             for (int z = 0; z < int(dims.depth); ++z)
@@ -74,7 +75,7 @@ namespace
         
         //Z dimension
         size = (int)ceil(3 * sigma / spacing_z);
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int x = 0; x < int(dims.width); ++x)
         {
             for (int y = 0; y < int(dims.height); ++y)

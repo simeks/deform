@@ -20,6 +20,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <string.h>
 #include <vector>
 
 namespace
@@ -150,7 +151,11 @@ Volume load_volume(const std::string& file)
     std::string ext = path.extension();
     
     // To lower case
-    std::transform(ext.begin(), ext.end(), ext.begin(), [](char c){ return (char)::tolower(c); });
+    #ifdef DF_PLATFORM_LINUX
+        for (size_t i = 0; i < ext.size(); ++i) ext[i] = (char)::tolower(ext[i]);
+    #else
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) -> char { return (char)::tolower(c); });
+    #endif
 
     if (ext == "vtk")
     {

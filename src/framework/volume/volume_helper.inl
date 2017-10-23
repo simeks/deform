@@ -24,7 +24,7 @@ VolumeHelper<T>::VolumeHelper(const Dims& size) : Volume(size, ::voxel_type<T>::
 {
 }
 template<typename T>
-VolumeHelper<T>::VolumeHelper(const Dims& size, const T& value) : VolumeHelper(size)
+VolumeHelper<T>::VolumeHelper(const Dims& size, const T& value) : Volume(size, ::voxel_type<T>::type_id)
 {
     fill(value);
 }

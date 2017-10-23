@@ -53,11 +53,11 @@ namespace gpu
     }
     void release_volume(GpuVolume& vol)
     {
-        if (vol.ptr == nullptr) // not allocated
+        if (vol.ptr == NULL) // not allocated
             return;
 
         checkCudaErrors(cudaFreeArray(vol.ptr));
-        vol.ptr = nullptr;
+        vol.ptr = NULL;
         vol.size = { 0, 0, 0 };
     }
     uint8_t voxel_type(const GpuVolume& vol)

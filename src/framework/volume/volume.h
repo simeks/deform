@@ -24,7 +24,7 @@ class Volume
 {
 public:
     Volume();
-    Volume(const Dims& size, uint8_t voxel_type, uint8_t* data = nullptr);
+    Volume(const Dims& size, uint8_t voxel_type, uint8_t* data = NULL);
     ~Volume();
 
     /// Release any allocated data the volume is holding

@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <float.h>
+#include <math.h>
 
 namespace volume
 {
