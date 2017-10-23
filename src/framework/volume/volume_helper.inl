@@ -1,4 +1,8 @@
 template<typename T>
+VolumeHelper<T>::VolumeHelper()
+{
+}
+template<typename T>
 VolumeHelper<T>::VolumeHelper(const Volume& other) : Volume(other)
 {
     assert(!Volume::valid() || ::voxel_type<T>::type_id == other.voxel_type());
@@ -108,7 +112,7 @@ T VolumeHelper<T>::linear_at(float3 p, volume::BorderMode border_mode) const
 template<typename T>
 VolumeHelper<T>& VolumeHelper<T>::operator=(VolumeHelper& other)
 {
-    assert(voxel_type<T>::type_id == other.voxel_type());
+    assert(::voxel_type<T>::type_id == other.voxel_type());
     Volume::operator=(other);
     return *this;
 }

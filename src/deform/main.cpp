@@ -112,13 +112,15 @@ namespace
                     args.initial_deformation = argv[i];
                 }
     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-                else if (key == "constraint_mask")
+                else if (key == "constraint_mask" || // Support both keys for backwards compatibility
+                         key == "constraints_mask")
                 {
                     if (++i >= argc) 
                         print_help_and_exit("Missing arguments");
                     args.constraint_mask = argv[i];
                 }
-                else if (key == "constraint_values")
+                else if (key == "constraint_values" ||
+                         key == "constraints_values")
                 {
                     if (++i >= argc) 
                         print_help_and_exit("Missing arguments");
@@ -136,35 +138,6 @@ namespace
             }
             ++i;
         }
-    }
-
-    /// Returns true if parsing was successful, false if not
-    void parse_parameter_file(RegistrationEngine::Settings& settings, const char* file)
-    {
-        // Assumes settings is filled with the default values beforehand
-
-        ConfigFile cfg(file);
-
-        if (cfg.keyExists("REGISTRATION_METHOD"))
-        {
-            LOG(Warning, "Parameter REGISTRATION_METHOD not applicable, ignoring.\n");
-        }
-
-        if (cfg.keyExists("NORMALIZE_IMAGES"))
-        {
-            LOG(Warning, "Parameter NORMALIZE_IMAGES not applicable (depends on image type), ignoring.\n");
-        }
-
-        settings.pyramid_levels = cfg.getValueOfKey<int>("PYRAMID_LEVELS", settings.pyramid_levels);
-        settings.max_pyramid_level = cfg.getValueOfKey<int>("MAX_RESOLUTION", settings.max_pyramid_level);
-        settings.step_size = cfg.getValueOfKey<float>("STEPSIZE", settings.step_size);
-        settings.regularization_weight = cfg.getValueOfKey<float>("REGULARIZATION_WEIGHT", settings.regularization_weight);
-        
-        LOG(Info, "Settings:\n");
-        LOG(Info, "pyramid_levels = %d\n", settings.pyramid_levels);
-        LOG(Info, "max_pyramid_level = %d\n", settings.max_pyramid_level);
-        LOG(Info, "step_size = %f\n", settings.step_size);
-        LOG(Info, "regularization_weight = %f\n", settings.regularization_weight);
     }
 }
 
@@ -252,7 +225,7 @@ int main(int argc, char* argv[])
         print_help_and_exit();
 
     Settings settings;
-    if (!parse_registration_settings(settings, input_args.param_file))
+    if (!parse_registration_settings(input_args.param_file, settings))
         return 1;
 
     int image_pair_count = 0;

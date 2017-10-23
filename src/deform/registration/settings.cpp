@@ -2,6 +2,7 @@
 
 #include <framework/debug/log.h>
 #include <framework/json/json.h>
+#include <framework/json/json_object.h>
 
 /*
     "pyramid_levels": 6,
@@ -11,6 +12,7 @@
 
     "block_size": [12, 12, 12],
     "step_size": 0.5,
+    "regularization_weight": 0.05,
 
     "image_slots":
     {
@@ -42,10 +44,10 @@
 
 // Return true on success, false on failure
 template<typename T>
-bool read_value(const json::JsonObject& obj, const char* name, T& out);
+bool read_value(const JsonObject& obj, const char* name, T& out);
 
 template<>
-bool read_value<int>(const json::JsonObject& obj, const char* name, int& out)
+bool read_value<int>(const JsonObject& obj, const char* name, int& out)
 {
     if (!obj[name].is_number())
     {
@@ -56,7 +58,18 @@ bool read_value<int>(const json::JsonObject& obj, const char* name, int& out)
     return true;
 }
 template<>
-bool read_value<bool>(const json::JsonObject& obj, const char* name, bool& out)
+bool read_value<float>(const JsonObject& obj, const char* name, float& out)
+{
+    if (!obj[name].is_number())
+    {
+        LOG(Error, "Settings: '%s', expected float\n", name);
+        return false;
+    }
+    out = obj[name].as_float();
+    return true;
+}
+template<>
+bool read_value<bool>(const JsonObject& obj, const char* name, bool& out)
 {
     if (!obj[name].is_bool())
     {
@@ -66,20 +79,9 @@ bool read_value<bool>(const json::JsonObject& obj, const char* name, bool& out)
     out = obj[name].as_bool();
     return true;
 }
-template<>
-bool read_value<bool>(const json::JsonObject& obj, const char* name, float& out)
-{
-    if (!obj[name].is_number())
-    {
-        LOG(Error, "Settings: '%s', expected boolean\n", name);
-        return false;
-    }
-    out = obj[name].as_float();
-    return true;
-}
 
 template<>
-bool read_value<Settings::ImageSlot::CostFunction>(const json::JsonObject& obj, 
+bool read_value<Settings::ImageSlot::CostFunction>(const JsonObject& obj, 
     const char* name, Settings::ImageSlot::CostFunction& out)
 {
     if (!obj[name].is_string())
@@ -106,7 +108,7 @@ bool read_value<Settings::ImageSlot::CostFunction>(const json::JsonObject& obj,
     return true;
 }
 template<>
-bool read_value<Settings::ImageSlot::ResampleMethod>(const json::JsonObject& obj, 
+bool read_value<Settings::ImageSlot::ResampleMethod>(const JsonObject& obj, 
     const char* name, Settings::ImageSlot::ResampleMethod& out)
 {
     if (!obj[name].is_string())
@@ -147,6 +149,7 @@ const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
         case Settings::ImageSlot::Resample_Gaussian:
             return "gaussian";
     };
+    return "none";
 }
 
 void print_registration_settings(const Settings& settings)
@@ -154,15 +157,13 @@ void print_registration_settings(const Settings& settings)
     LOG(Info, "Settings:\n");
     LOG(Info, "pyramid_start_level=%d\n",settings.pyramid_start_level);
     LOG(Info, "num_pyramid_levels=%d\n",settings.num_pyramid_levels);
-    LOG(Info, "\n");
     LOG(Info, "block_size=[%d, %d, %d]\n", 
         settings.block_size.x, settings.block_size.y, settings.block_size.z);
     LOG(Info, "step_size=%f\n", settings.step_size);
-    LOG(Info, "\n");
+    LOG(Info, "regularization_weight=%f\n", settings.regularization_weight);
     
     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
         LOG(Info, "constraints_weight=%f\n", settings.constraints_weight);
-        LOG(Info, "\n");
     #endif
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
@@ -178,13 +179,13 @@ void print_registration_settings(const Settings& settings)
 
 }
 
-bool load_registration_settings(const char* parameter_file, Settings& settings)
+bool parse_registration_settings(const char* parameter_file, Settings& settings)
 {
     // Defaults
     settings = Settings();
 
-    json::JsonReader reader;
-    json::JsonObject root;
+    JsonReader reader;
+    JsonObject root;
     if (!reader.read_file(parameter_file, root))
     {
         LOG(Error, "Json: %s\n", reader.error_message().c_str());
@@ -196,14 +197,14 @@ bool load_registration_settings(const char* parameter_file, Settings& settings)
         return false;
 
     if (!root["pyramid_start_level"].is_null() &&
-        !read_value(root, "start_level", settings.pyramid_start_level))
+        !read_value(root, "pyramid_start_level", settings.pyramid_start_level))
         return false;
 
     if (!root["step_size"].is_null() &&
         !read_value(root, "step_size", settings.step_size))
         return false;
 
-    auto block_size = root["block_size"];
+    auto& block_size = root["block_size"];
     if (!block_size.is_null())
     {
         if (!block_size.is_array() || 
@@ -226,18 +227,18 @@ bool load_registration_settings(const char* parameter_file, Settings& settings)
 
     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
         if (!root["constraints_weight"].is_null() &&
-            !read_variable(root, "constraints_weight", settings.constraints_weight))
+            !read_value(root, "constraints_weight", settings.constraints_weight))
             return false;
     #endif
 
-    auto image_slots = root["image_slots"];
+    auto& image_slots = root["image_slots"];
     if (image_slots.is_object())
     {
         for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
         {
             std::string is = std::to_string(i);
 
-            auto slot = image_slots[is];
+            auto& slot = image_slots[is.c_str()];
             if (slot.is_object())
             {
                 if (!slot["cost_function"].is_null() &&
@@ -255,8 +256,7 @@ bool load_registration_settings(const char* parameter_file, Settings& settings)
         }
     }
 
-
-
+    print_registration_settings(settings);
 
     return true;
 }

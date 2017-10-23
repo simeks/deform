@@ -53,6 +53,8 @@ struct Settings
     int3 block_size;
     // Step size in [mm]
     float step_size;
+    // Only considered if no weight map is given
+    float regularization_weight;
     
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     // Only applicable when constraints are present
@@ -65,9 +67,10 @@ struct Settings
         pyramid_start_level(0),
         num_pyramid_levels(6),
         block_size(int3{12, 12, 12}),
-        step_size(0.5f) 
+        step_size(0.5f),
+        regularization_weight(0.05f)
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        , constraint_weight(1000.0f)
+        , constraints_weight(1000.0f)
 #endif
     {}
 };

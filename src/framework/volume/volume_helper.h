@@ -20,6 +20,8 @@ class VolumeHelper : public Volume
 public:
     typedef T TVoxelType;
     
+    /// Creates a null (invalid) volume
+    VolumeHelper();
     VolumeHelper(const Volume& other);
     /// Creates a new volume of the specified size
     VolumeHelper(const Dims& size);
