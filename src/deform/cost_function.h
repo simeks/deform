@@ -72,7 +72,8 @@ struct SquaredDistanceFunction
         T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
 
         // TODO: Float cast
-        return powf(fabs(float(_fixed(p) - moving_v)), 2);
+        float f = fabs(float(_fixed(p) - moving_v));
+        return f*f;
     }
 
     VolumeHelper<T> _fixed;
@@ -243,7 +244,8 @@ struct SquaredDistanceFunction_Virtual : public SubFunction
         T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
 
         // TODO: Float cast
-        return powf(fabs(float(_fixed(p) - moving_v)), 2);
+        float f = fabs(float(_fixed(p) - moving_v));
+        return f*f;
     }
 
     VolumeHelper<T> _fixed;
