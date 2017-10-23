@@ -23,6 +23,10 @@
 #include <string.h>
 #include <vector>
 
+#ifdef DF_ENABLE_BENCHMARK
+    int run_benchmark(int argc, char* argv[]);
+#endif
+
 namespace
 {
     struct Args
@@ -222,6 +226,11 @@ int main(int argc, char* argv[])
         return run_transform(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "regularize") == 0)
         return run_regularize(argc, argv);
+    
+    #ifdef DF_ENABLE_BENCHMARK
+        if (argc >= 2 && strcmp(argv[1], "benchmark") == 0)
+            return run_benchmark(argc, argv);
+    #endif
 
     Args input_args = {0};
     parse_command_line(input_args, argc, argv);
