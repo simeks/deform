@@ -255,13 +255,15 @@ int run_regularize(int argc, char* argv[])
                     print_help_and_exit(argv[0], "Missing arguments");
                 pyramid_levels = atoi(argv[i]);
             }
-            else if (key == "constraint_mask")
+            else if (key == "constraint_mask" ||
+                     key == "constraints_mask")
             {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");
                 constraint_mask_file = argv[i];
             }
-            else if (key == "constraint_values")
+            else if (key == "constraint_values" ||
+                     key == "constraints_values")
             {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");

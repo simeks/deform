@@ -197,7 +197,7 @@ struct SoftConstraintsFunction_Virtual : public SubFunction
         _spacing(_constraints_values.spacing())
     {}
 
-    float cost(const int3& p, const float3& def) override
+    float cost(const int3& p, const float3& def) 
     {
         if (_constraints_mask(p) != 0)
         {
@@ -229,7 +229,7 @@ struct SquaredDistanceFunction_Virtual : public SubFunction
         _moving(moving)
     {}
 
-    float cost(const int3& p, const float3& def) override
+    float cost(const int3& p, const float3& def)
     {
         float3 fixed_p{
             float(p.x) + def.x,

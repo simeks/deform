@@ -236,7 +236,7 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
     {
         for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
         {
-            std::string is = std::to_string(i);
+            std::string is = std::to_string((long long int)i);
 
             auto& slot = image_slots[is.c_str()];
             if (slot.is_object())

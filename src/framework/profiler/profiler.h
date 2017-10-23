@@ -1,3 +1,5 @@
+#if 0
+
 #pragma once
 
 #define DF_USE_PROFILING 0
@@ -30,3 +32,4 @@ namespace profiler
 #endif
 
 }
+#endif

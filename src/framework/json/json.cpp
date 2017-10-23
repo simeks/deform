@@ -1,7 +1,9 @@
 #include "json.h"
 #include "json_object.h"
 
+#include <algorithm>
 #include <fstream>
+#include <limits>
 
 JsonReader::JsonReader()
 {
@@ -552,8 +554,10 @@ void JsonWriter::write_tabs(int ilevel, std::ostream& out)
 void JsonWriter::write_string(const std::string& str, std::ostream& out, bool quotes)
 {
     // We need to escape any special characters before writing them to the JSON doc
-    for (char c : str)
+    for (size_t i = 0; i < str.size(); ++i)
     {
+	char c = str[i];
+
         switch (c)
         {
         case '\\':

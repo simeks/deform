@@ -1,3 +1,5 @@
+#if 0
+
 #define MICROPROFILE_IMPL
 #include "microprofile.h"
 #if MICROPROFILE_ENABLED
@@ -7261,4 +7263,5 @@ void uprintf(const char* fmt, ...)
 	//OutputDebugStringA(&buffer[0]);
 	va_end(args);
 }
+#endif
 #endif

@@ -1,3 +1,4 @@
+#if 0
 #include "microprofile.h"
 #include "profiler.h"
 
@@ -21,4 +22,5 @@ void profiler::frame_tick()
 {
     MicroProfileFlip(nullptr);
 }
+#endif
 #endif
