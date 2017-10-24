@@ -113,6 +113,13 @@ workspace "deform"                   -- Solution Name
       "framework"
     }
 
+    filter {"system:windows"}
+      links
+      {
+        "Ws2_32"
+      }
+
+
 filter {}
 project "framework"
   language "C++"

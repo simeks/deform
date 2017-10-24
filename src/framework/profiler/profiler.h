@@ -5,7 +5,7 @@
 #endif
 
 #ifdef DF_USE_PROFILING
-#include "microprofile.h"
+    #include "microprofile.h"
 #endif
 
 namespace profiler
@@ -23,12 +23,18 @@ namespace profiler
 
     /// Marks a frame, should be called once every frame
     void frame_tick();
-
-#else
-    void initialize() {}
-    void shutdown() {}
-    void register_thread(const char*) {}
-    void frame_tick() {}
 #endif
 
 }
+
+#ifdef DF_USE_PROFILING
+    #define PROFILER_INITIALIZE() profiler::initialize()
+    #define PROFILER_SHUTDOWN() profiler::shutdown()
+    #define PROFILER_REGISTER_THREAD(name) profiler::register_thread(name)
+    #define PROFILER_FRAME_TICK() profiler::frame_tick()
+#else
+    #define PROFILER_INITIALIZE()
+    #define PROFILER_SHUTDOWN()
+    #define PROFILER_REGISTER_THREAD(name)
+    #define PROFILER_FRAME_TICK()
+#endif

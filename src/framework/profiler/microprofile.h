@@ -1,4 +1,3 @@
-#if 0
 #pragma once
 // This is free and unencumbered software released into the public domain.
 // Anyone is free to copy, modify, publish, use, compile, sell, or
@@ -1316,5 +1315,3 @@ enum MicroProfileCounterFlags
 #define MP_DARKMAGENTA 0x8b008b
 #define MP_DARKRED 0x8b0000
 #define MP_LIGHTGREEN 0x90ee90
-
-#endif

@@ -33,9 +33,6 @@ private:
         const int3& block_offset, 
         const float3& delta, // delta in [voxels]
         VolumeFloat3& def
-#ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-        , float& out_block_energy
-#endif
     );
 
     float calculate_energy(

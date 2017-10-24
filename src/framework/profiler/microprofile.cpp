@@ -1,4 +1,6 @@
-#if 0
+#include "profiler.h"
+
+#ifdef DF_USE_PROFILING
 
 #define MICROPROFILE_IMPL
 #include "microprofile.h"
@@ -7264,4 +7266,4 @@ void uprintf(const char* fmt, ...)
 	va_end(args);
 }
 #endif
-#endif
+#endif // DF_USE_PROFILING

@@ -22,9 +22,6 @@
 
 #if DF_DEBUG_LEVEL >= 3
     #define DF_OUTPUT_DEBUG_VOLUMES
-
-    // Checks whether the change in block energy corresponds to the change in total energy
-    #define DF_ENABLE_BLOCK_ENERGY_CHECK 
 #endif 
 
 #if DF_DEBUG_LEVEL >= 4

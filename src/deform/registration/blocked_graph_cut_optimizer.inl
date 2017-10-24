@@ -4,8 +4,72 @@
 
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
+#include <framework/job/job_system.h>
+#include <framework/profiler/profiler.h>
 #include <framework/thread/thread.h>
 
+struct DoBlockPayload
+{
+    int block_idx;
+
+    int3 block_p;
+
+    int3 real_block_count;
+};
+
+void do_block_kernel(DoBlockPayload* payload)
+{
+    int block_idx = payload->block_idx;
+            
+    MICROPROFILE_SCOPEI("main", "per_block", 0x00ffff);
+
+    int3 block_p{block_x, block_y, block_z};
+
+    bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
+    int n_count = 6; // Neighbors
+    for (int n = 0; n < n_count; ++n)
+    {
+        need_update = need_update || change_flags.is_block_set(block_p + _neighbors[n], use_shift == 1);
+    }
+
+    if (!need_update)
+    {
+        continue;
+    }
+
+
+    bool block_changed = false;
+    for (int n = 0; n < n_count; ++n)
+    {
+        // delta in [voxels]
+        float3 delta{
+            step_size.x * _neighbors[n].x,
+            step_size.y * _neighbors[n].y,
+            step_size.z * _neighbors[n].z
+        };
+
+        block_changed |= do_block(
+            unary_fn,
+            binary_fn,
+            block_p,
+            block_dims,
+            block_offset,
+            delta,
+            def
+        );
+
+    }
+
+    #ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
+        if (block_changed)
+        {
+            thread::interlocked_increment(&num_blocks_changed);
+        }
+    #endif // DF_DEBUG_BLOCK_CHANGE_COUNT
+
+    change_flags.set_block(block_p, block_changed, use_shift == 1);
+    done = done && !block_changed;
+}
 
 template<
     typename TUnaryTerm,
@@ -74,15 +138,21 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     BlockChangeFlags change_flags(block_count); 
 
+    std::vector<DoBlockPayload> payloads;
+
     bool done = false;
     while (!done)
     {
+        MICROPROFILE_SCOPEI("main", "per_iteration", 0xff00ff);
+
         done = true;
 
         for (int use_shift = 0; use_shift < 2; ++use_shift)
         {
             if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
                 continue;
+
+            MICROPROFILE_SCOPEI("main", "per_shift", 0x0000ff);
 
             /*
                 We only do shifting in the directions that requires it
@@ -107,99 +177,34 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
                 #ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
                     volatile long num_blocks_changed = 0;
-                #endif // DF_DEBUG_BLOCK_CHANGE_COUNT
+                #endif // DF_DEBUG_BLOCK_CHANGE_COUNT                
 
-                #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-                    float* block_energy = new float[num_blocks];
-                #endif // DF_ENABLE_BLOCK_ENERGY_CHECK
-                
-                #pragma omp parallel for
+
+
+                job::run_jobs();
+
+                payloads.clear();
+
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
                 {
-                    #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-                        block_energy[block_idx] = 100000000.0f;
-                    #endif
-
                     int block_x = (block_idx % real_block_count.x) % real_block_count.y;
                     int block_y = (block_idx / real_block_count.x) % real_block_count.y;
                     int block_z = block_idx / (real_block_count.x*real_block_count.y);
-
+                
                     int off = (block_z) % 2;
                     off = (block_y + off) % 2;
                     off = (block_x + off) % 2;
-
+                
                     if (off != black_or_red)
                     {
                         continue;
                     }
 
-                    int3 block_p{block_x, block_y, block_z};
+                    payloads.push_back(DoBlockPayload{0});
+                    DoBlockPayload& payload = payloads.back();
 
-                    bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
-                    int n_count = 6; // Neighbors
-                    for (int n = 0; n < n_count; ++n)
-                    {
-                        need_update = need_update || change_flags.is_block_set(block_p + _neighbors[n], use_shift == 1);
-                    }
-
-                    if (!need_update)
-                    {
-                        continue;
-                    }
-
-
-                    bool block_changed = false;
-                    for (int n = 0; n < n_count; ++n)
-                    {
-                        // delta in [voxels]
-                        float3 delta{
-                            step_size.x * _neighbors[n].x,
-                            step_size.y * _neighbors[n].y,
-                            step_size.z * _neighbors[n].z
-                        };
-
-                        #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-                            float energy = 0.0f;
-                        #endif
-
-                        block_changed |= do_block(
-                            unary_fn,
-                            binary_fn,
-                            block_p,
-                            block_dims,
-                            block_offset,
-                            delta,
-                            def
-                        #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-                            , energy
-                        #endif
-                        );
-                        
-                        #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-                            block_energy[block_idx] = std::min(energy, block_energy[block_idx]);
-                        #endif
-                    }
-
-                    #ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
-                        if (block_changed)
-                        {
-                            thread::interlocked_increment(&num_blocks_changed);
-                        }
-                    #endif // DF_DEBUG_BLOCK_CHANGE_COUNT
-
-                    change_flags.set_block(block_p, block_changed, use_shift == 1);
-                    done = done && !block_changed;
+                    
                 }
-
-                #ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-                    float sum_block_energy = 0.0f;
-                    for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
-                    {
-                        sum_block_energy += block_energy[block_idx];
-                    }
-                    LOG(Debug, "Sum of block energies: %.10f, Total energy: %.10f\n", sum_block_energy, calculate_energy(unary_fn, binary_fn, def));
-                    delete [] block_energy;
-                #endif // DF_ENABLE_BLOCK_ENERGY_CHECK
                 
                 #ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
                     LOG(Debug, "[num_blocks: %d, use_shift: %d, black_or_red: %d] blocks_changed: %d\n", 
@@ -213,6 +218,8 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
         #endif
 
         STATS_ADD_VALUE("Stat_Energy", calculate_energy(unary_fn, binary_fn, def));
+
+        PROFILER_FRAME_TICK();
     }
 }
 template<
@@ -227,9 +234,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     const int3& block_offset,
     const float3& delta, // delta in voxels
     VolumeFloat3& def
-#ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-    , float& out_block_energy
-#endif
 )
 {
     Dims dims = def.size();
@@ -371,10 +375,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 #ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
     int voxels_changed_ = 0;
 #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
-
-#ifdef DF_ENABLE_BLOCK_ENERGY_CHECK
-    out_block_energy = std::min(current_emin, current_energy);
-#endif
 
     if (current_emin + 0.00001f < current_energy) // Accept solution
     {

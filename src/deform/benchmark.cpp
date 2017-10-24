@@ -4,9 +4,11 @@
 
 #include "registration/blocked_graph_cut_optimizer.h"
 
+#include <framework/job/job_system.h>
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
 #include <framework/platform/timer.h>
+#include <framework/profiler/profiler.h>
 
 struct UnaryFn
 {
@@ -83,7 +85,7 @@ void do_blocked_graph_cut_benchmark()
         }
     }
 
-    Optimizer optimizer(int3{12, 12, 12});
+    Optimizer optimizer(int3{20, 20, 20});
     
     UnaryFn unary_fn(fixed, moving);
     BinaryFn binary_fn(float3{1,1,1});
@@ -99,7 +101,18 @@ int run_benchmark(int argc, char* argv[])
 {
     argc; argv;
 
+    job::initialize(8);
+
+    PROFILER_REGISTER_THREAD("main");
+    PROFILER_INITIALIZE();
+    
     do_blocked_graph_cut_benchmark();
+
+	MicroProfileDumpFileImmediately("benchmark.html", "benchmark.csv", NULL);
+
+    PROFILER_SHUTDOWN();
+
+    job::shutdown();
 
     return 0;
 }
