@@ -25,23 +25,12 @@ public:
         VolumeFloat3& def);
 
 private:
-    bool do_block(
-        TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
-        const int3& block_p, 
-        const int3& block_dims, 
-        const int3& block_offset, 
-        const float3& delta, // delta in [voxels]
-        VolumeFloat3& def
-    );
-
     float calculate_energy(
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
         VolumeFloat3& def
     );
 
-    int3 _neighbors[6];
     int3 _block_size;
 };
 
