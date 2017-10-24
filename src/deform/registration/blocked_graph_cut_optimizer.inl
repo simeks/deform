@@ -19,6 +19,7 @@ namespace blocked_graph_cut
         int3{0, 0, -1}
     };
 
+#ifdef DF_NO_OPENMP
     template<
         typename TUnaryTerm,
         typename TBinaryTerm
@@ -59,6 +60,8 @@ namespace blocked_graph_cut
     >
     void do_block_kernel(DoBlockPayload<TUnaryTerm, TBinaryTerm>* payload)
     {
+        MICROPROFILE_SCOPEI("main", "per_block", 0xff00ff);
+     
         int3 block_p = payload->block_p;
 
         bool block_changed = false;
@@ -87,6 +90,8 @@ namespace blocked_graph_cut
         if (block_changed)
             thread::interlocked_increment(payload->num_blocks_changed);
     }
+#endif // DF_NO_OPENMP
+
     template<
         typename TUnaryTerm,
         typename TBinaryTerm
@@ -101,12 +106,15 @@ namespace blocked_graph_cut
         VolumeFloat3& def
     )
     {
+        MICROPROFILE_SCOPEI("main", "do_block_move", 0xff33ff);
         Dims dims = def.size();
 
         GraphCut<float> graph(block_dims);
 
         float current_energy = 0;
         {
+            MICROPROFILE_SCOPEI("main", "build_graph", 0x33ffff);
+
             for (int sub_z = 0; sub_z < block_dims.z; ++sub_z)
             {
                 for (int sub_y = 0; sub_y < block_dims.y; ++sub_y)
@@ -129,7 +137,7 @@ namespace blocked_graph_cut
 
                         int3 p{gx, gy, gz};
                         float3 def1 = def(p);
-
+                    
                         float f0 = unary_fn(p, def1);
                         float f1 = unary_fn(p, def1 + delta);
 
@@ -234,15 +242,22 @@ namespace blocked_graph_cut
             }
         }
 
-        float current_emin = graph.minimize();
-        bool changed_flag = false;
 
+        float current_emin;
+        {
+            MICROPROFILE_SCOPEI("main", "minimize_graph", 0xffff33);
+            current_emin = graph.minimize();
+        }
+
+        bool changed_flag = false;
     #ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
         int voxels_changed_ = 0;
     #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
         if (current_emin + 0.00001f < current_energy) // Accept solution
         {
+            MICROPROFILE_SCOPEI("main", "apply_solution", 0xff7733);
+            
             for (int sub_z = 0; sub_z < block_dims.z; sub_z++)
             {
                 for (int sub_y = 0; sub_y < block_dims.y; sub_y++)
@@ -283,7 +298,6 @@ namespace blocked_graph_cut
 
         return changed_flag;
     }
-
 }
 
 template<
@@ -346,8 +360,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     BlockChangeFlags change_flags(block_count); 
 
-    std::vector<blocked_graph_cut::DoBlockPayload<TUnaryTerm, TBinaryTerm>> payloads;
-    std::vector<job::JobDecl> jobs;
+    #ifdef DF_NO_OPENMP
+        std::vector<blocked_graph_cut::DoBlockPayload<TUnaryTerm, TBinaryTerm>> payloads;
+        std::vector<job::JobDecl> jobs;
+    #endif
 
     bool done = false;
     while (!done)
@@ -361,7 +377,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
                 continue;
 
-            MICROPROFILE_SCOPEI("main", "per_shift", 0x0000ff);
+            MICROPROFILE_SCOPEI("main", "per_shift", 0x00ffff);
 
             /*
                 We only do shifting in the directions that requires it
@@ -386,26 +402,86 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
                 volatile long num_blocks_changed = 0;
 
-                payloads.clear();
-                {
-                            
-                    MICROPROFILE_SCOPEI("main", "prepare_blocks", 0x0000ff);
+                #ifdef DF_NO_OPENMP
+                    payloads.clear();
+                    {
+                                
+                        MICROPROFILE_SCOPEI("main", "prepare_blocks", 0x0000ff);
+                        for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
+                        {
+                            int3 block_p{
+                                (block_idx % real_block_count.x) % real_block_count.y, 
+                                (block_idx / real_block_count.x) % real_block_count.y, 
+                                block_idx / (real_block_count.x*real_block_count.y)
+                            };
+                        
+                            int off = (block_p.z) % 2;
+                            off = (block_p.y + off) % 2;
+                            off = (block_p.x + off) % 2;
+                        
+                            if (off != black_or_red)
+                            {
+                                continue;
+                            }
+
+                            bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
+                            int n_count = 6; // Neighbors
+                            for (int n = 0; n < n_count; ++n)
+                            {
+                                need_update = need_update || change_flags.is_block_set(block_p + blocked_graph_cut::_neighbors[n], use_shift == 1);
+                            }
+                        
+                            if (!need_update)
+                            {
+                                continue;
+                            }
+
+                            payloads.push_back(blocked_graph_cut::DoBlockPayload<TUnaryTerm, TBinaryTerm>{0});
+                            auto& payload = payloads.back();
+                            payload.unary_fn = &unary_fn;
+                            payload.binary_fn = &binary_fn;
+                            payload.num_blocks_changed = &num_blocks_changed;
+                            payload.change_flags = &change_flags;
+                            payload.block_p = block_p;
+                            payload.block_dims = block_dims;
+                            payload.block_offset = block_offset;
+                            payload.step_size = step_size;
+                            payload.use_shift = use_shift;
+                            payload.def = &def;
+
+                        }
+
+                        jobs.clear();
+                        for (int p = 0; p < payloads.size(); ++p)
+                        {
+                            job::JobDecl j((job::WorkFunction)blocked_graph_cut::do_block_kernel<TUnaryTerm, TBinaryTerm>,
+                                (void*)&payloads[p]);
+
+                            jobs.push_back(j);
+                        }
+                    }
+
+                    std::atomic<int> counter = 0;
+                    job::run_jobs(&jobs[0], (int)jobs.size(), counter);
+                    job::wait_for(counter);
+                #else 
+                    #pragma omp parallel for
                     for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
                     {
-                        int3 block_p{
-                            (block_idx % real_block_count.x) % real_block_count.y, 
-                            (block_idx / real_block_count.x) % real_block_count.y, 
-                            block_idx / (real_block_count.x*real_block_count.y)
-                        };
-                    
-                        int off = (block_p.z) % 2;
-                        off = (block_p.y + off) % 2;
-                        off = (block_p.x + off) % 2;
-                    
+                        int block_x = (block_idx % real_block_count.x) % real_block_count.y;
+                        int block_y = (block_idx / real_block_count.x) % real_block_count.y;
+                        int block_z = block_idx / (real_block_count.x*real_block_count.y);
+
+                        int off = (block_z) % 2;
+                        off = (block_y + off) % 2;
+                        off = (block_x + off) % 2;
+
                         if (off != black_or_red)
                         {
                             continue;
                         }
+
+                        int3 block_p{block_x, block_y, block_z};
 
                         bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
                         int n_count = 6; // Neighbors
@@ -413,41 +489,42 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                         {
                             need_update = need_update || change_flags.is_block_set(block_p + blocked_graph_cut::_neighbors[n], use_shift == 1);
                         }
-                    
+
                         if (!need_update)
                         {
                             continue;
                         }
 
-                        payloads.push_back(blocked_graph_cut::DoBlockPayload<TUnaryTerm, TBinaryTerm>{0});
-                        auto& payload = payloads.back();
-                        payload.unary_fn = &unary_fn;
-                        payload.binary_fn = &binary_fn;
-                        payload.num_blocks_changed = &num_blocks_changed;
-                        payload.change_flags = &change_flags;
-                        payload.block_p = block_p;
-                        payload.block_dims = block_dims;
-                        payload.block_offset = block_offset;
-                        payload.step_size = step_size;
-                        payload.use_shift = use_shift;
-                        payload.def = &def;
+                        MICROPROFILE_SCOPEI("main", "per_block", 0xff00ff);
 
+                        bool block_changed = false;
+                        for (int n = 0; n < n_count; ++n)
+                        {
+                            // delta in [voxels]
+                            float3 delta{
+                                step_size.x * blocked_graph_cut::_neighbors[n].x,
+                                step_size.y * blocked_graph_cut::_neighbors[n].y,
+                                step_size.z * blocked_graph_cut::_neighbors[n].z
+                            };
+
+                            block_changed |= blocked_graph_cut::do_block(
+                                unary_fn,
+                                binary_fn,
+                                block_p,
+                                block_dims,
+                                block_offset,
+                                delta,
+                                def
+                            );
+                        }
+
+                        if (block_changed)
+                            thread::interlocked_increment(&num_blocks_changed);
+
+                        change_flags.set_block(block_p, block_changed, use_shift == 1);
                     }
+                #endif 
 
-                    jobs.clear();
-                    for (int p = 0; p < payloads.size(); ++p)
-                    {
-                        job::JobDecl j((job::WorkFunction)blocked_graph_cut::do_block_kernel<TUnaryTerm, TBinaryTerm>,
-                            (void*)&payloads[p]);
-
-                        jobs.push_back(j);
-                    }
-                }
-
-                std::atomic<int> counter = 0;
-                job::run_jobs(&jobs[0], (int)jobs.size(), counter);
-                job::wait_for(counter);
-                
                 #ifdef DF_DEBUG_BLOCK_CHANGE_COUNT
                     LOG(Debug, "[num_blocks: %d, use_shift: %d, black_or_red: %d] blocks_changed: %d\n", 
                         num_blocks, use_shift, black_or_red, num_blocks_changed);

@@ -1,6 +1,6 @@
 #include "debug/assert.h"
 #include "job_system.h"
-#include "profiler/microprofile.h"
+#include "profiler/profiler.h"
 #include "thread/lock.h"
 #include "thread/thread.h"
 
@@ -83,8 +83,6 @@ namespace job
             YIELD();
         else
         {
-            MICROPROFILE_SCOPEI("main", "job", 0xFF1132FF);
-
             assert(item.fn);
             item.fn(item.data);
 
@@ -94,6 +92,8 @@ namespace job
 
     void Worker::worker_proc(Worker* worker)
     {
+        PROFILER_REGISTER_THREAD("worker");
+
         internal::_thread_local_worker = worker;
 
         while (!worker->_owner->is_shutting_down())

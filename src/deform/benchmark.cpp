@@ -85,7 +85,7 @@ void do_blocked_graph_cut_benchmark()
         }
     }
 
-    Optimizer optimizer(int3{20, 20, 20});
+    Optimizer optimizer(int3{25, 25, 25});
     
     UnaryFn unary_fn(fixed, moving);
     BinaryFn binary_fn(float3{1,1,1});
