@@ -167,7 +167,7 @@ void do_blocked_graph_cut_benchmark()
         BinaryFn
     > Optimizer;
 
-    Dims img_size = {100,100,100};
+    Dims img_size = {256,256,256};
 
     VolumeFloat3 def(img_size, float3{0});
 
@@ -180,7 +180,7 @@ void do_blocked_graph_cut_benchmark()
         {
             for (int x = 0; x < int(img_size.width); ++x)
             {
-                fixed(x, y, z) = sinf(float(x))+1.0f;
+                fixed(x, y, z) = sinf(float(2.0f*x))+1.0f;
                 moving(x, y, z) = cosf(float(x))+1.0f;
             }
         }
@@ -204,27 +204,10 @@ int run_benchmark(int argc, char* argv[])
 {
     argc; argv;
 
-    MicroProfileOnThreadCreate("main");
-    
-    // Name all OpenMP threads for profiler
-    auto main_thread = omp_get_thread_num();
-    #pragma omp parallel for num_threads(8)
-    for (int i = 0; i < 8; ++i)
-    {
-        if (omp_get_thread_num() != main_thread)
-            MicroProfileOnThreadCreate("omp_worker");
-    }
-
-    MicroProfileSetEnableAllGroups(true);
-    MicroProfileSetForceMetaCounters(true);
-    //MicroProfileStartContextSwitchTrace();
-
     do_blocked_graph_cut_benchmark();
 
-	MicroProfileDumpFileImmediately("benchmark.html", "benchmark.csv", NULL);
-
-    MicroProfileShutdown();
-
+    MicroProfileDumpFileImmediately("benchmark.html", "benchmark.csv", NULL);
+    
     return 0;
 }
 #endif // DF_ENABLE_BENCHMARK

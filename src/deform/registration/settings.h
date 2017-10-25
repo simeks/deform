@@ -41,7 +41,7 @@ struct Settings
 
     // Which level to start registration on
     // 0 being original resolution
-    int pyramid_start_level;
+    int pyramid_stop_level;
     // Size of pyramid
     int num_pyramid_levels;
 
@@ -64,7 +64,7 @@ struct Settings
 #endif
 
     Settings() :
-        pyramid_start_level(0),
+        pyramid_stop_level(0),
         num_pyramid_levels(6),
         block_size(int3{12, 12, 12}),
         step_size(0.5f),

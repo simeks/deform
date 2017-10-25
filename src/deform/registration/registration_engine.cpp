@@ -189,7 +189,7 @@ Volume RegistrationEngine::execute()
     {
         VolumeFloat3 def = _deformation_pyramid.volume(l);
 
-        if (l >= _settings.pyramid_start_level)
+        if (l >= _settings.pyramid_stop_level)
         {
             LOG(Info, "Performing registration level %d\n", l);
 
@@ -208,17 +208,20 @@ Volume RegistrationEngine::execute()
             #ifdef DF_BLOCKWISE_COST_FUNCTION
                 assert(false); // Not implemented
             #else
-            // #define DF_VIRTUAL_COST_FUNCTION
+                #define DF_VIRTUAL_COST_FUNCTION
                 #ifdef DF_VIRTUAL_COST_FUNCTION
                     UnaryFunction_Virtual unary_fn(_settings.regularization_weight);
                     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-                        unary_fn.add_function(
-                            new SoftConstraintsFunction_Virtual(
-                                _constraints_mask_pyramid.volume(l),
-                                _constraints_pyramid.volume(l),
-                                _settings.constraints_weight
-                            )
-                        );
+                        if (_constraints_mask_pyramid.volume(l).valid())
+                        {
+                            unary_fn.add_function(
+                                new SoftConstraintsFunction_Virtual(
+                                    _constraints_mask_pyramid.volume(l),
+                                    _constraints_pyramid.volume(l),
+                                    _settings.constraints_weight
+                                )
+                            );
+                        }
                     #endif
 
                     for (int i = 0; i < _image_pair_count; ++i)
@@ -283,12 +286,17 @@ Volume RegistrationEngine::execute()
                         Regularizer> optimizer(_settings.block_size);
                 #endif
 
-                // Fix constrained voxels by updating the initial deformation field
-                constrain_deformation_field(
-                    def,
-                    _constraints_mask_pyramid.volume(l),
-                    _constraints_pyramid.volume(l)
-                );
+                #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+                    if (_constraints_mask_pyramid.volume(l).valid())
+                    {
+                        // Fix constrained voxels by updating the initial deformation field
+                        constrain_deformation_field(
+                            def,
+                            _constraints_mask_pyramid.volume(l),
+                            _constraints_pyramid.volume(l)
+                        );
+                    }
+                #endif
                 
                 Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
 
@@ -346,6 +354,8 @@ Volume RegistrationEngine::execute()
             _deformation_pyramid.set_volume(0, def);
         }
 
+        std::string profile_log = "profile_log_level_" + std::to_string(l) + ".html";
+        MicroProfileDumpFileImmediately(profile_log.c_str(), NULL, NULL);
     }
 
     return _deformation_pyramid.volume(0);

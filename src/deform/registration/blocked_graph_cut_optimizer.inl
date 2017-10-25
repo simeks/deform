@@ -243,12 +243,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
             {
                 for (int sub_x = 0; sub_x < block_dims.x; ++sub_x)
                 {
-                    // Only edges
-                    if ((sub_z != 0 && sub_z != block_dims.z-1) && 
-                        (sub_y != 0 && sub_y != block_dims.y-1) && 
-                        (sub_x != 0 && sub_x != block_dims.x-1))
-                        continue;
-
                     // Global coordinates
                     int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
                     int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
@@ -377,93 +371,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
             }
         }
 
-
-        for (int sub_z = 1; sub_z < block_dims.z-1; ++sub_z)
-        {
-            for (int sub_y = 1; sub_y < block_dims.y-1; ++sub_y)
-            {
-                for (int sub_x = 1; sub_x < block_dims.x-1; ++sub_x)
-                {
-                    // Global coordinates
-                    int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
-                    int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
-                    int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
-
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(dims.width) ||
-                        gy < 0 || gy >= int(dims.height) ||
-                        gz < 0 || gz >= int(dims.depth))
-                    {
-                        graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
-                        continue;
-                    }
-
-                    int3 p{gx, gy, gz};
-                    float3 def1 = def(p);
-                
-                    #ifdef DF_BLOCKWISE_COST_FUNCTION
-                        float f0 = unary_cost_0[voxel_idx];
-                        float f1 = unary_cost_1[voxel_idx];
-                    #else
-                        float f0 = unary_fn(p, def1);
-                        float f1 = unary_fn(p, def1 + delta);
-                    #endif
-
-                    graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
-
-                    current_energy += f0;
-
-                    if (gx + 1 < int(dims.width))
-                    {
-                        int3 step{1, 0, 0};
-                        float3 def2 = def(p + step);
-                        float f_same = binary_fn(p, def1, def2, step);
-                        float f01 = binary_fn(p, def1, def2 + delta, step);
-                        float f10 = binary_fn(p, def1 + delta, def2, step);
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x + 1, sub_y, sub_z, 
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (gy + 1 < int(dims.height))
-                    {
-                        int3 step{0, 1, 0};
-                        float3 def2 = def(p + step);
-                        float f_same = binary_fn(p, def1, def2, step);
-                        float f01 = binary_fn(p, def1, def2 + delta, step);
-                        float f10 = binary_fn(p, def1 + delta, def2, step);
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y + 1, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (gz + 1 < int(dims.depth))
-                    {
-                        int3 step{0, 0, 1};
-                        float3 def2 = def(p + step);
-                        float f_same = binary_fn(p, def1, def2, step);
-                        float f01 = binary_fn(p, def1, def2 + delta, step);
-                        float f10 = binary_fn(p, def1 + delta, def2, step);
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y, sub_z + 1,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    #ifdef DF_BLOCKWISE_COST_FUNCTION
-                        ++voxel_idx;
-                    #endif
-                }
-            }
-        }
         #ifdef DF_BLOCKWISE_COST_FUNCTION
             free(unary_cost_0);
             free(unary_cost_1);
@@ -482,7 +389,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     int voxels_changed_ = 0;
     #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
-    if (current_emin + 0.00001f < current_energy) // Accept solution
+    if (current_emin + 0.1f < current_energy) // Accept solution
     {
         MICROPROFILE_SCOPEI("main", "apply_solution", 0xff7733);
         

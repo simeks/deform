@@ -11,6 +11,7 @@
 #include <framework/filters/resample.h>
 #include <framework/platform/file_path.h>
 #include <framework/platform/timer.h>
+#include <framework/profiler/microprofile.h>
 #include <framework/volume/volume.h>
 #include <framework/volume/volume_helper.h>
 #include <framework/volume/stb.h>
@@ -19,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <omp.h>
 #include <string>
 #include <string.h>
 #include <vector>
@@ -218,6 +220,24 @@ int main(int argc, char* argv[])
 {
     timer::initialize();
 
+    #if MICROPROFILE_ENABLED
+        MicroProfileOnThreadCreate("main");
+
+        // Name all OpenMP threads for profiler
+        auto main_thread = omp_get_thread_num();
+        #pragma omp parallel for num_threads(8)
+        for (int i = 0; i < 8; ++i)
+        {
+            if (omp_get_thread_num() != main_thread)
+                MicroProfileOnThreadCreate("omp_worker");
+        }
+
+        MicroProfileSetEnableAllGroups(true);
+        MicroProfileSetForceMetaCounters(true);
+        //MicroProfileStartContextSwitchTrace();
+    #endif // MICROPROFILE_ENABLED
+
+
     #ifdef DF_BUILD_DEBUG
         LOG(Warning, "Running debug build!\n");
     #endif
@@ -338,6 +358,12 @@ int main(int argc, char* argv[])
 
     Volume result = transform_volume(moving_volumes[0], def);
     vtk::write_volume("result.vtk", result);
+
+
+    #if MICROPROFILE_ENABLED
+        MicroProfileDumpFileImmediately("profiler_dump.html", "profiler_dump.csv", NULL);
+        MicroProfileShutdown();
+    #endif // MICROPROFILE_ENABLED
 
     return 0;
 }

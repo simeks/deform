@@ -6,7 +6,7 @@
 
 /*
     "pyramid_levels": 6,
-    "pyramid_start_level": 0,
+    "pyramid_stop_level": 0,
 
     "constraints_weight": 1000,
 
@@ -155,7 +155,7 @@ const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
 void print_registration_settings(const Settings& settings)
 {
     LOG(Info, "Settings:\n");
-    LOG(Info, "pyramid_start_level=%d\n",settings.pyramid_start_level);
+    LOG(Info, "pyramid_stop_level=%d\n",settings.pyramid_stop_level);
     LOG(Info, "num_pyramid_levels=%d\n",settings.num_pyramid_levels);
     LOG(Info, "block_size=[%d, %d, %d]\n", 
         settings.block_size.x, settings.block_size.y, settings.block_size.z);
@@ -196,8 +196,8 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
         !read_value(root, "pyramid_levels", settings.num_pyramid_levels))
         return false;
 
-    if (!root["pyramid_start_level"].is_null() &&
-        !read_value(root, "pyramid_start_level", settings.pyramid_start_level))
+    if (!root["pyramid_stop_level"].is_null() &&
+        !read_value(root, "pyramid_stop_level", settings.pyramid_stop_level))
         return false;
 
     if (!root["step_size"].is_null() &&
