@@ -205,113 +205,117 @@ Volume RegistrationEngine::execute()
                 moving_volumes[i] = _moving_pyramids[i].volume(l);
             }
 
-           // #define DF_VIRTUAL_COST_FUNCTION
-            #ifdef DF_VIRTUAL_COST_FUNCTION
-                UnaryFunction_Virtual unary_fn(_settings.regularization_weight);
-                #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-                    unary_fn.add_function(
-                        new SoftConstraintsFunction_Virtual(
-                            _constraints_mask_pyramid.volume(l),
-                            _constraints_pyramid.volume(l),
-                            _settings.constraints_weight
-                        )
-                    );
-                #endif
+            #ifdef DF_BLOCKWISE_COST_FUNCTION
+                assert(false); // Not implemented
+            #else
+            // #define DF_VIRTUAL_COST_FUNCTION
+                #ifdef DF_VIRTUAL_COST_FUNCTION
+                    UnaryFunction_Virtual unary_fn(_settings.regularization_weight);
+                    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
+                        unary_fn.add_function(
+                            new SoftConstraintsFunction_Virtual(
+                                _constraints_mask_pyramid.volume(l),
+                                _constraints_pyramid.volume(l),
+                                _settings.constraints_weight
+                            )
+                        );
+                    #endif
 
-                for (int i = 0; i < _image_pair_count; ++i)
-                {
-                    auto& slot = _settings.image_slots[i];
-                    if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD)
+                    for (int i = 0; i < _image_pair_count; ++i)
                     {
-                        if (fixed_volumes[i].voxel_type() == voxel::Type_Float)
+                        auto& slot = _settings.image_slots[i];
+                        if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD)
                         {
-                            unary_fn.add_function(
-                                new SquaredDistanceFunction_Virtual<float>(
-                                    fixed_volumes[i],
-                                    moving_volumes[i]
-                                )
-                            );
-                        }
-                        else if (fixed_volumes[i].voxel_type() == voxel::Type_Double)
-                        {
-                            unary_fn.add_function(
-                                new SquaredDistanceFunction_Virtual<double>(
-                                    fixed_volumes[i],
-                                    moving_volumes[i]
-                                )
-                            );
-                        }
-                        else
-                        {
-                            LOG(Error, "Invalid cost function for volume of type %d\n", fixed_volumes[i].voxel_type());
-                            return Volume();
+                            if (fixed_volumes[i].voxel_type() == voxel::Type_Float)
+                            {
+                                unary_fn.add_function(
+                                    new SquaredDistanceFunction_Virtual<float>(
+                                        fixed_volumes[i],
+                                        moving_volumes[i]
+                                    )
+                                );
+                            }
+                            else if (fixed_volumes[i].voxel_type() == voxel::Type_Double)
+                            {
+                                unary_fn.add_function(
+                                    new SquaredDistanceFunction_Virtual<double>(
+                                        fixed_volumes[i],
+                                        moving_volumes[i]
+                                    )
+                                );
+                            }
+                            else
+                            {
+                                LOG(Error, "Invalid cost function for volume of type %d\n", fixed_volumes[i].voxel_type());
+                                return Volume();
+                            }
                         }
                     }
-                }
-                BlockedGraphCutOptimizer<
-                UnaryFunction_Virtual,
-                Regularizer> optimizer(_settings.block_size);
-            #else
-
-                typedef UnaryFunction<
-                        SquaredDistanceFunction<float>,
-                        SquaredDistanceFunction<float>,
-                        ConstraintsFunction
-                    > UnaryFn;
-
-                UnaryFn unary_fn(
-                    1.0f - _settings.regularization_weight, 
-                    SquaredDistanceFunction<float>(
-                        fixed_volumes[0],
-                        moving_volumes[0]
-                    ),
-                    SquaredDistanceFunction<float>(
-                        fixed_volumes[1],
-                        moving_volumes[1]
-                    ),
-                    ConstraintsFunction(
-                        _constraints_mask_pyramid.volume(l),
-                        _constraints_pyramid.volume(l)
-                    )
-                );
-
-                BlockedGraphCutOptimizer<
-                    UnaryFn, 
+                    BlockedGraphCutOptimizer<
+                    UnaryFunction_Virtual,
                     Regularizer> optimizer(_settings.block_size);
-            #endif
+                #else
 
-            // Fix constrained voxels by updating the initial deformation field
-            constrain_deformation_field(
-                def,
-                _constraints_mask_pyramid.volume(l),
-                _constraints_pyramid.volume(l)
-            );
+                    typedef UnaryFunction<
+                            SquaredDistanceFunction<float>,
+                            SquaredDistanceFunction<float>,
+                            ConstraintsFunction
+                        > UnaryFn;
+
+                    UnaryFn unary_fn(
+                        1.0f - _settings.regularization_weight, 
+                        SquaredDistanceFunction<float>(
+                            fixed_volumes[0],
+                            moving_volumes[0]
+                        ),
+                        SquaredDistanceFunction<float>(
+                            fixed_volumes[1],
+                            moving_volumes[1]
+                        ),
+                        ConstraintsFunction(
+                            _constraints_mask_pyramid.volume(l),
+                            _constraints_pyramid.volume(l)
+                        )
+                    );
+
+                    BlockedGraphCutOptimizer<
+                        UnaryFn, 
+                        Regularizer> optimizer(_settings.block_size);
+                #endif
+
+                // Fix constrained voxels by updating the initial deformation field
+                constrain_deformation_field(
+                    def,
+                    _constraints_mask_pyramid.volume(l),
+                    _constraints_pyramid.volume(l)
+                );
+                
+                Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
+
+                // Calculate step size in voxels
+                float3 fixed_spacing = fixed_volumes[0].spacing();
+                float3 step_size_voxels{
+                    _settings.step_size / fixed_spacing.x,
+                    _settings.step_size / fixed_spacing.y,
+                    _settings.step_size / fixed_spacing.z
+                };
+
+                #if DF_DEBUG_LEVEL >= 3
+                    LOG(Debug, "[f%d] spacing: %f, %f, %f\n", l, fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
+                    LOG(Debug, "step_size [voxels]: %f, %f, %f\n", step_size_voxels.x, step_size_voxels.y, step_size_voxels.z);
+                #endif
             
-            Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
+                STATS_RESET("Stat_Energy");
+            
 
-            // Calculate step size in voxels
-            float3 fixed_spacing = fixed_volumes[0].spacing();
-            float3 step_size_voxels{
-                _settings.step_size / fixed_spacing.x,
-                _settings.step_size / fixed_spacing.y,
-                _settings.step_size / fixed_spacing.z
-            };
+                optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
 
-            #if DF_DEBUG_LEVEL >= 3
-                LOG(Debug, "[f%d] spacing: %f, %f, %f\n", l, fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
-                LOG(Debug, "step_size [voxels]: %f, %f, %f\n", step_size_voxels.x, step_size_voxels.y, step_size_voxels.z);
-            #endif
-        
-            STATS_RESET("Stat_Energy");
-        
-
-            optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
-
-            #ifdef DF_VIRTUAL_COST_FUNCTION
-                for (int i = 0; i < unary_fn.num_functions; ++i)
-                {
-                    delete unary_fn.functions[i];
-                }
+                #ifdef DF_VIRTUAL_COST_FUNCTION
+                    for (int i = 0; i < unary_fn.num_functions; ++i)
+                    {
+                        delete unary_fn.functions[i];
+                    }
+                #endif
             #endif
 
             #ifdef DF_ENABLE_STATS
