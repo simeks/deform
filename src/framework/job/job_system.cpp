@@ -1,6 +1,6 @@
 #include "debug/assert.h"
 #include "job_system.h"
-#include "profiler/profiler.h"
+#include "profiler/microprofile.h"
 #include "thread/lock.h"
 #include "thread/thread.h"
 
@@ -92,7 +92,7 @@ namespace job
 
     void Worker::worker_proc(Worker* worker)
     {
-        PROFILER_REGISTER_THREAD("worker");
+        MicroProfileOnThreadCreate("worker");
 
         internal::_thread_local_worker = worker;
 

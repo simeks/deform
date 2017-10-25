@@ -5,7 +5,7 @@
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
 #include <framework/job/job_system.h>
-#include <framework/profiler/profiler.h>
+#include <framework/profiler/microprofile.h>
 #include <framework/thread/thread.h>
 
 namespace blocked_graph_cut
@@ -374,10 +374,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         for (int use_shift = 0; use_shift < 2; ++use_shift)
         {
+            MICROPROFILE_SCOPEI("main", "per_shift", 0x00ffff);
+            
             if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
                 continue;
-
-            MICROPROFILE_SCOPEI("main", "per_shift", 0x00ffff);
 
             /*
                 We only do shifting in the directions that requires it
@@ -540,7 +540,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         STATS_ADD_VALUE("Stat_Energy", calculate_energy(unary_fn, binary_fn, def));
 
-        PROFILER_FRAME_TICK();
+        MicroProfileFlip(nullptr);
     }
 }
 

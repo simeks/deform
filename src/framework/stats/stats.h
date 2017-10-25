@@ -1,6 +1,6 @@
 #pragma once
 
-#define DF_ENABLE_STATS
+//#define DF_ENABLE_STATS
 
 /* 
     Statistics gathering tools

@@ -8,7 +8,12 @@
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
 #include <framework/platform/timer.h>
-#include <framework/profiler/profiler.h>
+#include <framework/profiler/microprofile.h>
+#include <framework/volume/vtk.h>
+
+#ifndef DF_NO_OPENMP
+    #include <omp.h>
+#endif
 
 struct UnaryFn
 {
@@ -68,16 +73,18 @@ void do_blocked_graph_cut_benchmark()
         BinaryFn
     > Optimizer;
 
-    VolumeFloat3 def(Dims{100,100,100}, float3{0});
+    Dims img_size = {200,200,200};
 
-    VolumeFloat fixed(Dims{100,100,100}, 0.0f);
-    VolumeFloat moving(Dims{100,100,100}, 0.0f);
+    VolumeFloat3 def(img_size, float3{0});
 
-    for (int z = 0; z < 100; ++z)
+    VolumeFloat fixed(img_size, 0.0f);
+    VolumeFloat moving(img_size, 0.0f);
+
+    for (int z = 0; z < int(img_size.depth); ++z)
     {
-        for (int y = 0; y < 100; ++y)
+        for (int y = 0; y < int(img_size.height); ++y)
         {
-            for (int x = 0; x < 100; ++x)
+            for (int x = 0; x < int(img_size.width); ++x)
             {
                 fixed(x, y, z) = sinf(float(x))+1.0f;
                 moving(x, y, z) = cosf(float(x))+1.0f;
@@ -85,7 +92,7 @@ void do_blocked_graph_cut_benchmark()
         }
     }
 
-    Optimizer optimizer(int3{25, 25, 25});
+    Optimizer optimizer(int3{12, 12, 12});
     
     UnaryFn unary_fn(fixed, moving);
     BinaryFn binary_fn(float3{1,1,1});
@@ -95,24 +102,44 @@ void do_blocked_graph_cut_benchmark()
     double t_end = timer::seconds();
 
     printf("Elapsed: %f\n", t_end - t_begin);
+
+    vtk::write_volume("test.vtk", def);
 }
 
 int run_benchmark(int argc, char* argv[])
 {
     argc; argv;
 
-    job::initialize(8);
-
-    PROFILER_REGISTER_THREAD("main");
-    PROFILER_INITIALIZE();
+    MicroProfileOnThreadCreate("main");
     
+    #ifndef DF_NO_OPENMP
+        // Name all OpenMP threads for profiler
+        auto main_thread = omp_get_thread_num();
+        #pragma omp parallel for num_threads(8)
+        for (int i = 0; i < 8; ++i)
+        {
+            if (omp_get_thread_num() != main_thread)
+                MicroProfileOnThreadCreate("omp_worker");
+        }
+    #endif
+
+    #ifdef DF_NO_OPENMP
+        job::initialize(8);
+    #endif
+
+    MicroProfileSetEnableAllGroups(true);
+    MicroProfileSetForceMetaCounters(true);
+    //MicroProfileStartContextSwitchTrace();
+
     do_blocked_graph_cut_benchmark();
 
 	MicroProfileDumpFileImmediately("benchmark.html", "benchmark.csv", NULL);
 
-    PROFILER_SHUTDOWN();
+    MicroProfileShutdown();
 
-    job::shutdown();
+    #ifdef DF_NO_OPENMP
+        job::shutdown();
+    #endif
 
     return 0;
 }
