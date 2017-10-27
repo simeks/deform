@@ -4,7 +4,6 @@
 
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
-#include <framework/job/job_system.h>
 #include <framework/profiler/microprofile.h>
 #include <framework/thread/thread.h>
 

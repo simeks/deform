@@ -4,7 +4,6 @@
 
 #include "registration/blocked_graph_cut_optimizer.h"
 
-#include <framework/job/job_system.h>
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
 #include <framework/platform/timer.h>
