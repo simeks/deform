@@ -51,11 +51,13 @@ struct Settings
 
     // Block size, (0,0,0) is the same as using only a single large block
     int3 block_size;
+    // Epsilon used for termination
+    float block_energy_epsilon;
     // Step size in [mm]
     float step_size;
     // Only considered if no weight map is given
     float regularization_weight;
-    
+
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     // Only applicable when constraints are present
 
@@ -67,6 +69,7 @@ struct Settings
         pyramid_stop_level(0),
         num_pyramid_levels(6),
         block_size(int3{12, 12, 12}),
+        block_energy_epsilon(0.01f),
         step_size(0.5f),
         regularization_weight(0.05f)
 #ifdef DF_ENABLE_VOXEL_CONSTRAINTS

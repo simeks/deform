@@ -11,6 +11,7 @@
     "constraints_weight": 1000,
 
     "block_size": [12, 12, 12],
+    "block_energy_epsilon": 0.001,
     "step_size": 0.5,
     "regularization_weight": 0.05,
 
@@ -159,6 +160,7 @@ void print_registration_settings(const Settings& settings)
     LOG(Info, "num_pyramid_levels=%d\n",settings.num_pyramid_levels);
     LOG(Info, "block_size=[%d, %d, %d]\n", 
         settings.block_size.x, settings.block_size.y, settings.block_size.z);
+    LOG(Info, "block_energy_epsilon=%f\n", settings.block_energy_epsilon);
     LOG(Info, "step_size=%f\n", settings.step_size);
     LOG(Info, "regularization_weight=%f\n", settings.regularization_weight);
     
@@ -224,6 +226,9 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
         };
     }
 
+    if (!root["block_energy_epsilon"].is_null() &&
+        !read_value(root, "block_energy_epsilon", settings.block_energy_epsilon))
+        return false;
 
     #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
         if (!root["constraints_weight"].is_null() &&

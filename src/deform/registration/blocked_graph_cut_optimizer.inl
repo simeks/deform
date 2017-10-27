@@ -13,7 +13,11 @@ template<
     typename TUnaryTerm,
     typename TBinaryTerm
 >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(const int3& block_size)
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
+    const int3& block_size,
+    float block_energy_epsilon) :
+    _block_size(block_size),
+    _block_energy_epsilon(block_energy_epsilon)
 {
     _neighbors[0] = {1, 0, 0};
     _neighbors[1] = {-1, 0, 0};
@@ -21,8 +25,6 @@ BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(cons
     _neighbors[3] = {0, -1, 0};
     _neighbors[4] = {0, 0, 1};
     _neighbors[5] = {0, 0, -1};
-
-    _block_size = block_size;
 }
 template<
     typename TUnaryTerm,
@@ -181,13 +183,12 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             }
         }
 
-        #ifndef DF_BLOCKWISE_COST_FUNCTION
-            #ifdef DF_OUTPUT_VOLUME_ENERGY
-                LOG(Debug, "Energy: %.10f\n", calculate_energy(unary_fn, binary_fn, def));
-            #endif
-
-            STATS_ADD_VALUE("Stat_Energy", calculate_energy(unary_fn, binary_fn, def));
+        #ifdef DF_OUTPUT_VOLUME_ENERGY
+            LOG(Debug, "Energy: %.10f\n", calculate_energy(unary_fn, binary_fn, def));
         #endif
+
+        STATS_ADD_VALUE("Stat_Energy", calculate_energy(unary_fn, binary_fn, def));
+
         MicroProfileFlip(nullptr);
     }
 }
@@ -215,28 +216,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     {
         MICROPROFILE_SCOPEI("main", "build_graph", 0x33ffff);
 
-        #ifdef DF_BLOCKWISE_COST_FUNCTION
-            int3 begin{
-                block_p.x * block_dims.x - block_offset.x,
-                block_p.y * block_dims.y - block_offset.y,
-                block_p.z * block_dims.z - block_offset.z
-            };
-            int3 end{
-                (block_p.x + 1) * block_dims.x - block_offset.x,
-                (block_p.y + 1) * block_dims.y - block_offset.y,
-                (block_p.z + 1) * block_dims.z - block_offset.z
-            };
-            float* unary_cost_0 = (float*)malloc(sizeof(float)*block_dims.x*block_dims.y*block_dims.z);
-            float* unary_cost_1 = (float*)malloc(sizeof(float)*block_dims.x*block_dims.y*block_dims.z);
-            unary_fn(begin, end, def, delta, unary_cost_0, unary_cost_1);
-        
-            // x,y,z directions
-            // float3* binary_cost_0 = (float3*)malloc(sizeof(float3)*block_dims.x*block_dims.y*block_dims.z);
-            // float3* binary_cost_1 = (float3*)malloc(sizeof(float3)*block_dims.x*block_dims.y*block_dims.z);
-
-            int voxel_idx = 0;
-        #endif
-
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z)
         {
             for (int sub_y = 0; sub_y < block_dims.y; ++sub_y)
@@ -259,14 +238,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
                     int3 p{gx, gy, gz};
                     float3 def1 = def(p);
-                
-                    #ifdef DF_BLOCKWISE_COST_FUNCTION
-                        float f0 = unary_cost_0[voxel_idx];
-                        float f1 = unary_cost_1[voxel_idx];
-                    #else
-                        float f0 = unary_fn(p, def1);
-                        float f1 = unary_fn(p, def1 + delta);
-                    #endif
+            
+                    float f0 = unary_fn(p, def1);
+                    float f1 = unary_fn(p, def1 + delta);
 
                     // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
 
@@ -364,17 +338,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
                         current_energy += f_same;
                     }
-                    #ifdef DF_BLOCKWISE_COST_FUNCTION
-                        ++voxel_idx;
-                    #endif
                 }
             }
         }
-
-        #ifdef DF_BLOCKWISE_COST_FUNCTION
-            free(unary_cost_0);
-            free(unary_cost_1);
-        #endif
     }
 
 
@@ -389,7 +355,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     int voxels_changed_ = 0;
     #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
-    if (current_emin + 0.1f < current_energy) // Accept solution
+    if (current_emin + _block_energy_epsilon < current_energy) // Accept solution
     {
         MICROPROFILE_SCOPEI("main", "apply_solution", 0xff7733);
         
@@ -445,48 +411,41 @@ float BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
     VolumeFloat3& def
 )
 {
-    #ifndef DF_BLOCKWISE_COST_FUNCTION
-        
-        Dims dims = def.size();
+    Dims dims = def.size();
 
-        float total_energy = 0;
-        for (int gz = 0; gz < int(dims.depth); ++gz)
+    float total_energy = 0;
+    for (int gz = 0; gz < int(dims.depth); ++gz)
+    {
+        for (int gy = 0; gy < int(dims.height); ++gy)
         {
-            for (int gy = 0; gy < int(dims.height); ++gy)
+            for (int gx = 0; gx < int(dims.width); ++gx)
             {
-                for (int gx = 0; gx < int(dims.width); ++gx)
+                int3 p{gx, gy, gz};
+                float3 def1 = def(p);
+
+                total_energy += unary_fn(p, def1);
+
+                if (gx + 1 < int(dims.width))
                 {
-                    int3 p{gx, gy, gz};
-                    float3 def1 = def(p);
-
-                    total_energy += unary_fn(p, def1);
-
-                    if (gx + 1 < int(dims.width))
-                    {
-                        int3 step{1, 0, 0};
-                        float3 def2 = def(p + step);
-                        total_energy += binary_fn(p, def1, def2, step);
-                    }
-                    if (gy + 1 < int(dims.height))
-                    {
-                        int3 step{0, 1, 0};
-                        float3 def2 = def(p + step);
-                        total_energy += binary_fn(p, def1, def2, step);
-                    }
-                    if (gz + 1 < int(dims.depth))
-                    {
-                        int3 step{0, 0, 1};
-                        float3 def2 = def(p + step);
-                        total_energy += binary_fn(p, def1, def2, step);
-                    }
+                    int3 step{1, 0, 0};
+                    float3 def2 = def(p + step);
+                    total_energy += binary_fn(p, def1, def2, step);
+                }
+                if (gy + 1 < int(dims.height))
+                {
+                    int3 step{0, 1, 0};
+                    float3 def2 = def(p + step);
+                    total_energy += binary_fn(p, def1, def2, step);
+                }
+                if (gz + 1 < int(dims.depth))
+                {
+                    int3 step{0, 0, 1};
+                    float3 def2 = def(p + step);
+                    total_energy += binary_fn(p, def1, def2, step);
                 }
             }
         }
-        return total_energy;
-    #else
-        unary_fn; binary_fn; def;
-        assert(false); // Not implemented
-        return 0.0f;
-    #endif
+    }
+    return total_energy;
 }
 

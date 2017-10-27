@@ -14,7 +14,7 @@ template<
 class BlockedGraphCutOptimizer
 {
 public:
-    BlockedGraphCutOptimizer(const int3& block_size);
+    BlockedGraphCutOptimizer(const int3& block_size, float block_energy_epsilon);
     ~BlockedGraphCutOptimizer();
 
     /// step_size : Step size in [voxels]
@@ -43,6 +43,7 @@ private:
 
     int3 _neighbors[6];
     int3 _block_size;
+    float _block_energy_epsilon;
 };
 
 #include "blocked_graph_cut_optimizer.inl"
