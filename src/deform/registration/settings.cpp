@@ -206,6 +206,10 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
         !read_value(root, "step_size", settings.step_size))
         return false;
 
+    if (!root["regularization_weight"].is_null() &&
+        !read_value(root, "regularization_weight", settings.regularization_weight))
+        return false;
+
     auto& block_size = root["block_size"];
     if (!block_size.is_null())
     {
