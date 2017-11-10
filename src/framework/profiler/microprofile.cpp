@@ -7651,6 +7651,8 @@ void MicroProfileGpuShutdown()
 #include "microprofile_xboxone.h"
 #endif
 
+#pragma warning(pop)
+
 #endif //#if MICROPROFILE_ENABLED
 
 #include "microprofile_html.h"
@@ -7668,4 +7670,3 @@ void uprintf(const char* fmt, ...)
 }
 #endif
 
-#pragma warning(pop)

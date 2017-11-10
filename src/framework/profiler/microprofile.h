@@ -26,6 +26,7 @@
 #include "microprofile.config.h"
 #endif
 
+#define MICROPROFILE_ENABLED 0
 #ifndef MICROPROFILE_ENABLED
 #define MICROPROFILE_ENABLED 1
 #endif
