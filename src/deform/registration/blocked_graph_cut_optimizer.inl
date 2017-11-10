@@ -209,9 +209,15 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     MICROPROFILE_SCOPEI("main", "do_block_move", 0xff33ff);
     Dims dims = def.size();
 
-    GraphCut<float> graph(block_dims);
+    #ifdef DF_GRAPHCUT_DOUBLE_PRECISION
+        typedef double FlowType;
+    #else
+        typedef float FlowType;    
+    #endif
 
-    float current_energy = 0;
+    GraphCut<FlowType> graph(block_dims);
+
+    FlowType current_energy = 0;
     {
         MICROPROFILE_SCOPEI("main", "build_graph", 0x33ffff);
 
@@ -343,7 +349,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     }
 
 
-    float current_emin;
+    FlowType current_emin;
     {
         MICROPROFILE_SCOPEI("main", "minimize_graph", 0xffff33);
         current_emin = graph.minimize();
