@@ -203,7 +203,7 @@ void do_regularization(
                         new_def = old_def + 1.5f*(new_def - old_def);
 
                         def(p) = new_def;
-                        float diff = math::length_squared(new_def - old_def);
+                        float diff = math::length(new_def - old_def);
                         if (diff > precision)
                         {
                             done = false;

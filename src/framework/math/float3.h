@@ -4,11 +4,17 @@
 
 #include "types.h"
 
+#include <math.h>
+
 namespace math
 {
     inline float length_squared(const float3& v)
     {
         return v.x * v.x + v.y * v.y + v.z * v.z;
+    }
+    inline float length(const float3& v)
+    {
+        return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
     }
 }
 
