@@ -136,12 +136,14 @@ namespace
     #endif // DF_ENABLE_VOXEL_CONSTRAINTS
                 else
                 {
-                    print_help_and_exit("Unrecognized option");
+                    std::string err = std::string("Unrecognized option: " + token);
+                    print_help_and_exit(err.c_str());
                 }
             }
             else
             {
-                print_help_and_exit("Unrecognized option");
+                std::string err = std::string("Unrecognized option: " + token);
+                print_help_and_exit(err.c_str());
             }
             ++i;
         }
