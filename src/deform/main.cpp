@@ -3,7 +3,6 @@
 #include "registration/settings.h"
 #include "registration/transform.h"
 #include "registration/volume_pyramid.h"
-#include "regularize.h"
 
 #include <framework/debug/assert.h>
 #include <framework/debug/log.h>
@@ -28,6 +27,8 @@
 #ifdef DF_ENABLE_BENCHMARK
     int run_benchmark(int argc, char* argv[]);
 #endif
+
+int run_regularize(int argc, char* argv[]);
 
 namespace
 {
