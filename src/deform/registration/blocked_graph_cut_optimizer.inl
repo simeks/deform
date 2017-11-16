@@ -190,6 +190,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         MicroProfileFlip(nullptr);
     }
+    LOG(Info, "Energy: %f\n", calculate_energy(unary_fn, binary_fn, def));
 }
 
 template<
