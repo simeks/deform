@@ -77,6 +77,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     BlockChangeFlags change_flags(block_count); 
 
+    int num_iterations = 0;
+    LOG(Info, "Initial Energy: %f\n", calculate_energy(unary_fn, binary_fn, def));
+
     bool done = false;
     while (!done)
     {
@@ -187,10 +190,11 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
         #endif
 
         STATS_ADD_VALUE("Stat_Energy", calculate_energy(unary_fn, binary_fn, def));
+        ++num_iterations;
 
         MicroProfileFlip(nullptr);
     }
-    LOG(Info, "Energy: %f\n", calculate_energy(unary_fn, binary_fn, def));
+    LOG(Info, "Energy: %f, Iterations: %d\n", calculate_energy(unary_fn, binary_fn, def), num_iterations);
 }
 
 template<

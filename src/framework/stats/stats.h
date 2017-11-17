@@ -25,6 +25,7 @@ namespace stats
     void reset_stat(const char* name);
     void dump_stat(const char* name, const char* filename);
     
+    // Not thread-safe
     void add_stat_value(const char* name, double value);
 }
 

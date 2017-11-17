@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <string.h>
+#include <vector>
 
 namespace
 {
@@ -11,63 +12,28 @@ namespace
     
     struct Samples
     {
-        double* _timestamps;
-        double* _values;
+        std::vector<double> _timestamps;
+        std::vector<double> _values;
 
-        // Number of slots in data (in n of doubles)
-        size_t _values_size; 
-
-        // Current number of samples
-        size_t _current_index;
-
-        Samples() : 
-            _timestamps(NULL),
-            _values(NULL),
-            _values_size(0),
-            _current_index(0)
+        Samples()
         {
         }
         ~Samples()
         {
-            delete [] _timestamps;
-            delete [] _values;
         }
 
         void reset()
         {
-            _current_index = 0;
+            _timestamps.clear();
+            _values.clear();
         }
 
         void push(double timestamp, double value)
         {
             // TODO: Thread safety
-
-            if (!_values)
-            {
-                _values_size = 32;
-                _timestamps = new double[_values_size];
-                _values = new double[_values_size];
-            }
-            else if (_current_index >= _values_size)
-            {
-                // Exponential growth
-                size_t new_size = _values_size * 2;
-                double* new_timestamps = new double[new_size];
-                double* new_values = new double[new_size];
-                
-                memcpy(new_timestamps, _timestamps, _values_size);
-                memcpy(new_values, _values, _values_size);
-                delete [] _timestamps;
-                delete [] _values;
-                
-                _timestamps = new_timestamps;
-                _values = new_values;
-                _values_size = new_size;
-            }
             
-            _timestamps[_current_index] = timestamp;
-            _values[_current_index] = value;
-            ++_current_index;
+            _timestamps.push_back(timestamp);
+            _values.push_back(value);
         }
     };
 
@@ -123,7 +89,7 @@ namespace stats
 
         std::ofstream f;
         f.open(filename, std::ios::out);
-        for (int i = 0; i < int(stat.samples._current_index); ++i)
+        for (int i = 0; i < int(stat.samples._timestamps.size()); ++i)
         {
             f << stat.samples._timestamps[i] << ";" << stat.samples._values[i] << std::endl;
         }

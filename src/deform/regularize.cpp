@@ -1,6 +1,5 @@
 #include "registration/volume_pyramid.h"
 #include "registration/voxel_constraints.h"
-#include "regularize.h"
 
 #include <framework/debug/log.h>
 #include <framework/filters/resample.h>
