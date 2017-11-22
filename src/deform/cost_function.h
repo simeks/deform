@@ -239,7 +239,7 @@ struct SquaredDistanceFunction_Virtual : public SubFunction
         
         // [fixed] -> [world] -> [moving]
         float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p / _moving.spacing()) - _moving.origin();
+        float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
 
         T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
 
