@@ -60,7 +60,7 @@ namespace
                     double norm = 0;
                     for (int t = -size; t < size + 1; t++)
                     {
-                        double c = exp(factor*(t*spacing_x)*(t*spacing_x));
+                        double c = exp(factor*(t*spacing_y)*(t*spacing_y));
 
                         int sy = std::min(std::max(y + t, 0), int(dims.height - 1));
                         value += TVoxelType(c*tmp(x, sy, z));
@@ -86,7 +86,7 @@ namespace
                     double norm = 0;
                     for (int t = -size; t < size + 1; t++)
                     {
-                        double c = exp(factor*(t*spacing_x)*(t*spacing_x));
+                        double c = exp(factor*(t*spacing_z)*(t*spacing_z));
 
                         int sz = std::min(std::max(z + t, 0), int(dims.depth - 1));
                         value += TVoxelType(c*tmp(x, y, sz));
