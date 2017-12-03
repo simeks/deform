@@ -63,9 +63,9 @@ Volume filters::downsample_volume_gaussian(const Volume& vol, float scale)
     switch (vol.voxel_type())
     {
     case voxel::Type_Float:
-        return ::downsample_volume<float>(vol, scale);
+        return ::downsample_volume<float>(filtered, scale);
     case voxel::Type_Double:
-        return ::downsample_volume<double>(vol, scale);
+        return ::downsample_volume<double>(filtered, scale);
     default:
         assert(false);
     };
