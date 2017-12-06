@@ -139,7 +139,13 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                     int n_count = 6; // Neighbors
                     for (int n = 0; n < n_count; ++n)
                     {
-                        need_update = need_update || change_flags.is_block_set(block_p + _neighbors[n], use_shift == 1);
+                        int3 neighbor = block_p + _neighbors[n];
+                        if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
+                            0 <= neighbor.y && neighbor.y < real_block_count.y &&
+                            0 <= neighbor.z && neighbor.z < real_block_count.z)
+                        {
+                            need_update = need_update || change_flags.is_block_set(neighbor, use_shift == 1);
+                        }
                     }
 
                     if (!need_update)
