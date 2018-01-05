@@ -21,6 +21,8 @@
 
 namespace
 {
+    float origin_epsilon = 0.1f; // .1 mm
+
     /// name : Name for printout
     bool validate_volume_properties(
         const Volume& vol, 
@@ -42,9 +44,9 @@ namespace
             return false;
         }
 
-        if (fabs(origin.x - expected_origin.x) > 0.0001f || 
-            fabs(origin.y - expected_origin.y) > 0.0001f ||
-            fabs(origin.z - expected_origin.z) > 0.0001f) // arbitrary epsilon but should suffice
+        if (fabs(origin.x - expected_origin.x) > origin_epsilon || 
+            fabs(origin.y - expected_origin.y) > origin_epsilon ||
+            fabs(origin.z - expected_origin.z) > origin_epsilon) // arbitrary epsilon but should suffice
         {
             LOG(Error, "Origin mismatch for %s (origin: %f %f %f, expected: %f %f %f)\n",
                         name,
