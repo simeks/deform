@@ -352,7 +352,7 @@ Volume RegistrationEngine::execute()
             _deformation_pyramid.set_volume(0, def);
         }
 
-        std::string profile_log = "profile_log_level_" + std::to_string(l) + ".html";
+        std::string profile_log = "profile_log_level_" + std::to_string((long long int)l) + ".html";
         MicroProfileDumpFileImmediately(profile_log.c_str(), NULL, NULL);
     }
 
