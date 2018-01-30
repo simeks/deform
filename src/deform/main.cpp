@@ -1,4 +1,5 @@
 #include "config.h"
+#include "jacobian.h"
 #include "registration/registration_engine.h"
 #include "registration/settings.h"
 #include "registration/transform.h"
@@ -219,6 +220,32 @@ int run_transform(int argc, char* argv[])
     return 0;
 }
 
+int run_jacobian(int argc, char* argv[])
+{
+    // Usage:
+    // ./deform jacobian <source> <deformation> <out>
+
+    if (argc < 5)
+    {
+        std::cout << "Usage: " << argv[0] << " jacobian <source> <deformation> <out>" << std::endl;
+        return 1;
+    }
+
+    Volume src = load_volume(argv[2]);
+    if (!src.valid())
+        return 1;
+
+    Volume def = load_volume(argv[3]);
+    if (!def.valid())
+        return 1;
+
+    Volume jac = calculate_jacobian(src, def);
+    vtk::write_volume(argv[4], jac);
+    
+    return 0;
+}
+
+
 int main(int argc, char* argv[])
 {
     timer::initialize();
@@ -249,6 +276,8 @@ int main(int argc, char* argv[])
         return run_transform(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "regularize") == 0)
         return run_regularize(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "jacobian") == 0)
+        return run_jacobian(argc, argv);
     
     #ifdef DF_ENABLE_BENCHMARK
         if (argc >= 2 && strcmp(argv[1], "benchmark") == 0)
