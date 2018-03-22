@@ -4,39 +4,6 @@
 
 namespace thread
 {
-    class Thread
-    {
-    public:
-        typedef void(*Function)(void*);
-
-        struct Payload
-        {
-            Function function;
-            void* data;
-        };
-
-        Thread();
-        /// Constructs and executes a thread with the given payload
-        Thread(Function fn, void* data);
-        ~Thread();
-
-        /// Starts a thread (if it hasn't already been started)
-        void start(Function fn, void* data);
-
-        /// Joins with the thread
-        void join();
-
-    private:
-        Thread(const Thread&);
-        void operator=(const Thread&);
-
-        void* _handle;
-
-        Payload _payload;
-    };
-
-    
-
     long interlocked_increment(long volatile* addend);
     long interlocked_decrement(long volatile* addend);
 

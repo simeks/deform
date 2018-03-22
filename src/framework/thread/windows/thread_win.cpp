@@ -5,52 +5,8 @@
 
 #include <process.h>
 
-static void __cdecl thread_proc(void* param)
-{
-    auto payload = (thread::Thread::Payload*)param;
-    payload->function(payload->data);
-
-    _endthread();
-}
-
 namespace thread
 {
-    Thread::Thread() :
-        _handle(nullptr)
-    {
-        _payload.function = nullptr;
-        _payload.data = nullptr;
-    }
-    Thread::Thread(Function fn, void* data) :
-        _handle(nullptr)
-    {
-        _payload.function = fn;
-        _payload.data = data;
-
-        _handle = (void*)_beginthread(thread_proc, 0, &_payload);
-        assert(_handle != (void*)-1L);
-    }
-    Thread::~Thread()
-    {
-    }
-    void Thread::start(Function fn, void* data)
-    {
-        assert(_handle == nullptr || _handle == (void*)-1L);
-
-        _payload.function = fn;
-        _payload.data = data;
-
-        _handle = (void*)_beginthread(thread_proc, 0, &_payload);
-        assert(_handle != (void*)-1L);
-    }
-    void Thread::join()
-    {
-        if (_handle != nullptr)
-        {
-            WaitForSingleObject((HANDLE)_handle, INFINITE);
-        }
-    }
-
     long interlocked_increment(long volatile* addend)
     {
         return ::InterlockedIncrement(addend);
