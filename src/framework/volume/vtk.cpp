@@ -292,6 +292,11 @@ namespace vtk
 
         std::ofstream f(file, std::ios::binary);
         assert(f.is_open());
+        f.setf(std::ios::scientific,
+                    std::ios::floatfield);
+
+        f.precision(16);
+
         f << "# vtk DataFile Version 3.0\n";
         f << "Written by cortado (vtk.cpp)\n";
         f << "BINARY\n";
@@ -339,6 +344,22 @@ namespace vtk
             break;
         case voxel::Type_Double4:
             data_type = "double";
+            num_comp = 4;
+            break;
+        case voxel::Type_UChar:
+            data_type = "unsigned_char";
+            num_comp = 1;
+            break;
+        case voxel::Type_UChar2:
+            data_type = "unsigned_char";
+            num_comp = 2;
+            break;
+        case voxel::Type_UChar3:
+            data_type = "unsigned_char";
+            num_comp = 3;
+            break;
+        case voxel::Type_UChar4:
+            data_type = "unsigned_char";
             num_comp = 4;
             break;
         default:
