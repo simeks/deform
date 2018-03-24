@@ -74,3 +74,6 @@ First two parameters, `pyramid_levels` and `pyramid_stop_level`, defines the siz
 `regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
 
 `image_slots`, specifies how to use the input images. `name` is simply for cosmetic purposes, `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` specifies which cost function to use.
+
+### Misc
+https://trello.com/b/pUNDcQ4n/project
