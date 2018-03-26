@@ -243,6 +243,14 @@ struct SquaredDistanceFunction_Virtual : public SubFunction
 
         T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
 
+        // [Filip]: Addition for partial-body registrations
+        if (moving_p.x<0 || moving_p.x>_moving.size().width || 
+            moving_p.y<0 || moving_p.y>_moving.size().height || 
+            moving_p.z<0 || moving_p.z>_moving.size().depth) {
+            return 0;
+        }
+
+
         // TODO: Float cast
         float f = fabs(float(_fixed(p) - moving_v));
         return f*f;
