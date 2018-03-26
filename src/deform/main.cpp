@@ -391,6 +391,9 @@ int main(int argc, char* argv[])
     Volume result = transform_volume(moving_volumes[0], def);
     vtk::write_volume("result.vtk", result);
 
+    Volume jac = calculate_jacobian(moving_volumes[0], def);
+    vtk::write_volume("result_jac.vtk", jac);
+
 
     #if MICROPROFILE_ENABLED
         MicroProfileDumpFileImmediately("profiler_dump.html", "profiler_dump.csv", NULL);
