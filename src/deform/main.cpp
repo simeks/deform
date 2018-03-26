@@ -198,11 +198,11 @@ Volume load_volume(const std::string& file)
 int run_transform(int argc, char* argv[])
 {
     // Usage:
-    // ./deform transform <src> <deformation> <out>
+    // ./deform transform <src> <deformation> <out> [-i <nn/linear>]
 
     if (argc < 5)
     {
-        std::cout << "Usage: " << argv[0] << " transform <src> <deformation> <out>" << std::endl;
+        std::cout << "Usage: " << argv[0] << " transform <src> <deformation> <out> [-i <nn/linear>]" << std::endl;
         return 1;
     }
 
@@ -214,7 +214,17 @@ int run_transform(int argc, char* argv[])
     if (!def.valid())
         return 1;
 
-    Volume result = transform_volume(src, def);
+    transform::Interp interp = transform::Interp_Linear;
+
+    // TODO: Quick fix, include when refactoring command-line args
+    if (argc == 7 && strcmp(argv[5], "-i") == 0 && strcmp(argv[6], "nn") == 0)
+    {
+        interp = transform::Interp_NN;
+    }
+
+    // TODO: Verify that def is float3
+
+    Volume result = transform_volume(src, def, interp);
     vtk::write_volume(argv[4], result);
     
     return 0;
