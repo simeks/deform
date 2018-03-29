@@ -7,14 +7,13 @@
 #include <framework/profiler/microprofile.h>
 #include <framework/thread/thread.h>
 
-
 template<
     typename TUnaryTerm,
     typename TBinaryTerm
 >
 BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
     const int3& block_size,
-    float block_energy_epsilon) :
+    double block_energy_epsilon) :
     _block_size(block_size),
     _block_energy_epsilon(block_energy_epsilon)
 {
@@ -70,10 +69,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
     block_count.y += (block_rest.y > 0 ? 1 : 0);
     block_count.z += (block_rest.z > 0 ? 1 : 0);
 
-    LOG(Info, "Volume size: %d, %d, %d\n", dims.width, dims.height, dims.depth);
-    LOG(Info, "Block count: %d, %d, %d\n", block_count.x, block_count.y, block_count.z);
-    LOG(Info, "Block size: %d, %d, %d\n", block_dims.x, block_dims.y, block_dims.z);
-    LOG(Info, "Block rest: %d, %d, %d\n", block_rest.x, block_rest.y, block_rest.z);
+    LOG(Debug, "Volume size: %d, %d, %d\n", dims.width, dims.height, dims.depth);
+    LOG(Debug, "Block count: %d, %d, %d\n", block_count.x, block_count.y, block_count.z);
+    LOG(Debug, "Block size: %d, %d, %d\n", block_dims.x, block_dims.y, block_dims.z);
+    LOG(Debug, "Block rest: %d, %d, %d\n", block_rest.x, block_rest.y, block_rest.z);
 
     BlockChangeFlags change_flags(block_count); 
 
@@ -116,7 +115,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
 
                 volatile long num_blocks_changed = 0;
-
+                
                 #pragma omp parallel for schedule(dynamic)
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
                 {
@@ -255,8 +254,8 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     int3 p{gx, gy, gz};
                     float3 def1 = def(p);
             
-                    float f0 = unary_fn(p, def1);
-                    float f1 = unary_fn(p, def1 + delta);
+                    double f0 = unary_fn(p, def1);
+                    double f1 = unary_fn(p, def1 + delta);
 
                     // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
 
@@ -313,9 +312,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     {
                         int3 step{1, 0, 0};
                         float3 def2 = def(p + step);
-                        float f_same = binary_fn(p, def1, def2, step);
-                        float f01 = binary_fn(p, def1, def2 + delta, step);
-                        float f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f_same = binary_fn(p, def1, def2, step);
+                        double f01 = binary_fn(p, def1, def2 + delta, step);
+                        double f10 = binary_fn(p, def1 + delta, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -328,9 +327,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     {
                         int3 step{0, 1, 0};
                         float3 def2 = def(p + step);
-                        float f_same = binary_fn(p, def1, def2, step);
-                        float f01 = binary_fn(p, def1, def2 + delta, step);
-                        float f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f_same = binary_fn(p, def1, def2, step);
+                        double f01 = binary_fn(p, def1, def2 + delta, step);
+                        double f10 = binary_fn(p, def1 + delta, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -343,9 +342,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     {
                         int3 step{0, 0, 1};
                         float3 def2 = def(p + step);
-                        float f_same = binary_fn(p, def1, def2, step);
-                        float f01 = binary_fn(p, def1, def2 + delta, step);
-                        float f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f_same = binary_fn(p, def1, def2, step);
+                        double f01 = binary_fn(p, def1, def2 + delta, step);
+                        double f10 = binary_fn(p, def1 + delta, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -367,9 +366,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     }
 
     bool changed_flag = false;
-    #ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
-    int voxels_changed_ = 0;
-    #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
     if (current_emin + _block_energy_epsilon < current_energy) // Accept solution
     {
@@ -398,21 +394,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     {
                         def(gx, gy, gz) = def(gx, gy, gz) + delta;
                         changed_flag = true;
-    #ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
-                        ++voxels_changed_;
-    #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
                     }
                 }
             }
         }
     }
 
-
-    #ifdef DF_DEBUG_VOXEL_CHANGE_COUNT
-    if (voxels_changed_)
-        LOG(Debug, "[voxels changed] delta: %f %f %f, block_p: %d %d %d, n: %d (emin: %f, current_energy: %f)\n", 
-            delta.x, delta.y, delta.z, block_p.x, block_p.y, block_p.z, voxels_changed_, current_emin, current_energy);
-    #endif // DF_DEBUG_VOXEL_CHANGE_COUNT
 
     return changed_flag;
 }

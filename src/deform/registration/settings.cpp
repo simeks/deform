@@ -70,6 +70,17 @@ bool read_value<float>(const JsonObject& obj, const char* name, float& out)
     return true;
 }
 template<>
+bool read_value<double>(const JsonObject& obj, const char* name, double& out)
+{
+    if (!obj[name].is_number())
+    {
+        LOG(Error, "Settings: '%s', expected double\n", name);
+        return false;
+    }
+    out = obj[name].as_double();
+    return true;
+}
+template<>
 bool read_value<bool>(const JsonObject& obj, const char* name, bool& out)
 {
     if (!obj[name].is_bool())
