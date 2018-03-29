@@ -127,46 +127,6 @@ struct SquaredDistanceFunction : public SubFunction
     VolumeHelper<T> _moving;
 };
 
-template <typename T>
-struct NCCFunction : public SubFunction
-{
-    SquaredDistanceFunction(const VolumeHelper<T>& fixed,
-                            const VolumeHelper<T>& moving) :
-        _fixed(fixed),
-        _moving(moving)
-    {}
-
-    float cost(const int3& p, const float3& def)
-    {
-        float3 fixed_p{
-            float(p.x) + def.x,
-            float(p.y) + def.y,
-            float(p.z) + def.z
-        }; 
-        
-        // [fixed] -> [world] -> [moving]
-        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
-
-        T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
-
-        // [Filip]: Addition for partial-body registrations
-        if (moving_p.x<0 || moving_p.x>_moving.size().width || 
-            moving_p.y<0 || moving_p.y>_moving.size().height || 
-            moving_p.z<0 || moving_p.z>_moving.size().depth) {
-            return 0;
-        }
-
-
-        // TODO: Float cast
-        float f = fabs(float(_fixed(p) - moving_v));
-        return f*f;
-    }
-
-    VolumeHelper<T> _fixed;
-    VolumeHelper<T> _moving;
-};
-
 
 struct UnaryFunction
 {
