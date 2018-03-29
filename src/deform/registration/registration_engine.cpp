@@ -301,23 +301,23 @@ Volume RegistrationEngine::execute()
             
             Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
 
-            // Calculate step size in voxels
-            float3 fixed_spacing = fixed_volumes[0].spacing();
-            float3 step_size_voxels{
-                _settings.step_size / fixed_spacing.x,
-                _settings.step_size / fixed_spacing.y,
-                _settings.step_size / fixed_spacing.z
-            };
-
-            #if DF_DEBUG_LEVEL >= 3
-                LOG(Debug, "[f%d] spacing: %f, %f, %f\n", l, fixed_spacing.x, fixed_spacing.y, fixed_spacing.z);
-                LOG(Debug, "step_size [voxels]: %f, %f, %f\n", step_size_voxels.x, step_size_voxels.y, step_size_voxels.z);
-            #endif
         
             STATS_RESET("Stat_Energy");
-        
+    
+            float3 fixed_spacing = fixed_volumes[0].spacing();
+            for (int sm = 5; sm > 0; --sm)
+            {
+                // Calculate step size in voxels
+                float3 step_size_voxels{
+                    sm*_settings.step_size / fixed_spacing.x,
+                    sm*_settings.step_size / fixed_spacing.y,
+                    sm*_settings.step_size / fixed_spacing.z
+                };
 
-            optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
+                LOG(Debug, "step_size: %f [mm] => %f, %f, %f [voxels]\n", sm*_settings.step_size, step_size_voxels.x, step_size_voxels.y, step_size_voxels.z);
+                
+                optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
+            }
 
             #ifdef DF_VIRTUAL_COST_FUNCTION
                 for (int i = 0; i < unary_fn.num_functions; ++i)
