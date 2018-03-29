@@ -42,6 +42,8 @@ namespace
 
         const char* initial_deformation;
 
+        int num_threads;
+
         #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
             const char* constraint_mask;
             const char* constraint_values;
@@ -64,6 +66,7 @@ namespace
                 << "-constraint_values <file> : Filename for constraint values" << std::endl
         #endif // DF_ENABLE_VOXEL_CONSTRAINTS
                 << "-p <file> : Filename of the parameter file (required)." << std::endl
+                << "--num-threads <num> : Maximum number of threads" << std::endl
                 << "--help : Shows this help section." << std::endl
                 << "*Requires a matching number of fixed and moving images";
         exit(1);
@@ -136,6 +139,12 @@ namespace
                     args.constraint_values = argv[i];
                 }
     #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+                else if (key == "num-threads")
+                {
+                    if (++i >= argc)
+                        print_help_and_exit("Missing arguments");
+                    args.num_threads = std::stoi(argv[i]);
+                }
                 else
                 {
                     std::string err = std::string("Unrecognized option: " + token);
@@ -296,6 +305,12 @@ int main(int argc, char* argv[])
 
     Args input_args = {0};
     parse_command_line(input_args, argc, argv);
+
+    if (input_args.num_threads > 0)
+    {
+        LOG(Debug, "Number of threads %d\n", input_args.num_threads);
+        omp_set_num_threads(input_args.num_threads);
+    }
 
     if (input_args.param_file == 0)
         print_help_and_exit();
