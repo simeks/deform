@@ -38,7 +38,14 @@ void BlockChangeFlags::set_block(const int3& block_p, bool changed, bool shift)
     for (int x = 0; x < 2; ++x) 
     {
         int3 sb = 2 * block_p + sub_block_offset + int3{x, y, z};
-        set(sb, changed ? 1 : 0); // (flag(sb) & opposite_mask) | ((changed ? this_mask : 0) & this_mask));
+        
+        uint8_t f = flag(sb);
+        if (!shift)
+            f = (f & 0x2) | (changed ? 1 : 0);
+        else
+            f = (f & 0x1) | ((changed ? 1 : 0) << 1);
+
+        set(sb, f);
     }
 }
 uint8_t BlockChangeFlags::flag(const int3& subblock_p) const
