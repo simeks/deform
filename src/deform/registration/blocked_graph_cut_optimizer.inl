@@ -5,7 +5,6 @@
 #include <framework/debug/log.h>
 #include <framework/graph_cut/graph_cut.h>
 #include <framework/profiler/microprofile.h>
-#include <framework/thread/thread.h>
 
 template<
     typename TUnaryTerm,
@@ -114,9 +113,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             {
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
 
-                volatile long num_blocks_changed = 0;
+                int num_blocks_changed = 0;
                 
-                #pragma omp parallel for schedule(dynamic)
+                #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx)
                 {
                     int block_x = (block_idx % real_block_count.x) % real_block_count.y;
@@ -176,7 +175,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                     }
 
                     if (block_changed)
-                        thread::interlocked_increment(&num_blocks_changed);
+                        ++num_blocks_changed;
 
                     change_flags.set_block(block_p, block_changed, use_shift == 1);
                 }
