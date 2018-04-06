@@ -39,8 +39,8 @@ public:
     T linear_at(float x, float y, float z, volume::BorderMode border_mode) const;
     T linear_at(float3 p, volume::BorderMode border_mode) const;
 
-    VolumeHelper& operator=(VolumeHelper& other);
-    VolumeHelper& operator=(Volume& other);
+    VolumeHelper& operator=(const VolumeHelper& other);
+    VolumeHelper& operator=(const Volume& other);
 
     const T& operator()(int x, int y, int z) const;
     T& operator()(int x, int y, int z);

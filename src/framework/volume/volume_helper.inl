@@ -125,14 +125,14 @@ T VolumeHelper<T>::linear_at(float3 p, volume::BorderMode border_mode) const
     return linear_at(p.x, p.y, p.z, border_mode);
 }
 template<typename T>
-VolumeHelper<T>& VolumeHelper<T>::operator=(VolumeHelper& other)
+VolumeHelper<T>& VolumeHelper<T>::operator=(const VolumeHelper& other)
 {
     assert(::voxel_type<T>::type_id == other.voxel_type());
     Volume::operator=(other);
     return *this;
 }
 template<typename T>
-VolumeHelper<T>& VolumeHelper<T>::operator=(Volume& other)
+VolumeHelper<T>& VolumeHelper<T>::operator=(const Volume& other)
 {
     assert(::voxel_type<T>::type_id == other.voxel_type());
     Volume::operator=(other);
