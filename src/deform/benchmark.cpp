@@ -2,6 +2,7 @@
 
 #ifdef DF_ENABLE_BENCHMARK
 
+#include "cost_function.h"
 #include "registration/blocked_graph_cut_optimizer.h"
 
 #include <framework/math/float3.h>
@@ -113,7 +114,22 @@ int run_benchmark(int argc, char* argv[])
 {
     argc; argv;
 
-    do_blocked_graph_cut_benchmark();
+    //do_blocked_graph_cut_benchmark();
+
+    double t_begin = timer::seconds();
+    VolumeHelper<float> v({10,10,10}, 0);
+    
+    float sum = 0.0f;
+
+    for (int z = 0; z < 400; ++z)
+    for (int y = 0; y < 400; ++y)
+    for (int x = 0; x < 400; ++x)
+    {
+        sum += v.linear_at(float(x)*0.25f, float(y)*0.25f, float(z)*0.25f, volume::Border_Constant);
+    }
+    double t_end = timer::seconds();
+    printf("Elapsed: %f, (%f)\n", t_end - t_begin, sum);
+
 
     MicroProfileDumpFileImmediately("benchmark.html", "benchmark.csv", NULL);
 

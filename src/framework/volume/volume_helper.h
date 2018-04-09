@@ -7,6 +7,11 @@
 #include <float.h>
 #include <math.h>
 
+#ifdef DF_ENABLE_SSE_LINEAR_AT
+    #include <smmintrin.h>
+#endif
+
+
 namespace volume
 {
     enum BorderMode

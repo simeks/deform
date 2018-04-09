@@ -11,6 +11,10 @@
 
 //#define DF_OUTPUT_VOLUME_ENERGY
 
+// Use the SSE version of linear_at<float>
+// Does not make any real difference in performance on msvc2017
+// #define DF_ENABLE_SSE_LINEAR_AT
+
 #ifdef DF_BUILD_DEBUG
 // 0 : No debug
 // 3 : 
