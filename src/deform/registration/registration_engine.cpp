@@ -250,6 +250,33 @@ Volume RegistrationEngine::execute()
                         return Volume();
                     }
                 }
+                else if (slot.cost_function == Settings::ImageSlot::CostFunction_NCC)
+                {
+                    if (fixed_volumes[i].voxel_type() == voxel::Type_Float)
+                    {
+                        unary_fn.add_function(
+                            new NCCFunction<float>(
+                                fixed_volumes[i],
+                                moving_volumes[i]
+                            )
+                        );
+                    }
+                    else if (fixed_volumes[i].voxel_type() == voxel::Type_Double)
+                    {
+                        unary_fn.add_function(
+                            new NCCFunction<double>(
+                                fixed_volumes[i],
+                                moving_volumes[i]
+                            )
+                        );
+                    }
+                    else
+                    {
+                        LOG(Error, "Invalid cost function for volume of type %d\n", fixed_volumes[i].voxel_type());
+                        return Volume();
+                    }
+                }
+                
             }
             BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
                 _settings.block_size,
@@ -271,11 +298,16 @@ Volume RegistrationEngine::execute()
             
             Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
 
+            #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+                if (_regularization_weight_map.volume(l).valid())
+                    binary_fn.set_weight_map(_regularization_weight_map.volume(l));
+            #endif
+
         
             STATS_RESET("Stat_Energy");
     
             float3 fixed_spacing = fixed_volumes[0].spacing();
-            for (int sm = 5; sm > 0; --sm)
+            for (int sm = 1; sm > 0; --sm)
             {
                 // Calculate step size in voxels
                 float3 step_size_voxels{

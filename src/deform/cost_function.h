@@ -1,22 +1,28 @@
 #pragma once
 
+#include <framework/debug/sse.h>
 #include <framework/math/float3.h>
 #include <framework/math/int3.h>
 #include <framework/volume/volume_helper.h>
 
 #include <tuple>
 
+
 struct Regularizer
 {
-    Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixed_spacing) {}
+    Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixex_spacing)
+    {
+    }
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_weight_map(VolumeFloat& map) { _weight_map = map; }
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
     /// p   : Position in fixed image
     /// def0 : Deformation in active voxel [voxels] (in fixed image space)
     /// def1 : Deformation in neighbor [voxels] (in fixed image space)
     /// step : Direction to neighbor [voxels]
-    inline float operator()(const int3& p, const float3& def0, const float3& def1, const int3& step)
+    inline float operator()(const int3& , const float3& def0, const float3& def1, const int3& step)
     {
         float3 step_in_mm {step.x*_spacing.x, step.y*_spacing.y, step.z*_spacing.z};
         
@@ -26,26 +32,28 @@ struct Regularizer
         float dist_squared = math::length_squared(diff_in_mm);
         float step_squared = math::length_squared(step_in_mm);
         
-        // If we have a map with regularization weights, use that
-        //  if not, use constant
-
-        /*
-            Tissue-specific regularization
-            Per edge weight: Mean term of neighboring voxels 
-
-            w = 0.5f*(weights(p) + weights(p+step)) 
-        */
-
         float w = _weight;
-        if (_weight_map.valid())
-            w = 0.5f*(_weight_map(p) + _weight_map(p+step));
-        
+
+        #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+            /*
+                Tissue-specific regularization
+                Per edge weight: Mean term of neighboring voxels 
+
+                w = 0.5f*(weights(p) + weights(p+step)) 
+            */
+
+            if (_weight_map.valid())
+                w = 0.5f*(_weight_map(p) + _weight_map(p+step));
+        #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
         return w * dist_squared / step_squared;
     }
 
     VolumeFloat _weight_map;
     float _weight;
+    
     float3 _spacing;
+
 };
 
 struct SubFunction
@@ -126,6 +134,97 @@ struct SquaredDistanceFunction : public SubFunction
     VolumeHelper<T> _fixed;
     VolumeHelper<T> _moving;
 };
+
+inline bool is_inside(const Dims& dims, const int3& p)
+{
+    return (p.x >= 0 && p.x < int(dims.width) && p.y >= 0 && p.y < int(dims.height) && p.z >= 0 && p.z < int(dims.depth));
+}
+
+template<typename T>
+struct NCCFunction : public SubFunction
+{
+    NCCFunction(const VolumeHelper<T>& fixed,
+                const VolumeHelper<T>& moving) :
+        _fixed(fixed),
+        _moving(moving)
+    {}
+
+
+    float cost(const int3& p, const float3& def)
+    {
+        float3 fixed_p{
+            float(p.x) + def.x,
+            float(p.y) + def.y,
+            float(p.z) + def.z
+        }; 
+        
+        // [fixed] -> [world] -> [moving]
+        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
+        float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
+
+        // [Filip]: Addition for partial-body registrations
+        if (moving_p.x<0 || moving_p.x>_moving.size().width || 
+            moving_p.y<0 || moving_p.y>_moving.size().height || 
+            moving_p.z<0 || moving_p.z>_moving.size().depth) {
+            return 0;
+        }
+
+        T sff = 0.0;
+        T smm = 0.0;
+        T sfm = 0.0;
+        T sf = 0.0;
+        T sm = 0.0;
+        size_t n = 0;
+
+        for (int dz = -2; dz <= 2; ++dz)
+        {
+            for (int dy = -2; dy <= 2; ++dy)
+            {            
+                for (int dx = -2; dx <= 2; ++dx)
+                {
+                    int3 fp{p.x + dx, p.y + dy, p.z + dz};
+                    
+                    if (!is_inside(_fixed.size(), fp))
+                        continue;
+
+                    float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
+
+                    T fixed_v = _fixed.at(fp, volume::Border_Constant);
+                    T moving_v = _moving.linear_at(mp, volume::Border_Constant);
+
+                    sff += fixed_v * fixed_v;
+                    smm += moving_v * moving_v;
+                    sfm += fixed_v*moving_v;
+                    sm += moving_v;
+                    sf += fixed_v;
+
+                    ++n;
+                }
+            }
+        }
+
+        if (n == 0)
+            return 1.0;
+
+        // Subtract mean
+        sff -= (sf * sf / n);
+        smm -= (sm * sm / n);
+        sfm -= (sf * sm / n);
+        
+        double d = sqrt(sff*smm);
+
+        if(d > 1e-14 )
+        {
+            return 1.0f - float(sfm / d);
+        }
+        return 1.0;
+    }
+
+    VolumeHelper<T> _fixed;
+    VolumeHelper<T> _moving;
+    VolumeHelper<T> _transformed;
+};
+
 
 
 struct UnaryFunction

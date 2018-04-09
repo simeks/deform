@@ -16,7 +16,8 @@ struct Settings
         enum CostFunction
         {
             CostFunction_None = 0,
-            CostFunction_SSD
+            CostFunction_SSD,
+            CostFunction_NCC
         };
 
         enum ResampleMethod

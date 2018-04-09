@@ -111,6 +111,10 @@ bool read_value<Settings::ImageSlot::CostFunction>(const JsonObject& obj,
     {
         out = Settings::ImageSlot::CostFunction_SSD;
     }
+    else if (fn == "ncc")
+    {
+        out = Settings::ImageSlot::CostFunction_NCC;
+    }
     else
     {
         LOG(Error, "Settings: Unrecognized value '%s'.\n", fn.c_str());
@@ -149,6 +153,8 @@ const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
     {
         case Settings::ImageSlot::CostFunction_SSD:
             return "squared_distance";
+        case Settings::ImageSlot::CostFunction_NCC:
+            return "ncc";
         default:
         case Settings::ImageSlot::CostFunction_None:
             return "none";
