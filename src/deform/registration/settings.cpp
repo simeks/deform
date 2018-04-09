@@ -189,6 +189,10 @@ void print_registration_settings(const Settings& settings)
     {
         auto& slot = settings.image_slots[i];
 
+        // Dont print unused slots
+        if (slot.cost_function == Settings::ImageSlot::CostFunction_None)
+            continue;
+
         LOG(Info, "image_slot[%d]={\n", i);
         LOG(Info, "\tcost_function=%s\n", cost_function_to_str(slot.cost_function));        
         LOG(Info, "\tresample_method=%s\n", resample_method_to_str(slot.resample_method));        
