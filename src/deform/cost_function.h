@@ -10,7 +10,7 @@
 
 struct Regularizer
 {
-    Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixex_spacing)
+    Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixed_spacing)
     {
     }
 
