@@ -164,11 +164,11 @@ struct NCCFunction : public SubFunction
             return 0;
         }
 
-        T sff = 0.0;
-        T smm = 0.0;
-        T sfm = 0.0;
-        T sf = 0.0;
-        T sm = 0.0;
+        double sff = 0.0;
+        double smm = 0.0;
+        double sfm = 0.0;
+        double sf = 0.0;
+        double sm = 0.0;
         size_t n = 0;
 
         for (int dz = -2; dz <= 2; ++dz)
@@ -177,6 +177,11 @@ struct NCCFunction : public SubFunction
             {            
                 for (int dx = -2; dx <= 2; ++dx)
                 {
+                    // TODO: Does not account for anisotropic volumes
+                    int r2 = dx*dx + dy*dy + dz*dz;
+                    if (r2 > 4)
+                        continue;
+
                     int3 fp{p.x + dx, p.y + dy, p.z + dz};
                     
                     if (!is_inside(_fixed.size(), fp))
@@ -184,7 +189,7 @@ struct NCCFunction : public SubFunction
 
                     float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
-                    T fixed_v = _fixed.at(fp, volume::Border_Constant);
+                    T fixed_v = _fixed(fp);
                     T moving_v = _moving.linear_at(mp, volume::Border_Constant);
 
                     sff += fixed_v * fixed_v;
@@ -208,7 +213,7 @@ struct NCCFunction : public SubFunction
         
         double d = sqrt(sff*smm);
 
-        if(d > 1e-14 )
+        if(d > 1e-14)
         {
             return 1.0f - float(sfm / d);
         }
@@ -217,7 +222,6 @@ struct NCCFunction : public SubFunction
 
     VolumeHelper<T> _fixed;
     VolumeHelper<T> _moving;
-    VolumeHelper<T> _transformed;
 };
 
 
