@@ -407,7 +407,7 @@ template<
     typename TUnaryTerm,
     typename TBinaryTerm
 >
-float BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
+double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     VolumeFloat3& def
@@ -415,7 +415,8 @@ float BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
 {
     Dims dims = def.size();
 
-    float total_energy = 0;
+    double total_energy = 0;
+    #pragma omp parallel for schedule(dynamic) reduction(+:total_energy)
     for (int gz = 0; gz < int(dims.depth); ++gz)
     {
         for (int gy = 0; gy < int(dims.height); ++gy)

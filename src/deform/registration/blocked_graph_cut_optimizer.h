@@ -36,7 +36,7 @@ private:
         VolumeFloat3& def
     );
 
-    float calculate_energy(
+    double calculate_energy(
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
         VolumeFloat3& def
