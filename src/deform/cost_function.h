@@ -135,11 +135,6 @@ struct SquaredDistanceFunction : public SubFunction
     VolumeHelper<T> _moving;
 };
 
-inline bool is_inside(const Dims& dims, const int3& p)
-{
-    return (p.x >= 0 && p.x < int(dims.width) && p.y >= 0 && p.y < int(dims.height) && p.z >= 0 && p.z < int(dims.depth));
-}
-
 template<typename T>
 struct NCCFunction : public SubFunction
 {
