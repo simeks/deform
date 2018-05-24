@@ -1,12 +1,12 @@
-#include "config.h"
-#include "filters/resample.h"
-#include "jacobian.h"
-#include "platform/file_path.h"
-#include "platform/timer.h"
-#include "registration/registration_engine.h"
-#include "registration/settings.h"
-#include "registration/transform.h"
-#include "registration/volume_pyramid.h"
+#include <deform_lib/config.h>
+#include <deform_lib/filters/resample.h>
+#include <deform_lib/jacobian.h>
+#include <deform_lib/platform/file_path.h>
+#include <deform_lib/platform/timer.h>
+#include <deform_lib/registration/registration_engine.h>
+#include <deform_lib/registration/settings.h>
+#include <deform_lib/registration/transform.h>
+#include <deform_lib/registration/volume_pyramid.h>
 
 #include <stk/common/assert.h>
 #include <stk/common/log.h>
