@@ -3,6 +3,10 @@
 #include <nlohmann/json.hpp>
 #include <stk/common/log.h>
 
+#include <fstream>
+
+using json = nlohmann::json;
+
 /*
     "pyramid_levels": 6,
     "pyramid_stop_level": 0,
@@ -44,51 +48,51 @@
 
 // Return true on success, false on failure
 template<typename T>
-bool read_value(const JsonObject& obj, const char* name, T& out);
+bool read_value(const json& obj, const char* name, T& out);
 
 template<>
-bool read_value<int>(const JsonObject& obj, const char* name, int& out)
+bool read_value<int>(const json& obj, const char* name, int& out)
 {
     if (!obj[name].is_number()) {
         LOG(Error) << "Settings: '" << name << "', expected integer";
         return false;
     }
-    out = obj[name].as_int();
+    out = obj[name].get<int>();
     return true;
 }
 template<>
-bool read_value<float>(const JsonObject& obj, const char* name, float& out)
+bool read_value<float>(const json& obj, const char* name, float& out)
 {
     if (!obj[name].is_number()) {
         LOG(Error) << "Settings: '" << name << "', expected float";
         return false;
     }
-    out = obj[name].as_float();
+    out = obj[name].get<float>();
     return true;
 }
 template<>
-bool read_value<double>(const JsonObject& obj, const char* name, double& out)
+bool read_value<double>(const json& obj, const char* name, double& out)
 {
     if (!obj[name].is_number()) {
         LOG(Error) << "Settings: '" << name << "', expected double";
         return false;
     }
-    out = obj[name].as_double();
+    out = obj[name].get<double>();
     return true;
 }
 template<>
-bool read_value<bool>(const JsonObject& obj, const char* name, bool& out)
+bool read_value<bool>(const json& obj, const char* name, bool& out)
 {
-    if (!obj[name].is_bool()) {
+    if (!obj[name].is_boolean()) {
         LOG(Error) << "Settings: '" << name << "', expected boolean";
         return false;
     }
-    out = obj[name].as_bool();
+    out = obj[name].get<bool>();
     return true;
 }
 
 template<>
-bool read_value<Settings::ImageSlot::CostFunction>(const JsonObject& obj, 
+bool read_value<Settings::ImageSlot::CostFunction>(const json& obj, 
     const char* name, Settings::ImageSlot::CostFunction& out)
 {
     if (!obj[name].is_string()) {
@@ -96,7 +100,7 @@ bool read_value<Settings::ImageSlot::CostFunction>(const JsonObject& obj,
         return false;
     }
 
-    std::string fn = obj[name].as_string();
+    std::string fn = obj[name].get<std::string>();
     if (fn == "none") {
         out = Settings::ImageSlot::CostFunction_None;
     }
@@ -114,16 +118,15 @@ bool read_value<Settings::ImageSlot::CostFunction>(const JsonObject& obj,
     return true;
 }
 template<>
-bool read_value<Settings::ImageSlot::ResampleMethod>(const JsonObject& obj, 
+bool read_value<Settings::ImageSlot::ResampleMethod>(const json& obj, 
     const char* name, Settings::ImageSlot::ResampleMethod& out)
 {
-    if (!obj[name].is_string())
-    {
+    if (!obj[name].is_string()) {
         LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
-    std::string fn = obj[name].as_string();
+    std::string fn = obj[name].get<std::string>();
     if (fn == "gaussian") {
         out = Settings::ImageSlot::Resample_Gaussian;
     }
@@ -137,23 +140,21 @@ bool read_value<Settings::ImageSlot::ResampleMethod>(const JsonObject& obj,
 
 const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
 {
-    switch (fn)
-    {
-        case Settings::ImageSlot::CostFunction_SSD:
-            return "squared_distance";
-        case Settings::ImageSlot::CostFunction_NCC:
-            return "ncc";
-        default:
-        case Settings::ImageSlot::CostFunction_None:
-            return "none";
+    switch (fn) {
+    case Settings::ImageSlot::CostFunction_SSD:
+        return "squared_distance";
+    case Settings::ImageSlot::CostFunction_NCC:
+        return "ncc";
+    default:
+    case Settings::ImageSlot::CostFunction_None:
+        return "none";
     }
 }
 const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
 {
-    switch (fn)
-    {
-        case Settings::ImageSlot::Resample_Gaussian:
-            return "gaussian";
+    switch (fn) {
+    case Settings::ImageSlot::Resample_Gaussian:
+        return "gaussian";
     };
     return "none";
 }
@@ -181,7 +182,7 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "  cost_function = " << cost_function_to_str(slot.cost_function);        
         LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);        
         LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
-        LOG(Info) << "}");
+        LOG(Info) << "}";
     }
 }
 
@@ -190,14 +191,22 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
     // Defaults
     settings = Settings();
 
-    JsonReader reader;
-    JsonObject root;
-    if (!reader.read_file(parameter_file, root))
-    {
-        LOG(Error) << "[Json] " << reader.error_message().c_str());
+    std::ifstream f(parameter_file, std::ifstream::in);
+    if (!f.is_open()) {
+        LOG(Error) << "[Settings] Failed to open file '" << parameter_file << "'";
         return false;
     }
 
+
+    json root;
+    try {
+        f >> root;
+    }
+    catch(json::parse_error err) {
+        LOG(Error) << "[Json] " << err.what();
+        return false;
+    }
+    
     if (!root["pyramid_levels"].is_null() &&
         !read_value(root, "pyramid_levels", settings.num_pyramid_levels))
         return false;
@@ -221,14 +230,14 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
             !block_size[0].is_number() ||
             !block_size[1].is_number() ||
             !block_size[2].is_number()) {
-            LOG(Error) << "Settings: 'block_size', expected an array of 3 integers.");
+            LOG(Error) << "Settings: 'block_size', expected an array of 3 integers.";
             return false;
         }
 
         settings.block_size = {
-            block_size[0].as_int(),
-            block_size[1].as_int(),
-            block_size[2].as_int()
+            block_size[0].get<int>(),
+            block_size[1].get<int>(),
+            block_size[2].get<int>()
         };
     }
 
