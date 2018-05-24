@@ -1,17 +1,17 @@
+#include "filters/resample.h"
+#include "platform/timer.h"
 #include "registration/volume_pyramid.h"
 #include "registration/voxel_constraints.h"
 
-#include <framework/debug/log.h>
-#include <framework/filters/resample.h>
-#include <framework/math/float3.h>
-#include <framework/math/int3.h>
-#include <framework/platform/timer.h>
-#include <framework/volume/volume_helper.h>
-#include <framework/volume/vtk.h>
+#include <stk/common/log.h>
+#include <stk/image/volume.h>
+#include <stk/io/io.h>
+#include <stk/math/float3.h>
+#include <stk/math/int3.h>
+
+#include <iomanip>
 #include <iostream>
 
-// From main
-Volume load_volume(const std::string& file);
 
 namespace
 {
@@ -41,9 +41,9 @@ void print_help_and_exit(const char* exe, const char* err=NULL)
 }
 
 void initialize_regularization(
-    VolumeFloat3& def, 
-    const VolumeUInt8& constraints_mask,
-    const VolumeFloat3& constraints_values
+    stk::VolumeFloat3& def, 
+    const stk::VolumeUChar& constraints_mask,
+    const stk::VolumeFloat3& constraints_values
 )
 {
     float3 spacing = def.spacing();
@@ -54,28 +54,23 @@ void initialize_regularization(
     };
 
     float neighbor_weight[6];
-    for (int i = 0; i < 6; ++i)
-    {
+    for (int i = 0; i < 6; ++i) {
         float3 n = {
             inv_spacing.x * neighbors[i].x,
             inv_spacing.y * neighbors[i].y,
             inv_spacing.z * neighbors[i].z
         };
-        neighbor_weight[i] = math::length_squared(n);
+        neighbor_weight[i] = stk::norm2(n);
     }
 
-    Dims dims = def.size();
-    VolumeUInt8 visited(dims, 0);
+    dim3 dims = def.size();
+    stk::VolumeUChar visited(dims, uint8_t{0});
 
     size_t nvisited = 0;
-    for (int z = 0; z < int(dims.depth); ++z)
-    {
-        for (int y = 0; y < int(dims.height); ++y)
-        {
-            for (int x = 0; x < int(dims.width); ++x)
-            {
-                if (constraints_mask(x, y, z) > 0)
-                {
+    for (int z = 0; z < int(dims.z); ++z) {
+        for (int y = 0; y < int(dims.y); ++y) {
+            for (int x = 0; x < int(dims.x); ++x) {
+                if (constraints_mask(x, y, z) > 0) {
                     visited(x, y, z) = 1;
                     def(x, y, z) = constraints_values(x, y, z);
                     ++nvisited;
@@ -84,19 +79,14 @@ void initialize_regularization(
         }
     }
 
-    size_t nelems = dims.width * dims.height * dims.depth;
-    while (nvisited < nelems)
-    {
-        for (int z = 0; z < int(dims.depth); ++z)
-        {
-            for (int y = 0; y < int(dims.height); ++y)
-            {
-                for (int x = 0; x < int(dims.width); ++x)
-                {
+    size_t nelems = dims.x * dims.y * dims.z;
+    while (nvisited < nelems) {
+        for (int z = 0; z < int(dims.z); ++z) {
+            for (int y = 0; y < int(dims.y); ++y) {
+                for (int x = 0; x < int(dims.x); ++x) {
                     int3 p{x, y, z};
 
-                    if (constraints_mask(p) > 0)
-                    {
+                    if (constraints_mask(p) > 0) {
                         def(p) = constraints_values(p);
                         continue;
                     }
@@ -106,23 +96,18 @@ void initialize_regularization(
 
                     float weight_sum = 0;
 
-                    for (int i = 0; i < 6; ++i)
-                    {
-                        if (visited.at(p + neighbors[i], volume::Border_Replicate) > 0)
-                        {
-                            if (visited(p) == 0)
-                            {
+                    for (int i = 0; i < 6; ++i) {
+                        if (visited.at(p + neighbors[i], stk::Border_Replicate) > 0) {
+                            if (visited(p) == 0) {
                                 ++nvisited;
                                 visited(p) = 1;
                             }
 
                             weight_sum += neighbor_weight[i];
-                            new_def = new_def + neighbor_weight[i] * def.at(p + neighbors[i], volume::Border_Replicate);
-
+                            new_def = new_def + neighbor_weight[i] * def.at(p + neighbors[i], stk::Border_Replicate);
                         }
                     }
-                    if (weight_sum > 0)
-                    {
+                    if (weight_sum > 0) {
                         def(p) = new_def / weight_sum;
                     }
                 }
@@ -132,9 +117,9 @@ void initialize_regularization(
 }
 
 void do_regularization(
-    VolumeFloat3& def, 
-    const VolumeUInt8& constraints_mask,
-    const VolumeFloat3& constraints_values,
+    stk::VolumeFloat3& def, 
+    const stk::VolumeUChar& constraints_mask,
+    const stk::VolumeFloat3& constraints_values,
     float precision
 )
 {
@@ -145,33 +130,27 @@ void do_regularization(
         1.0f / spacing.z
     };
 
-    Dims dims = def.size();
+    dim3 dims = def.size();
 
     float neighbor_weight[6];
-    for (int i = 0; i < 6; ++i)
-    {
+    for (int i = 0; i < 6; ++i) {
         float3 n = {
             inv_spacing.x * neighbors[i].x,
             inv_spacing.y * neighbors[i].y,
             inv_spacing.z * neighbors[i].z
         };
-        neighbor_weight[i] = math::length_squared(n);
+        neighbor_weight[i] = stk::norm2(n);
     }
 
     bool done = false;
-    while (!done)
-    {
+    while (!done) {
         done = true;
 
-        for (int black_or_red = 0; black_or_red < 2; ++black_or_red)
-        {
+        for (int black_or_red = 0; black_or_red < 2; ++black_or_red) {
             #pragma omp parallel for
-            for (int z = 0; z < int(dims.depth); ++z)
-            {
-                for (int y = 0; y < int(dims.height); ++y)
-                {
-                    for (int x = 0; x < int(dims.width); ++x)
-                    {
+            for (int z = 0; z < int(dims.z); ++z) {
+                for (int y = 0; y < int(dims.y); ++y) {
+                    for (int x = 0; x < int(dims.x); ++x) {
                         int3 p {x, y, z};
 
                         int off = (z) % 2;
@@ -180,8 +159,7 @@ void do_regularization(
     
                         if (off == black_or_red) continue;
 
-                        if (constraints_mask(p) > 0)
-                        {
+                        if (constraints_mask(p) > 0) {
                             def(p) = constraints_values(p);
                             continue;
                         }
@@ -190,11 +168,10 @@ void do_regularization(
                         float3 old_def = def(p);
                         float weight_sum = 0.0f;
 
-                        for (int i = 0; i < 6; ++i)
-                        {
+                        for (int i = 0; i < 6; ++i) {
                             weight_sum += neighbor_weight[i];
                             new_def = new_def + neighbor_weight[i] 
-                                * def.at(p + neighbors[i], volume::Border_Replicate);
+                                * def.at(p + neighbors[i], stk::Border_Replicate);
                         }
 
                         new_def = new_def / weight_sum;
@@ -202,9 +179,8 @@ void do_regularization(
                         new_def = old_def + 1.5f*(new_def - old_def);
 
                         def(p) = new_def;
-                        float diff = math::length(new_def - old_def);
-                        if (diff > precision)
-                        {
+                        float diff = stk::norm(new_def - old_def);
+                        if (diff > precision) {
                             done = false;
                         }
                     }
@@ -230,52 +206,43 @@ int run_regularize(int argc, char* argv[])
         
     /// Skip i=0,1,3 (name of executable + "regularize" + "<deformation field>")
     int i = 3;
-    while (i < argc)
-    {
+    while (i < argc) {
         std::string token = argv[i];
-        if (token[0] == '-')
-        {
+        if (token[0] == '-') {
             int b = token[1] == '-' ? 2 : 1;
             std::string key = token.substr(b);
 
-            if (key == "help")
-            {
+            if (key == "help") {
                 print_help_and_exit(argv[0]);
             }
-            else if (key == "p")
-            {
+            else if (key == "p") {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");
                 precision = (float)atof(argv[i]);
             }
-            else if (key == "l")
-            {
+            else if (key == "l") {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");
                 pyramid_levels = atoi(argv[i]);
             }
             else if (key == "constraint_mask" ||
-                     key == "constraints_mask")
-            {
+                     key == "constraints_mask") {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");
                 constraint_mask_file = argv[i];
             }
             else if (key == "constraint_values" ||
-                     key == "constraints_values")
-            {
+                     key == "constraints_values") {
                 if (++i >= argc) 
                     print_help_and_exit(argv[0], "Missing arguments");
                 constraint_values_file = argv[i];
             }
-            else if (key == "o" || key == "output")
-            {
+            else if (key == "o" || key == "output") {
                 if (++i >= argc)
                     print_help_and_exit(argv[0], "Missing arguments");
                 output_file = argv[i];
             }
-            else
-            {
+            else {
                 print_help_and_exit(argv[0], "Unrecognized option");
             }
         }
@@ -292,12 +259,11 @@ int run_regularize(int argc, char* argv[])
     deformation_pyramid.set_level_count(pyramid_levels);
     
     {
-        Volume src = load_volume(argv[2]);
+        stk::Volume src = stk::read_volume(argv[2]);
         if (!src.valid()) return 1;
             
-        if (src.voxel_type() != voxel::Type_Float3)
-        {
-            LOG(Error, "Invalid voxel type for deformation field, expected float3\n");
+        if (src.voxel_type() != stk::Type_Float3) {
+            LOG(Error) << "Invalid voxel type for deformation field, expected float3";
             return 1;
         }
         
@@ -305,21 +271,19 @@ int run_regularize(int argc, char* argv[])
     }
 
     bool use_constraints = false;
-    Volume constraints_mask, constraints_values;
-    if (constraint_mask_file && constraint_values_file)
-    {
-        constraints_mask = load_volume(constraint_mask_file);
+    stk::Volume constraints_mask, constraints_values;
+    if (constraint_mask_file && constraint_values_file) {
+        constraints_mask = stk::read_volume(constraint_mask_file);
         if (!constraints_mask.valid()) return 1;
 
-        constraints_values = load_volume(constraint_values_file);
+        constraints_values = stk::read_volume(constraint_values_file);
         if (!constraints_values.valid()) return 1;
     
         use_constraints = true;
     }
-    else
-    {
-        constraints_mask = VolumeUInt8(deformation_pyramid.volume(0).size(), 0);
-        constraints_values = VolumeFloat3(deformation_pyramid.volume(0).size(), float3{0});
+    else {
+        constraints_mask = stk::VolumeUChar(deformation_pyramid.volume(0).size(), uint8_t{0});
+        constraints_values = stk::VolumeFloat3(deformation_pyramid.volume(0).size(), float3{0});
     }
 
     VolumePyramid constraints_mask_pyramid, constraints_pyramid;
@@ -332,10 +296,9 @@ int run_regularize(int argc, char* argv[])
     );
 
     // Initialization is only needed if we have constraints
-    if (use_constraints)
-    {
+    if (use_constraints) {
         // Perform initialization at the coarsest resolution
-        VolumeFloat3 def = deformation_pyramid.volume(pyramid_levels-1);
+        stk::VolumeFloat3 def = deformation_pyramid.volume(pyramid_levels-1);
         initialize_regularization(
             def,
             constraints_mask_pyramid.volume(pyramid_levels-1),
@@ -343,11 +306,10 @@ int run_regularize(int argc, char* argv[])
         );
     }
     
-    for (int l = pyramid_levels-1; l >= 0; --l)
-    {
-        VolumeFloat3 def = deformation_pyramid.volume(l);
+    for (int l = pyramid_levels-1; l >= 0; --l) {
+        stk::VolumeFloat3 def = deformation_pyramid.volume(l);
         
-        LOG(Info, "Performing regularization level %d\n", l);
+        LOG(Info) << "Performing regularization level " <<  l;
         
         do_regularization(
             def,
@@ -356,22 +318,20 @@ int run_regularize(int argc, char* argv[])
             precision
         );
 
-        if (l != 0)
-        {
-            Dims upsampled_dims = deformation_pyramid.volume(l - 1).size();
+        if (l != 0) {
+            dim3 upsampled_dims = deformation_pyramid.volume(l - 1).size();
             deformation_pyramid.set_volume(l - 1,
                 filters::upsample_vectorfield(def, upsampled_dims, deformation_pyramid.residual(l - 1)));
         }
-        else
-        {
+        else {
             deformation_pyramid.set_volume(0, def);
         }
     }
     double t_end = timer::seconds();
     int elapsed = int(round(t_end - t_start));
-    LOG(Info, "Regularization completed in %d:%02d\n", elapsed / 60, elapsed % 60);
+    LOG(Info) << "Regularization completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
 
-    vtk::write_volume(output_file, deformation_pyramid.volume(0));
+    stk::write_volume(output_file, deformation_pyramid.volume(0));
 
     return 0;
 }

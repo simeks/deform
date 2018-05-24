@@ -1,5 +1,8 @@
 #pragma once
 
-#include <framework/volume/volume_helper.h>
+#include <stk/image/volume.h>
 
-Volume calculate_jacobian(const Volume& src, const VolumeFloat3& def);
+stk::Volume calculate_jacobian(
+    const stk::Volume& src, 
+    const stk::VolumeFloat3& def
+);

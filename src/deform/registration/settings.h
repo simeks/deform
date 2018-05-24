@@ -1,8 +1,8 @@
 #pragma once
 
-#include "config.h"
+#include "../config.h"
 
-#include <framework/math/int3.h>
+#include <stk/math/int3.h>
 
 struct Settings
 {
@@ -59,12 +59,9 @@ struct Settings
     // Only considered if no weight map is given
     float regularization_weight;
 
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     // Only applicable when constraints are present
-
     // High weight means harder constraints, a high value (>1000.0f) will act as hard constraints
     float constraints_weight;
-#endif
 
     Settings() :
         pyramid_stop_level(0),
@@ -72,10 +69,8 @@ struct Settings
         block_size(int3{12, 12, 12}),
         block_energy_epsilon(0.01f),
         step_size(0.5f),
-        regularization_weight(0.05f)
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        , constraints_weight(1000.0f)
-#endif
+        regularization_weight(0.05f),
+        constraints_weight(1000.0f)
     {}
 };
 

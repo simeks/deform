@@ -1,11 +1,11 @@
 #pragma once
 
-#include <framework/math/float3.h>
-#include <framework/math/int3.h>
-#include <framework/math/types.h>
-#include <framework/volume/volume_helper.h>
+#include <stk/image/volume.h>
+#include <stk/math/float3.h>
+#include <stk/math/int3.h>
+#include <stk/math/types.h>
 
-#include "config.h"
+#include "../config.h"
 
 
 template<
@@ -23,7 +23,7 @@ public:
         TUnaryTerm& unary_fn, 
         TBinaryTerm& binary_fn,
         float3 step_size, 
-        VolumeFloat3& def);
+        stk::VolumeFloat3& def);
 
 private:
     bool do_block(
@@ -33,13 +33,13 @@ private:
         const int3& block_dims, 
         const int3& block_offset, 
         const float3& delta, // delta in [voxels]
-        VolumeFloat3& def
+        stk::VolumeFloat3& def
     );
 
     double calculate_energy(
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
-        VolumeFloat3& def
+        stk::VolumeFloat3& def
     );
 
     int3 _neighbors[6];

@@ -1,8 +1,7 @@
 #include "settings.h"
 
-#include <framework/debug/log.h>
-#include <framework/json/json.h>
-#include <framework/json/json_object.h>
+#include <nlohmann/json.hpp>
+#include <stk/common/log.h>
 
 /*
     "pyramid_levels": 6,
@@ -50,9 +49,8 @@ bool read_value(const JsonObject& obj, const char* name, T& out);
 template<>
 bool read_value<int>(const JsonObject& obj, const char* name, int& out)
 {
-    if (!obj[name].is_number())
-    {
-        LOG(Error, "Settings: '%s', expected integer\n", name);
+    if (!obj[name].is_number()) {
+        LOG(Error) << "Settings: '" << name << "', expected integer";
         return false;
     }
     out = obj[name].as_int();
@@ -61,9 +59,8 @@ bool read_value<int>(const JsonObject& obj, const char* name, int& out)
 template<>
 bool read_value<float>(const JsonObject& obj, const char* name, float& out)
 {
-    if (!obj[name].is_number())
-    {
-        LOG(Error, "Settings: '%s', expected float\n", name);
+    if (!obj[name].is_number()) {
+        LOG(Error) << "Settings: '" << name << "', expected float";
         return false;
     }
     out = obj[name].as_float();
@@ -72,9 +69,8 @@ bool read_value<float>(const JsonObject& obj, const char* name, float& out)
 template<>
 bool read_value<double>(const JsonObject& obj, const char* name, double& out)
 {
-    if (!obj[name].is_number())
-    {
-        LOG(Error, "Settings: '%s', expected double\n", name);
+    if (!obj[name].is_number()) {
+        LOG(Error) << "Settings: '" << name << "', expected double";
         return false;
     }
     out = obj[name].as_double();
@@ -83,9 +79,8 @@ bool read_value<double>(const JsonObject& obj, const char* name, double& out)
 template<>
 bool read_value<bool>(const JsonObject& obj, const char* name, bool& out)
 {
-    if (!obj[name].is_bool())
-    {
-        LOG(Error, "Settings: '%s', expected boolean\n", name);
+    if (!obj[name].is_bool()) {
+        LOG(Error) << "Settings: '" << name << "', expected boolean";
         return false;
     }
     out = obj[name].as_bool();
@@ -96,28 +91,23 @@ template<>
 bool read_value<Settings::ImageSlot::CostFunction>(const JsonObject& obj, 
     const char* name, Settings::ImageSlot::CostFunction& out)
 {
-    if (!obj[name].is_string())
-    {
-        LOG(Error, "Settings: '%s', expected string\n", name);
+    if (!obj[name].is_string()) {
+        LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
     std::string fn = obj[name].as_string();
-    if (fn == "none")
-    {
+    if (fn == "none") {
         out = Settings::ImageSlot::CostFunction_None;
     }
-    else if (fn == "squared_distance")
-    {
+    else if (fn == "squared_distance") {
         out = Settings::ImageSlot::CostFunction_SSD;
     }
-    else if (fn == "ncc")
-    {
+    else if (fn == "ncc") {
         out = Settings::ImageSlot::CostFunction_NCC;
     }
-    else
-    {
-        LOG(Error, "Settings: Unrecognized value '%s'.\n", fn.c_str());
+    else {
+        LOG(Error) << "Settings: Unrecognized value '" << fn << "'.";
         return false;
     }
     
@@ -129,18 +119,16 @@ bool read_value<Settings::ImageSlot::ResampleMethod>(const JsonObject& obj,
 {
     if (!obj[name].is_string())
     {
-        LOG(Error, "Settings: '%s', expected string\n", name);
+        LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
     std::string fn = obj[name].as_string();
-    if (fn == "gaussian")
-    {
+    if (fn == "gaussian") {
         out = Settings::ImageSlot::Resample_Gaussian;
     }
-    else
-    {
-        LOG(Error, "Settings: Unrecognized value '%s'.\n", fn.c_str());
+    else {
+        LOG(Error) << "Settings: Unrecognized value '" << fn << "'.";
         return false;
     }
     
@@ -172,34 +160,29 @@ const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
 
 void print_registration_settings(const Settings& settings)
 {
-    LOG(Info, "Settings:\n");
-    LOG(Info, "pyramid_stop_level=%d\n",settings.pyramid_stop_level);
-    LOG(Info, "num_pyramid_levels=%d\n",settings.num_pyramid_levels);
-    LOG(Info, "block_size=[%d, %d, %d]\n", 
-        settings.block_size.x, settings.block_size.y, settings.block_size.z);
-    LOG(Info, "block_energy_epsilon=%f\n", settings.block_energy_epsilon);
-    LOG(Info, "step_size=%f\n", settings.step_size);
-    LOG(Info, "regularization_weight=%f\n", settings.regularization_weight);
+    LOG(Info) << "Settings:";
+    LOG(Info) << "pyramid_stop_level = " << settings.pyramid_stop_level;
+    LOG(Info) << "num_pyramid_levels = " << settings.num_pyramid_levels;
+    LOG(Info) << "block_size = " << settings.block_size; 
+    LOG(Info) << "block_energy_epsilon = " << settings.block_energy_epsilon;
+    LOG(Info) << "step_size = " << settings.step_size;
+    LOG(Info) << "regularization_weight = " << settings.regularization_weight;
     
-    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        LOG(Info, "constraints_weight=%f\n", settings.constraints_weight);
-    #endif
+    LOG(Info) << "constraints_weight = " << settings.constraints_weight;
 
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
-    {
+    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         auto& slot = settings.image_slots[i];
 
         // Dont print unused slots
         if (slot.cost_function == Settings::ImageSlot::CostFunction_None)
             continue;
 
-        LOG(Info, "image_slot[%d]={\n", i);
-        LOG(Info, "\tcost_function=%s\n", cost_function_to_str(slot.cost_function));        
-        LOG(Info, "\tresample_method=%s\n", resample_method_to_str(slot.resample_method));        
-        LOG(Info, "\tnormalize=%s\n", slot.normalize ? "true" : "false");        
-        LOG(Info, "}\n");
+        LOG(Info) << "image_slot[" << i << "] = {";
+        LOG(Info) << "  cost_function = " << cost_function_to_str(slot.cost_function);        
+        LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);        
+        LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
+        LOG(Info) << "}");
     }
-
 }
 
 bool parse_registration_settings(const char* parameter_file, Settings& settings)
@@ -211,7 +194,7 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
     JsonObject root;
     if (!reader.read_file(parameter_file, root))
     {
-        LOG(Error, "Json: %s\n", reader.error_message().c_str());
+        LOG(Error) << "[Json] " << reader.error_message().c_str());
         return false;
     }
 
@@ -232,15 +215,13 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
         return false;
 
     auto& block_size = root["block_size"];
-    if (!block_size.is_null())
-    {
+    if (!block_size.is_null()) {
         if (!block_size.is_array() || 
             block_size.size() != 3 ||
             !block_size[0].is_number() ||
             !block_size[1].is_number() ||
-            !block_size[2].is_number())
-        {
-            LOG(Error, "Settings: 'block_size', expected a array of 3 integers.\n");
+            !block_size[2].is_number()) {
+            LOG(Error) << "Settings: 'block_size', expected an array of 3 integers.");
             return false;
         }
 
@@ -255,22 +236,17 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
         !read_value(root, "block_energy_epsilon", settings.block_energy_epsilon))
         return false;
 
-    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-        if (!root["constraints_weight"].is_null() &&
-            !read_value(root, "constraints_weight", settings.constraints_weight))
-            return false;
-    #endif
+    if (!root["constraints_weight"].is_null() &&
+        !read_value(root, "constraints_weight", settings.constraints_weight))
+        return false;
 
     auto& image_slots = root["image_slots"];
-    if (image_slots.is_object())
-    {
-        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
-        {
+    if (image_slots.is_object()) {
+        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
             std::string is = std::to_string((long long int)i);
 
             auto& slot = image_slots[is.c_str()];
-            if (slot.is_object())
-            {
+            if (slot.is_object()) {
                 if (!slot["cost_function"].is_null() &&
                     !read_value(slot, "cost_function", settings.image_slots[i].cost_function))
                     return false;

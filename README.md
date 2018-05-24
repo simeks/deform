@@ -1,18 +1,10 @@
 # deform
 
 ## Prerequisites
-* Premake5 : https://premake.github.io/
+* CMake : https://cmake.org/
 * Ninja : https://ninja-build.org/ (OPTIONAL)
 
 ## Build
-### Visual Studio 2017
-To build using VS2017, run `premake5 vs2017` to set up the workspace. You will find the generated project files under `build/`.
-
-### GNU Make
-Run `premake5 gmake` to setup the workspace. Build the project using `make -c build config=release_x64`.
-
-### Ninja
-Run `premake5 ninja` to setup the workspace. Build the project using `ninja -C build release`
 
 
 ## Run

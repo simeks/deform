@@ -1,14 +1,14 @@
 #include "transform.h"
 
-#include <framework/debug/log.h>
-#include <framework/math/float3.h>
+#include <stk/common/log.h>
+#include <stk/math/float3.h>
 
 namespace
 {
     template<typename TVoxelType>
-    VolumeHelper<TVoxelType> transform_volume_nn(
-        const VolumeHelper<TVoxelType>& src,
-        const VolumeFloat3& def)
+    stk::VolumeHelper<TVoxelType> transform_volume_nn(
+        const stk::VolumeHelper<TVoxelType>& src,
+        const stk::VolumeFloat3& def)
     {
         // Transformed volume will have the same dimensions and properties (origin and spacing) 
         //  as the deformation field and not the source image. The deformation field is inherited
@@ -18,9 +18,9 @@ namespace
         // There should be no requirements on src to have the same size, spacing and origin as
         //  the fixed image.
 
-        Dims dims = def.size();
+        dim3 dims = def.size();
 
-        VolumeHelper<TVoxelType> out(dims);
+        stk::VolumeHelper<TVoxelType> out(dims);
         out.set_origin(def.origin());
         out.set_spacing(def.spacing());
 
@@ -35,21 +35,17 @@ namespace
         };
 
         #pragma omp parallel for
-        for (int z = 0; z < int(dims.depth); ++z)
-        {
-            for (int y = 0; y < int(dims.height); ++y)
-            {
-                for (int x = 0; x < int(dims.width); ++x)
-                {
+        for (int z = 0; z < int(dims.z); ++z) {
+            for (int y = 0; y < int(dims.y); ++y) {
+                for (int x = 0; x < int(dims.x); ++x) {
                     // [fixed] -> [world] -> [moving]
                     float3 fixed_p = float3{float(x), float(y), float(z)} + def(x, y, z);
                     float3 moving_p = (fixed_p * fixed_spacing + fixed_origin - moving_origin) 
                         * inv_moving_spacing;
 
-
                     out(x, y, z) = src.at(
                         int(round(moving_p.x)), int(round(moving_p.y)), int(round(moving_p.z)), 
-                        volume::Border_Constant);
+                        stk::Border_Constant);
                 }
             }
         }
@@ -57,9 +53,9 @@ namespace
     }
 
     template<typename TVoxelType>
-    VolumeHelper<TVoxelType> transform_volume_linear(
-        const VolumeHelper<TVoxelType>& src,
-        const VolumeFloat3& def)
+    stk::VolumeHelper<TVoxelType> transform_volume_linear(
+        const stk::VolumeHelper<TVoxelType>& src,
+        const stk::VolumeFloat3& def)
     {
         // Transformed volume will have the same dimensions and properties (origin and spacing) 
         //  as the deformation field and not the source image. The deformation field is inherited
@@ -69,9 +65,9 @@ namespace
         // There should be no requirements on src to have the same size, spacing and origin as
         //  the fixed image.
 
-        Dims dims = def.size();
+        dim3 dims = def.size();
 
-        VolumeHelper<TVoxelType> out(dims);
+        stk::VolumeHelper<TVoxelType> out(dims);
         out.set_origin(def.origin());
         out.set_spacing(def.spacing());
 
@@ -86,18 +82,15 @@ namespace
         };
 
         #pragma omp parallel for
-        for (int z = 0; z < int(dims.depth); ++z)
-        {
-            for (int y = 0; y < int(dims.height); ++y)
-            {
-                for (int x = 0; x < int(dims.width); ++x)
-                {
+        for (int z = 0; z < int(dims.z); ++z) {
+            for (int y = 0; y < int(dims.y); ++y) {
+                for (int x = 0; x < int(dims.x); ++x) {
                     // [fixed] -> [world] -> [moving]
                     float3 fixed_p = float3{float(x), float(y), float(z)} + def(x, y, z);
                     float3 moving_p = (fixed_p * fixed_spacing + fixed_origin - moving_origin) 
                         * inv_moving_spacing;
 
-                    out(x, y, z) = src.linear_at(moving_p.x, moving_p.y, moving_p.z, volume::Border_Constant);
+                    out(x, y, z) = src.linear_at(moving_p.x, moving_p.y, moving_p.z, stk::Border_Constant);
                 }
             }
         }
@@ -105,45 +98,35 @@ namespace
     }
 }
 
-Volume transform_volume(const Volume& src, const VolumeFloat3& def, transform::Interp interp)
+stk::Volume transform_volume(const stk::Volume& src, const stk::VolumeFloat3& def, transform::Interp interp)
 {
-    if (interp == transform::Interp_NN)
-    {
-        if (src.voxel_type() == voxel::Type_Float)
-        {
+    if (interp == transform::Interp_NN) {
+        if (src.voxel_type() == stk::Type_Float) {
             return transform_volume_nn<float>(src, def);
         }
-        else if (src.voxel_type() == voxel::Type_Double)
-        {
+        else if (src.voxel_type() == stk::Type_Double) {
             return transform_volume_nn<double>(src, def);
         }
-        else if (src.voxel_type() == voxel::Type_UChar)
-        {
+        else if (src.voxel_type() == stk::Type_UChar) {
             return transform_volume_nn<uint8_t>(src, def);
         }
-        else
-        {
-            LOG(Error, "transform_volume: Unsupported volume type (type: %d)\n", src.voxel_type());
+        else {
+            LOG(Error) << "transform_volume: Unsupported volume type (type: " << src.voxel_type() << ")";
         }
     }
-    else if (interp == transform::Interp_Linear)
-    {
-        if (src.voxel_type() == voxel::Type_Float)
-        {
+    else if (interp == transform::Interp_Linear) {
+        if (src.voxel_type() == stk::Type_Float) {
             return transform_volume_linear<float>(src, def);
         }
-        else if (src.voxel_type() == voxel::Type_Double)
-        {
+        else if (src.voxel_type() == stk::Type_Double) {
             return transform_volume_linear<double>(src, def);
         }
-        else
-        {
-            LOG(Error, "transform_volume: Unsupported volume type (type: %d)\n", src.voxel_type());
+        else {
+            LOG(Error) << "transform_volume: Unsupported volume type (type: " << src.voxel_type() << ")";
         }
     }
-    else
-    {
-        LOG(Error, "transform_volume: Unsupported interpolation method (given: %d)\n", interp);
+    else {
+        LOG(Error) << "transform_volume: Unsupported interpolation method (given: " << interp << ")";
     }
-    return Volume();
+    return stk::Volume();
 }

@@ -1,12 +1,10 @@
 #pragma once
 
-#include "config.h"
+#include "../config.h"
 #include "settings.h"
 #include "volume_pyramid.h"
 
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-#include <framework/volume/volume_helper.h>
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
+#include <stk/image/volume.h>
 
 #include <vector>
 
@@ -18,25 +16,23 @@ public:
 
     void initialize(int image_pair_count);
 
-    void set_initial_deformation(const Volume& def);
+    void set_initial_deformation(const stk::Volume& def);
     void set_image_pair(
         int i, 
-        const Volume& fixed, 
-        const Volume& moving,
-        Volume (*downsample_fn)(const Volume&, float));
+        const stk::Volume& fixed, 
+        const stk::Volume& moving,
+        stk::Volume (*downsample_fn)(const stk::Volume&, float));
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    void set_regularization_weight_map(const Volume& map);
+    void set_regularization_weight_map(const stk::Volume& map);
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     /// Sets mask and values for constraints
-    void set_voxel_constraints(const VolumeUInt8& mask, const VolumeFloat3& values);
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
+    void set_voxel_constraints(const stk::VolumeUChar& mask, const stk::VolumeFloat3& values);
 
     /// Runs the registration. 
     /// Returns the resulting deformation field or an invalid volume if registration failed.
-    Volume execute();
+    stk::Volume execute();
 
     /// Validates all volumes and makes sure everything is in order.
     /// Should be called before performing executing the registration.
@@ -64,9 +60,7 @@ private:
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
 
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
     VolumePyramid _constraints_pyramid;
     VolumePyramid _constraints_mask_pyramid;
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
 
 };

@@ -1,36 +1,45 @@
 #pragma once
 
-#include <framework/debug/sse.h>
-#include <framework/math/float3.h>
-#include <framework/math/int3.h>
-#include <framework/volume/volume_helper.h>
+#include <stk/image/volume.h>
+#include <stk/math/float3.h>
+#include <stk/math/int3.h>
 
 #include <tuple>
 
 
 struct Regularizer
 {
-    Regularizer(float weight, const float3& fixed_spacing) : _weight(weight), _spacing(fixed_spacing)
+    Regularizer(float weight, const float3& fixed_spacing) : 
+        _weight(weight), _spacing(fixed_spacing)
     {
     }
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    void set_weight_map(VolumeFloat& map) { _weight_map = map; }
+    void set_weight_map(stk::VolumeFloat& map) { _weight_map = map; }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
     /// p   : Position in fixed image
     /// def0 : Deformation in active voxel [voxels] (in fixed image space)
     /// def1 : Deformation in neighbor [voxels] (in fixed image space)
     /// step : Direction to neighbor [voxels]
-    inline float operator()(const int3& , const float3& def0, const float3& def1, const int3& step)
+    inline float operator()(const int3& , const float3& def0, 
+                            const float3& def1, const int3& step)
     {
-        float3 step_in_mm {step.x*_spacing.x, step.y*_spacing.y, step.z*_spacing.z};
+        float3 step_in_mm {
+            step.x*_spacing.x, 
+            step.y*_spacing.y, 
+            step.z*_spacing.z
+        };
         
         float3 diff = def0 - def1;
-        float3 diff_in_mm {diff.x*_spacing.x, diff.y*_spacing.y, diff.z*_spacing.z};
+        float3 diff_in_mm {
+            diff.x*_spacing.x, 
+            diff.y*_spacing.y, 
+            diff.z*_spacing.z
+        };
         
-        float dist_squared = math::length_squared(diff_in_mm);
-        float step_squared = math::length_squared(step_in_mm);
+        float dist_squared = stk::norm2(diff_in_mm);
+        float step_squared = stk::norm2(step_in_mm);
         
         float w = _weight;
 
@@ -49,7 +58,7 @@ struct Regularizer
         return w * dist_squared / step_squared;
     }
 
-    VolumeFloat _weight_map;
+    stk::VolumeFloat _weight_map;
     float _weight;
     
     float3 _spacing;
@@ -64,8 +73,8 @@ struct SubFunction
 
 struct SoftConstraintsFunction : public SubFunction
 {
-    SoftConstraintsFunction(const VolumeUInt8& constraint_mask,
-                            const VolumeFloat3& constraints_values,
+    SoftConstraintsFunction(const stk::VolumeUChar& constraint_mask,
+                            const stk::VolumeFloat3& constraints_values,
                             float constraints_weight) :
         _constraints_mask(constraint_mask),
         _constraints_values(constraints_values),
@@ -78,18 +87,22 @@ struct SoftConstraintsFunction : public SubFunction
         if (_constraints_mask(p) != 0)
         {
             float3 diff = def - _constraints_values(p);
-            float3 diff_in_mm {diff.x*_spacing.x, diff.y*_spacing.y, diff.z*_spacing.z};
+            float3 diff_in_mm {
+                diff.x*_spacing.x, 
+                diff.y*_spacing.y, 
+                diff.z*_spacing.z
+            };
             
             // Distance^2 in [mm]
-            float dist_squared = math::length_squared(diff_in_mm);
+            float dist_squared = stk::norm2(diff_in_mm);
             
             // y=0.05x^2
             return std::min(_constraints_weight*dist_squared, 1000.0f); // Clamp to avoid explosion
         }
         return 0.0f;
     }
-    VolumeUInt8 _constraints_mask;
-    VolumeFloat3 _constraints_values;
+    stk::VolumeUChar _constraints_mask;
+    stk::VolumeFloat3 _constraints_values;
     float _constraints_weight;
     float3 _spacing;
 };
@@ -98,8 +111,8 @@ struct SoftConstraintsFunction : public SubFunction
 template<typename T>
 struct SquaredDistanceFunction : public SubFunction
 {
-    SquaredDistanceFunction(const VolumeHelper<T>& fixed,
-                            const VolumeHelper<T>& moving) :
+    SquaredDistanceFunction(const stk::VolumeHelper<T>& fixed,
+                            const stk::VolumeHelper<T>& moving) :
         _fixed(fixed),
         _moving(moving)
     {}
@@ -116,12 +129,12 @@ struct SquaredDistanceFunction : public SubFunction
         float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
         float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
 
-        T moving_v = _moving.linear_at(moving_p, volume::Border_Constant);
+        T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // [Filip]: Addition for partial-body registrations
-        if (moving_p.x<0 || moving_p.x>_moving.size().width || 
-            moving_p.y<0 || moving_p.y>_moving.size().height || 
-            moving_p.z<0 || moving_p.z>_moving.size().depth) {
+        if (moving_p.x<0 || moving_p.x>_moving.size().x || 
+            moving_p.y<0 || moving_p.y>_moving.size().y || 
+            moving_p.z<0 || moving_p.z>_moving.size().z) {
             return 0;
         }
 
@@ -131,15 +144,15 @@ struct SquaredDistanceFunction : public SubFunction
         return f*f;
     }
 
-    VolumeHelper<T> _fixed;
-    VolumeHelper<T> _moving;
+    stk::VolumeHelper<T> _fixed;
+    stk::VolumeHelper<T> _moving;
 };
 
 template<typename T>
 struct NCCFunction : public SubFunction
 {
-    NCCFunction(const VolumeHelper<T>& fixed,
-                const VolumeHelper<T>& moving) :
+    NCCFunction(const stk::VolumeHelper<T>& fixed,
+                const stk::VolumeHelper<T>& moving) :
         _fixed(fixed),
         _moving(moving)
     {}
@@ -158,9 +171,9 @@ struct NCCFunction : public SubFunction
         float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
 
         // [Filip]: Addition for partial-body registrations
-        if (moving_p.x<0 || moving_p.x>_moving.size().width || 
-            moving_p.y<0 || moving_p.y>_moving.size().height || 
-            moving_p.z<0 || moving_p.z>_moving.size().depth) {
+        if (moving_p.x<0 || moving_p.x>_moving.size().x || 
+            moving_p.y<0 || moving_p.y>_moving.size().y || 
+            moving_p.z<0 || moving_p.z>_moving.size().z) {
             return 0;
         }
 
@@ -171,12 +184,9 @@ struct NCCFunction : public SubFunction
         double sm = 0.0;
         size_t n = 0;
 
-        for (int dz = -2; dz <= 2; ++dz)
-        {
-            for (int dy = -2; dy <= 2; ++dy)
-            {            
-                for (int dx = -2; dx <= 2; ++dx)
-                {
+        for (int dz = -2; dz <= 2; ++dz) {
+            for (int dy = -2; dy <= 2; ++dy) {
+                for (int dx = -2; dx <= 2; ++dx) {
                     // TODO: Does not account for anisotropic volumes
                     int r2 = dx*dx + dy*dy + dz*dz;
                     if (r2 > 4)
@@ -190,7 +200,7 @@ struct NCCFunction : public SubFunction
                     float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
                     T fixed_v = _fixed(fp);
-                    T moving_v = _moving.linear_at(mp, volume::Border_Constant);
+                    T moving_v = _moving.linear_at(mp, stk::Border_Constant);
 
                     sff += fixed_v * fixed_v;
                     smm += moving_v * moving_v;
@@ -213,15 +223,14 @@ struct NCCFunction : public SubFunction
         
         double d = sqrt(sff*smm);
 
-        if(d > 1e-14)
-        {
+        if(d > 1e-14) {
             return 1.0f - float(sfm / d);
         }
         return 1.0;
     }
 
-    VolumeHelper<T> _fixed;
-    VolumeHelper<T> _moving;
+    stk::VolumeHelper<T> _fixed;
+    stk::VolumeHelper<T> _moving;
 };
 
 
@@ -235,10 +244,12 @@ struct UnaryFunction
             functions[i] = NULL;
         num_functions = 0;
     }
-    void set_regularization_weight_map(VolumeFloat& map) 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    void set_regularization_weight_map(stk::VolumeFloat& map) 
     {
         _regularization_weight_map = map;
     }
+#endif
 
     void add_function(SubFunction* fn)
     {
@@ -249,8 +260,7 @@ struct UnaryFunction
     inline float operator()(const int3& p, const float3& def)
     {
         float sum = 0.0f;
-        for (int i = 0; i < num_functions; ++i)
-        {
+        for (int i = 0; i < num_functions; ++i) {
             if (functions[i] == NULL) continue;
 
             sum += functions[i]->cost(p, def);
@@ -264,7 +274,9 @@ struct UnaryFunction
     }
 
     float _regularization_weight;
-    VolumeFloat _regularization_weight_map;
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    stk::VolumeFloat _regularization_weight_map;
+#endif
 
     SubFunction* functions[DF_MAX_IMAGE_PAIR_COUNT+1]; // +1 for constraints function
     int num_functions;

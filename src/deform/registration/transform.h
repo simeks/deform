@@ -1,6 +1,6 @@
 #pragma once
 
-#include <framework/volume/volume_helper.h>
+#include <stk/image/volume.h>
 
 namespace transform
 {
@@ -11,8 +11,8 @@ namespace transform
     };
 }
 
-Volume transform_volume(
-    const Volume& src, 
-    const VolumeFloat3& def, 
+stk::Volume transform_volume(
+    const stk::Volume& src, 
+    const stk::VolumeFloat3& def, 
     transform::Interp i = transform::Interp_Linear
 );

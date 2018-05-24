@@ -1,6 +1,6 @@
 #include "block_change_flags.h"
 
-#include <framework/math/int3.h>
+#include <stk/math/int3.h>
 
 BlockChangeFlags::BlockChangeFlags(const int3& block_count)
 {
@@ -18,13 +18,14 @@ bool BlockChangeFlags::is_block_set(const int3& block_p, bool shift) const
 {
     int3 sub_block_offset = shift ? int3{0, 0, 0} : int3{1, 1, 1};
 
-    for (int z = 0; z < 2; ++z) 
-    for (int y = 0; y < 2; ++y) 
-    for (int x = 0; x < 2; ++x) 
-    {
+    for (int z = 0; z < 2; ++z) {
+    for (int y = 0; y < 2; ++y) {
+    for (int x = 0; x < 2; ++x) {
         int3 sb = 2 * block_p + sub_block_offset + int3{x, y, z};
         if (flag(sb) != 0)
             return true;
+    }
+    }
     }
 
     return false;
@@ -33,10 +34,9 @@ void BlockChangeFlags::set_block(const int3& block_p, bool changed, bool shift)
 {
     int3 sub_block_offset = shift ? int3{0, 0, 0} : int3{1, 1, 1};
 
-    for (int z = 0; z < 2; ++z) 
-    for (int y = 0; y < 2; ++y) 
-    for (int x = 0; x < 2; ++x) 
-    {
+    for (int z = 0; z < 2; ++z) {
+    for (int y = 0; y < 2; ++y) {
+    for (int x = 0; x < 2; ++x) {
         int3 sb = 2 * block_p + sub_block_offset + int3{x, y, z};
         
         uint8_t f = flag(sb);
@@ -46,6 +46,8 @@ void BlockChangeFlags::set_block(const int3& block_p, bool changed, bool shift)
             f = (f & 0x1) | ((changed ? 1 : 0) << 1);
 
         set(sb, f);
+    }
+    }
     }
 }
 uint8_t BlockChangeFlags::flag(const int3& subblock_p) const

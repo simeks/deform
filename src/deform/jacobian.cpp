@@ -1,21 +1,20 @@
 #include "jacobian.h"
 
-//#include <framework/debug/log.h>
-#include <framework/math/float3.h>
+#include <stk/math/float3.h>
 
-Volume calculate_jacobian(const Volume& src, const VolumeFloat3& def)
+stk::Volume calculate_jacobian(const stk::Volume& src, const stk::VolumeFloat3& def)
 {
-    Dims dims = def.size();
+    dim3 dims = def.size();
 
-    VolumeHelper<double> out(dims);
+    stk::VolumeHelper<double> out(dims);
     out.set_origin(def.origin());
     out.set_spacing(def.spacing());
 
-    long W = dims.width;
-    long H = dims.height;
-    long D = dims.depth;
+    long W = dims.x;
+    long H = dims.y;
+    long D = dims.z;
 
-    volume::BorderMode border_mode = volume::Border_Replicate;
+    stk::BorderMode border_mode = stk::Border_Replicate;
 
 	float3 source_spacing = src.spacing();
     float3 spacing = def.spacing();
