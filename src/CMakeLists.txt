@@ -45,5 +45,5 @@ set(DEFORM_SRCS
 add_executable(deform ${DEFORM_SRCS})
 
 target_include_directories(deform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
-target_link_libraries(deform stk json)
+target_link_libraries(deform stk json gco)
 

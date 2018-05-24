@@ -190,7 +190,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     stk::VolumeFloat3& def
 )
 {
-    MICROPROFILE_SCOPEI("main", "do_block_move", 0xff33ff);
     dim3 dims = def.size();
 
     typedef double FlowType;
@@ -199,8 +198,6 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     FlowType current_energy = 0;
     {
-        MICROPROFILE_SCOPEI("main", "build_graph", 0x33ffff);
-
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
             for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
                 for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {

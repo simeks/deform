@@ -1,11 +1,13 @@
 #pragma once
 
+#include "config.h"
+
+#include <stk/common/assert.h>
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
 #include <stk/math/int3.h>
 
 #include <tuple>
-
 
 struct Regularizer
 {
@@ -194,7 +196,7 @@ struct NCCFunction : public SubFunction
 
                     int3 fp{p.x + dx, p.y + dy, p.z + dz};
                     
-                    if (!is_inside(_fixed.size(), fp))
+                    if (!stk::is_inside(_fixed.size(), fp))
                         continue;
 
                     float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
@@ -253,7 +255,7 @@ struct UnaryFunction
 
     void add_function(SubFunction* fn)
     {
-        assert(num_functions < DF_MAX_IMAGE_PAIR_COUNT);
+        ASSERT(num_functions < DF_MAX_IMAGE_PAIR_COUNT);
         functions[num_functions++] = fn;
     }
 
@@ -267,8 +269,10 @@ struct UnaryFunction
         }
 
         float w = _regularization_weight;
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.valid())
             w = _regularization_weight_map(p);
+#endif
 
         return (1.0f-w)*sum;
     }
