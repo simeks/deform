@@ -106,7 +106,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                 
                 #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
-                    int block_x = (block_idx % real_block_count.x) % real_block_count.y;
+                    int block_x = block_idx % real_block_count.x;
                     int block_y = (block_idx / real_block_count.x) % real_block_count.y;
                     int block_z = block_idx / (real_block_count.x*real_block_count.y);
 
