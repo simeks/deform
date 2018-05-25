@@ -15,5 +15,5 @@
 #undef max
 #undef MB_RIGHT
 
-#endif // DF_PLATFORM_WINDOWS
+#endif // _WIN32
 

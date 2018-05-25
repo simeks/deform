@@ -1,6 +1,6 @@
 #include "file_path.h"
 
-#ifdef DF_PLATFORM_WINDOWS
+#ifdef _WIN32
 #define PATH_SEPARATOR '\\'
 #else
 #define PATH_SEPARATOR '/'
