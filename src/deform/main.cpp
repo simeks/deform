@@ -29,6 +29,7 @@
 
 int run_regularize(int argc, char* argv[]);
 
+
 namespace
 {
     struct Args
@@ -46,23 +47,34 @@ namespace
         const char* constraint_values;
     };
 
-    void print_help_and_exit(const char* err = 0)
+    void print_help_and_exit(const char* exec, const char* err = 0)
     {
         if (err)
             std::cout << "Error: " << err << std::endl;
 
-        std::cout << "Arguments:" << std::endl
-                << "-f<i> <file> : Filename of the i:th fixed image (i < " 
-                    << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
-                << "-m<i> <file> : Filename of the i:th moving image (i < " 
-                    << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
-                << "-d0 <file> : Filename for initial deformation field" << std::endl
-                << "-constraint_mask <file> : Filename for constraint mask" << std::endl
-                << "-constraint_values <file> : Filename for constraint values" << std::endl
-                << "-p <file> : Filename of the parameter file (required)." << std::endl
-                << "--num-threads <num> : Maximum number of threads" << std::endl
-                << "--help : Shows this help section." << std::endl
-                << "*Requires a matching number of fixed and moving images";
+        std::cout << "Usage: " << exec << " registration {OPTIONS}" << std::endl << std::endl;
+
+        std::cout << "COMMAND: registration" << std::endl << std::endl;
+        std::cout << "OPTIONS:" << std::endl << std::endl;
+        print_option_help("-p", "file", "Filename of the parameter file (required).");
+        print_option_help("-f<i>", "file", "Filename of the i:th fixed image");
+        print_option_help("-m<i>", "file", "Filename of the i:th moving image");
+
+        std::cout << std::endl;
+        std::cout << "OPTIONAL:" << std::endl << std::endl;
+        print_option_help("-o, --output", "file", "Filename for the output deformation field");
+        print_option_help("--constraint_mask", "file", "Filename for constraint mask");
+        print_option_help("--constraint_values", "file", "Filename for constraint values");
+        print_option_help("-d0", "file", "Filename for initial deformation field");
+        print_flag_help("-j, --jacobian", "Enables output of the resulting jacobian");
+
+        print_option_help("--num-threads", "num", "Maximum number of threads");
+
+        print_flag_help("--help", "Displays this help text");
+
+        std::cout << std::endl;
+        std::cout << "Other commands: transform, regularize, jacobian" << std::endl;
+
         exit(1);
     }
     void parse_command_line(Args& args, int argc, char** argv)
@@ -78,128 +90,103 @@ namespace
                 std::string key = token.substr(b);
 
                 if (key == "help") {
-                    print_help_and_exit();
+                    print_help_and_exit(argv[0]);
                 }
                 else if (key == "p") {
                     if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     args.param_file = argv[i];
                 }
                 else if (key[0] == 'f') {
                     int img_index = std::stoi(key.substr(1));
                     if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
-                        print_help_and_exit();
+                        print_help_and_exit(argv[0]);
 
                     if (++i >= argc)
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     
                     args.fixed_files[img_index] = argv[i];
                 }
                 else if (key[0] == 'm') {
                     int img_index = std::stoi(key.substr(1));
                     if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
-                        print_help_and_exit();
+                        print_help_and_exit(argv[0]);
 
                     if (++i >= argc)
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     
                     args.moving_files[img_index] = argv[i];
                 }
                 else if (key == "d0") {
                     if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     args.initial_deformation = argv[i];
                 }
                 else if (key == "constraint_mask" || // Support both keys for backwards compatibility
                          key == "constraints_mask") {
                     if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     args.constraint_mask = argv[i];
                 }
                 else if (key == "constraint_values" ||
                          key == "constraints_values") {
                     if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     args.constraint_values = argv[i];
                 }
                 else if (key == "num-threads") {
                     if (++i >= argc)
-                        print_help_and_exit("Missing arguments");
+                        print_help_and_exit(argv[0], "Missing arguments");
                     args.num_threads = std::stoi(argv[i]);
                 }
                 else {
                     std::string err = std::string("Unrecognized option: " + token);
-                    print_help_and_exit(err.c_str());
+                    print_help_and_exit(argv[0], err.c_str());
                 }
             }
             else {
                 std::string err = std::string("Unrecognized option: " + token);
-                print_help_and_exit(err.c_str());
+                print_help_and_exit(argv[0], err.c_str());
             }
             ++i;
         }
     }
+    void print_command_help(const char* exec)
+    {
+        std::cout << "Usage: " << exec << " COMMAND ..." << std::endl << std::endl;
+        std::cout << "COMMANDS:" << std::endl << std::endl;
+
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "registration" 
+                  << "Performs image registration" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "transform" 
+                  << "Transforms a volume with a given deformation field" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "regularize" 
+                  << "Regularizes a deformation field" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "jacobian" 
+                  << "Computes the jacobian determinants of a deformation field" << std::endl;
+    }
 }
 
-int run_transform(int argc, char* argv[])
+int run_registration(int argc, char* argv[])
 {
-    // Usage:
-    // ./deform transform <src> <deformation> <out> [-i <nn/linear>]
-
-    if (argc < 5) {
-        std::cout << "Usage: " << argv[0] << " transform <src> <deformation> <out> [-i <nn/linear>]" << std::endl;
-        return 1;
-    }
-
-    stk::Volume src = stk::read_volume(argv[2]);
-    if (!src.valid())
-        return 1;
-
-    stk::Volume def = stk::read_volume(argv[3]);
-    if (!def.valid())
-        return 1;
-
-    transform::Interp interp = transform::Interp_Linear;
-
-    // TODO: Quick fix, include when refactoring command-line args
-    if (argc == 7 && strcmp(argv[5], "-i") == 0 && strcmp(argv[6], "nn") == 0) {
-        interp = transform::Interp_NN;
-    }
-
-    // TODO: Verify that def is float3
-
-    stk::Volume result = transform_volume(src, def, interp);
-    stk::write_volume(argv[4], result);
     
-    return 0;
 }
-
-int run_jacobian(int argc, char* argv[])
-{
-    // Usage:
-    // ./deform jacobian <source> <deformation> <out>
-
-    if (argc < 5) {
-        std::cout << "Usage: " << argv[0] << " jacobian <source> <deformation> <out>" << std::endl;
-        return 1;
-    }
-
-    stk::Volume src = stk::read_volume(argv[2]);
-    if (!src.valid())
-        return 1;
-
-    stk::Volume def = stk::read_volume(argv[3]);
-    if (!def.valid())
-        return 1;
-
-    stk::Volume jac = calculate_jacobian(src, def);
-    stk::write_volume(argv[4], jac);
-    
-    return 0;
-}
-
 
 int main(int argc, char* argv[])
+{
+    if (argc >= 2 && strcmp(argv[1], "registration") == 0)
+        return run_registration(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "transform") == 0)
+        return run_transform(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "regularize") == 0)
+        return run_regularize(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "jacobian") == 0)
+        return run_jacobian(argc, argv);
+
+    print_command_help(argv[0]);
+}
+
+int main2(int argc, char* argv[])
 {
     timer::initialize();
 
@@ -228,7 +215,7 @@ int main(int argc, char* argv[])
     }
 
     if (input_args.param_file == 0)
-        print_help_and_exit();
+        print_help_and_exit(argv[0]);
 
     Settings settings;
     if (!parse_registration_settings(input_args.param_file, settings))
