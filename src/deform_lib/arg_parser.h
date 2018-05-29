@@ -60,6 +60,8 @@
 //  their position within the command-line. The order of add_positional calls
 //  determine the order the parser expect them to appear in the command-line.
 //  An example: "program.exe positional1 positional2 ..."
+//
+// Parser automatically handles -h and --help flags, showing the help section.
 class ArgParser
 {
 public:
