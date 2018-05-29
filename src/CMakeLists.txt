@@ -33,6 +33,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/registration/voxel_constraints.cpp"
     "deform_lib/registration/voxel_constraints.h"
 
+    "deform_lib/args.cpp"
+    "deform_lib/args.h"
     "deform_lib/benchmark.cpp"
     "deform_lib/config.h"
     "deform_lib/cost_function.h"
@@ -40,7 +42,11 @@ set(DEFORM_LIB_SRCS
     "deform_lib/jacobian.h"
     "deform_lib/regularize.cpp"
 )
-set(DEFORM_SRCS "deform/main.cpp")
+set(DEFORM_SRCS 
+    "deform/jacobian.cpp"
+    "deform/main.cpp"
+    "deform/transform.cpp"
+)
 
 add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
