@@ -16,6 +16,7 @@ ArgParser::ArgParser(int argc, char* argv[]) :
         0,
         0
     });
+    add_flag("help", "-h, --help", "Displays this help text");
 }
 ArgParser::~ArgParser() {}
 
@@ -27,7 +28,8 @@ void ArgParser::add_group(const char* name)
 }
 void ArgParser::add_option(const char* name, 
                            const char* matchers, 
-                           const char* help)
+                           const char* help,
+                           bool required)
 {
     ASSERT(!check_collision(name));
     _options.push_back({
@@ -35,7 +37,8 @@ void ArgParser::add_option(const char* name,
         matchers,
         help,
         (int)_groups.size()-1,
-        false
+        false,
+        required
     });
 }
 void ArgParser::add_flag(const char* name, 
@@ -48,7 +51,8 @@ void ArgParser::add_flag(const char* name,
         matchers,
         help,
         (int)_groups.size()-1,
-        true
+        true,
+        false // Flags are never required
     });
 }
 void ArgParser::add_positional(const char* name, const char* help)
@@ -69,28 +73,72 @@ bool ArgParser::parse()
     while (i < _argc) {
         if (_argv[i][0] == '-') {
             if (!parse_arg(i))
-                return false;
+                break;
         }
         else {
             // Positional
             if (positional_idx >= _positionals.size()) {
                 _error << "Unexpected postional";
-                return false;
+                break;
             }
             _positionals[positional_idx].read = _argv[i];
             ++positional_idx;
         }
         ++i;
     }
+
+    // Allow --help to print help section before any input validation
+    if (is_set("help")) {
+        print_help();
+        return false;
+    }
+
+    // Validate input
+
+    // Check if we have all the positionals
     if (positional_idx < _positionals.size()) {
-        _error << "Missing positional arguments: '" 
+        _error << "Missing arguments: '" 
                << _positionals[positional_idx].name << "'";
         
         for (int p = positional_idx+1; p < _positionals.size(); ++p) {
-            _error << ", " << _positionals[p].name;
+            _error << ", '" << _positionals[p].name << "'";
         }
+    }
+
+    // Check if we have all required options
+    for (auto& opt : _options) {
+        if (opt.required) {
+            // Check if options is an array option
+            std::string name = opt.name;
+            // --arg{i}
+            size_t idx;
+            if ((idx = name.find("{i}")) != std::string::npos) {
+                name = name.substr(0, name.size()-3);
+                // If an array-option is required, we require at least one value
+                auto it = std::find_if(_option_values.begin(), _option_values.end(), 
+                    [&](const std::pair<std::string, std::string>& v){
+                        return v.first.compare(0, name.size(), name) == 0;
+                    });
+                if (it == _option_values.end()) {
+                    _error << "Missing required argument '" << name << "{i}'";
+                    break;
+                }
+            }
+            else {
+                if (_option_values.find(name) == _option_values.end()) {
+                    _error << "Missing required argument '" << name << "'";
+                    break;
+                }
+            }
+        }
+    }
+
+    if (error() != "") {
+        std::cout << error() << std::endl << std::endl;
+        print_help();
         return false;
     }
+
     return true;
 }
 void ArgParser::print_help()

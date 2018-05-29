@@ -75,7 +75,7 @@ public:
     //  look for when parsing, example: "-f, --flag". 'help' will be displayed 
     //  when displaying the help section.
     void add_option(const char* name, const char* matchers, 
-                    const char* help);
+                    const char* help, bool required=false);
     // See add_option
     void add_flag(const char* name, const char* matchers, 
                   const char* help);
@@ -87,6 +87,8 @@ public:
     //  Returns true if parsing succeeded, false if not.
     // Use error() to figure out what went wrong if parsing failed. 
     bool parse();
+
+
 
     // Prints a help section of all added options.
     void print_help();
@@ -116,6 +118,7 @@ private:
         const char* help;
         int group;
         bool flag;
+        bool required;
     };
 
     struct Positional

@@ -172,5 +172,16 @@ TEST_CASE("args", "")
         init_parser(parser);
         REQUIRE(!parser.parse());
     }
+    SECTION("required")
+    {
+        int argc = 1;
+        char* argv[] = {
+            "test.exe"
+        };
+
+        ArgParser parser(argc, argv);
+        parser.add_option("required", "-r,--required", "required", true);
+        REQUIRE(!parser.parse());
+    }
 
 }
