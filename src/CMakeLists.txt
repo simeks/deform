@@ -33,8 +33,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/registration/voxel_constraints.cpp"
     "deform_lib/registration/voxel_constraints.h"
 
-    "deform_lib/args.cpp"
-    "deform_lib/args.h"
+    "deform_lib/arg_parser.cpp"
+    "deform_lib/arg_parser.h"
     "deform_lib/benchmark.cpp"
     "deform_lib/config.h"
     "deform_lib/cost_function.h"

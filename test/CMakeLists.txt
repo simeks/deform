@@ -1,5 +1,5 @@
 set(DEFORM_TEST_SRCS 
-    "test_args.cpp"
+    "test_arg_parser.cpp"
     "test_main.cpp"
     "test_settings.cpp"
 )

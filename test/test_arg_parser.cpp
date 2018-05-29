@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <deform_lib/args.h>
+#include <deform_lib/arg_parser.h>
 
 namespace {
     void init_parser(ArgParser& parser)
