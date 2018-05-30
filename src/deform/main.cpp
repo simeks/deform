@@ -59,6 +59,48 @@ namespace
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "jacobian" 
                   << "Computes the jacobian determinants of a deformation field" << std::endl;
     }
+
+    /// name : Name for printout
+    bool validate_volume_properties(
+        const stk::Volume& vol, 
+        const dim3& expected_dims,
+        const float3& expected_origin, 
+        const float3& expected_spacing, 
+        const std::string& name)
+    {
+        dim3 dims = vol.size();
+        float3 origin = vol.origin();
+        float3 spacing = vol.spacing();
+        
+        if (dims != expected_dims)
+        {
+            LOG(Error) << "Dimension mismatch for " << name << " (size: " 
+                       << dims << ", expected: " << expected_dims << ")";
+            return false;
+        }
+
+        // arbitrary epsilon but should suffice
+        if (fabs(origin.x - expected_origin.x) > 0.0001f || 
+            fabs(origin.y - expected_origin.y) > 0.0001f ||
+            fabs(origin.z - expected_origin.z) > 0.0001f) 
+        {
+            LOG(Error) << "Origin mismatch for " << name 
+                       << " (origin: " << origin << ", expected: " 
+                       << expected_origin << ")";
+            return false;
+        }
+
+        if (fabs(spacing.x - expected_spacing.x) > 0.0001f || 
+            fabs(spacing.y - expected_spacing.y) > 0.0001f ||
+            fabs(spacing.z - expected_spacing.z) > 0.0001f)
+        {
+            LOG(Error) << "Spacing mismatch for " << name 
+                       << " (spacing: " << spacing << ", expected: " 
+                       << expected_spacing << ")";
+            return false;
+        }
+        return true;
+    }
 }
 
 int run_registration(int argc, char* argv[])
@@ -95,39 +137,61 @@ int run_registration(int argc, char* argv[])
 
     Settings settings; // Default settings
     if (!param_file.empty()) {
-        if (!parse_registration_settings(param_file.c_str(), settings))
+        if (!parse_registration_settings(param_file, settings))
             return 1;
     }
 
     RegistrationEngine engine(settings);
 
-    std::vector<std::string> fixed_files;
-    std::vector<std::string> moving_files;
+    // Data is validated as it is read, includes fixed- and moving volumes, and
+    //  initial deformation
+    // Rules:
+    // * All volumes for the same subject (i.e. fixed or moving) must have the 
+    //      same dimensions.
+    // * All volumes for the same subject (i.e. fixed or moving) need to have 
+    //      the same origin and spacing.
+    // * For simplicity any given initial deformation field must match the 
+    //      fixed image properties (size, origin, spacing).
+    // * Pairs must have a matching data type
+    // If hard constraints are enabled:
+    // * Constraint mask and values must match fixed image
+
+    stk::Volume fixed_ref; // Reference volume for validation
+    stk::Volume moving_ref; // Reference volume for computing the jacobian
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+        std::string fixed_id = "fixed" + std::to_string(i);
+        std::string moving_id = "moving" + std::to_string(i);
 
-        fixed_files.push_back(args.get<std::string>(fixed_i.c_str(), ""));
-        moving_files.push_back(args.get<std::string>(moving_i.c_str(), ""));
-    }
+        std::string fixed_file = args.get<std::string>(fixed_id, "");
+        std::string moving_file = args.get<std::string>(moving_id, "");
 
-    engine.initialize(image_pair_count);
-
-    Volume moving_ref; // Reference volume for computing the jacobian
-
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-        std::string fixed_i = std::string("fixed") + std::to_string(i);
-        std::string moving_i = std::string("moving") + std::to_string(i);
-
-        stk::Volume fixed = stk::read_volume(input_args.fixed_files[i]);
+        stk::Volume fixed = stk::read_volume(fixed_file);
         if (!fixed.valid()) return 1;
-        stk::Volume moving = stk::read_volume(input_args.moving_files[i]);
+        stk::Volume moving = stk::read_volume(moving_file);
         if (!moving.valid()) return 1;
 
-        if (!moving_ref.valid())
+        if (fixed.voxel_type() != moving.voxel_type()) {
+            LOG(Error) << "Mismatch in voxel type between pairs at index " << i;
+            return 1;
+        }
+        
+        if (!fixed_ref.valid() || !moving_ref.valid()) {
+            fixed_ref = fixed;
             moving_ref = moving;
+        }
+        else {
+            if (!validate_volume_properties(fixed, fixed_ref.size(), 
+                    fixed_ref.origin(), fixed_ref.spacing(), fixed_id)) {
+                return 1;
+            }
+            if (!validate_volume_properties(moving, moving_ref.size(), 
+                    moving_ref.origin(), moving_ref.spacing(), moving_id)) {
+                return 1;
+            }
+        }
 
         auto& slot = settings.image_slots[i];
-    
         if (slot.normalize) {
             if (fixed.voxel_type() == stk::Type_Float &&
                 moving.voxel_type() == stk::Type_Float) {
@@ -148,7 +212,6 @@ int run_registration(int argc, char* argv[])
         // It's the only available fn for now
         auto downsample_fn = filters::downsample_volume_gaussian;
 
-        moving_volumes.push_back(moving);
         engine.set_image_pair(i, fixed, moving, downsample_fn);
     }
 
@@ -156,6 +219,10 @@ int run_registration(int argc, char* argv[])
     if (!init_deform_file.empty()) {
         stk::Volume initial_deformation = stk::read_volume(init_deform_file.c_str());
         if (!initial_deformation.valid()) return 1;
+
+        if (!validate_volume_properties(initial_deformation, fixed_ref.size(), 
+                fixed_ref.origin(), fixed_ref.spacing(), "initial deformation field"))
+            return 1;
 
         engine.set_initial_deformation(initial_deformation);
     }
@@ -170,15 +237,21 @@ int run_registration(int argc, char* argv[])
         stk::Volume constraint_values = stk::read_volume(constraint_values_file.c_str());
         if (!constraint_values.valid()) return 1;
 
+        if (!validate_volume_properties(constraint_mask, fixed_ref.size(), 
+                fixed_ref.origin(), fixed_ref.spacing(), "constraint mask"))
+            return 1;
+
+        if (!validate_volume_properties(constraint_values, fixed_ref.size(), 
+                fixed_ref.origin(), fixed_ref.spacing(), "constraint values"))
+            return 1;
+
         engine.set_voxel_constraints(constraint_mask, constraint_values);
     }
     else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
         // Just a check to make sure the user didn't forget something
-        FATAL() << "No constraints used, to use constraints, specify both a mask and a vectorfield";
+        LOG(Error) << "No constraints used, to use constraints, specify both a mask and a vectorfield";
+        return 1;
     }
-
-    if (!engine.validate_input())
-        exit(1);
 
     double t_start = timer::seconds();
     stk::Volume def = engine.execute();
@@ -211,7 +284,7 @@ int main(int argc, char* argv[])
     #endif
 
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], '-v') == 0 || strcmp(argv[i], '--version')) {
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             print_version();
             return 0;
         }
