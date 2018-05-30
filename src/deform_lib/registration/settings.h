@@ -75,5 +75,5 @@ struct Settings
 };
 
 // Return true if parsing was successful, false if not
-bool parse_registration_settings(const char* parameter_file, Settings& settings);
+bool parse_registration_settings(const std::string& parameter_file, Settings& settings);
 

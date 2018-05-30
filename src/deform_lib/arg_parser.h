@@ -95,16 +95,16 @@ public:
 
     // Returns true if the given option is set, could be either a flag or a 
     //  key-value
-    bool is_set(const char* name);
+    bool is_set(const std::string& name);
 
     // Check if the parser holds a positional of the given name
-    bool has_positional(const char* name);
+    bool has_positional(const std::string& name);
 
     // Returns the value of the given option, assuming it is set.
-    std::string option(const char* name);
+    std::string option(const std::string& name);
 
     // Returns the value of the given positional, assuming it is set.
-    std::string positional(const char* name);
+    std::string positional(const std::string& name);
 
     // Returns the positional at the given index. i=0 will always point to the
     //  name of the executable.
@@ -114,7 +114,7 @@ public:
     std::string error();
 
     template<typename T>
-    T get(const char* name, T def);
+    T get(const std::string& name, T def);
 
 private:
     struct Option

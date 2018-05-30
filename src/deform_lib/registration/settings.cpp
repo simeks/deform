@@ -186,7 +186,7 @@ void print_registration_settings(const Settings& settings)
     }
 }
 
-bool parse_registration_settings(const char* parameter_file, Settings& settings)
+bool parse_registration_settings(const std::string& parameter_file, Settings& settings)
 {
     // Defaults
     settings = Settings();
@@ -254,7 +254,7 @@ bool parse_registration_settings(const char* parameter_file, Settings& settings)
         for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
             std::string is = std::to_string((long long int)i);
 
-            auto& slot = image_slots[is.c_str()];
+            auto& slot = image_slots[is];
             if (slot.is_object()) {
                 if (!slot["cost_function"].is_null() &&
                     !read_value(slot, "cost_function", settings.image_slots[i].cost_function))

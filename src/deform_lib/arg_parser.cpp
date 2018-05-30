@@ -188,20 +188,20 @@ void ArgParser::print_help()
     }
 }
 
-bool ArgParser::is_set(const char* name)
+bool ArgParser::is_set(const std::string& name)
 {
     return _option_values.find(name) != _option_values.end();
 }
-std::string ArgParser::option(const char* name)
+std::string ArgParser::option(const std::string& name)
 {
     ASSERT(is_set(name));
     return _option_values[name];
 }
 
-std::string ArgParser::positional(const char* name)
+std::string ArgParser::positional(const std::string& name)
 {
     for (auto& p : _positionals) {
-        if (p.name && strcmp(name, p.name) == 0) {
+        if (p.name && name == p.name) {
             ASSERT(p.read);
             return p.read;
         }
@@ -210,7 +210,7 @@ std::string ArgParser::positional(const char* name)
     return 0;
 }
 template<>
-std::string ArgParser::get<std::string>(const char* name, std::string def)
+std::string ArgParser::get<std::string>(const std::string& name, std::string def)
 {
     if (is_set(name)) {
         return option(name);
@@ -218,7 +218,7 @@ std::string ArgParser::get<std::string>(const char* name, std::string def)
     return def;
 }
 template<>
-int ArgParser::get<int>(const char* name, int def)
+int ArgParser::get<int>(const std::string& name, int def)
 {
     if (is_set(name)) {
         return std::stoi(option(name));
@@ -226,7 +226,7 @@ int ArgParser::get<int>(const char* name, int def)
     return def;
 }
 template<>
-float ArgParser::get<float>(const char* name, float def)
+float ArgParser::get<float>(const std::string& name, float def)
 {
     if (is_set(name)) {
         return std::stof(option(name));
@@ -234,7 +234,7 @@ float ArgParser::get<float>(const char* name, float def)
     return def;
 }
 template<>
-double ArgParser::get<double>(const char* name, double def)
+double ArgParser::get<double>(const std::string& name, double def)
 {
     if (is_set(name)) {
         return std::stod(option(name));
