@@ -20,45 +20,6 @@ namespace
 {
     float origin_epsilon = 0.1f; // .1 mm
 
-    /// name : Name for printout
-    bool validate_volume_properties(
-        const stk::Volume& vol, 
-        const dim3& expected_dims,
-        const float3& expected_origin, 
-        const float3& expected_spacing, 
-        const char* name)
-    {
-        dim3 dims = vol.size();
-        float3 origin = vol.origin();
-        float3 spacing = vol.spacing();
-     
-        if (dims != expected_dims) {
-            LOG(Error) << "Dimension mismatch for " << name 
-                       << " (size:" << dims << ", expected: " << expected_dims << ")";
-            return false;
-        }
-
-        // arbitrary epsilon but should suffice
-        if (fabs(origin.x - expected_origin.x) > origin_epsilon || 
-            fabs(origin.y - expected_origin.y) > origin_epsilon ||
-            fabs(origin.z - expected_origin.z) > origin_epsilon) {
-            LOG(Error) << "Origin mismatch for " << name 
-                       << " (origin: " << origin << ", expected: " 
-                       << expected_origin << ")";
-            return false;
-        }
-
-        if (fabs(spacing.x - expected_spacing.x) > 0.0001f || 
-            fabs(spacing.y - expected_spacing.y) > 0.0001f ||
-            fabs(spacing.z - expected_spacing.z) > 0.0001f) {
-            LOG(Error) << "Spacing mismatch for " << name 
-                       << " (spacing: " << spacing << ", expected: " 
-                       << expected_spacing << ")";
-            return false;
-        }
-        return true;
-    }
-
     void constrain_deformation_field(stk::VolumeFloat3& def, 
         const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
     {
@@ -77,24 +38,11 @@ namespace
 }
 
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
-    _settings(settings),
-    _image_pair_count(0)
+    _settings(settings)
 {
-}
-RegistrationEngine::~RegistrationEngine()
-{
-}
+    _fixed_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
+    _moving_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
 
-void RegistrationEngine::initialize(int image_pair_count)
-{
-    _image_pair_count = image_pair_count;
-    _fixed_pyramids.resize(_image_pair_count);
-    _moving_pyramids.resize(_image_pair_count);
-
-    for (int i = 0; i < _image_pair_count; ++i) {
-        _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
-        _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
-    }
     _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -103,6 +51,9 @@ void RegistrationEngine::initialize(int image_pair_count)
 
     _constraints_pyramid.set_level_count(_settings.num_pyramid_levels);
     _constraints_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+}
+RegistrationEngine::~RegistrationEngine()
+{
 }
 void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 {
@@ -118,6 +69,9 @@ void RegistrationEngine::set_image_pair(
     stk::Volume (*downsample_fn)(const stk::Volume&, float))
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
+    
+    _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
+    _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
@@ -142,11 +96,6 @@ void RegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask, con
 
 stk::Volume RegistrationEngine::execute()
 {
-    if (_image_pair_count == 0) {
-        LOG(Error) << "Nothing to register";
-        return stk::Volume();
-    }
-
     if (!_deformation_pyramid.volume(0).valid()) {
         // No initial deformation, create a field with all zeros
         
@@ -163,8 +112,8 @@ stk::Volume RegistrationEngine::execute()
     #endif
 
     // No copying of image data is performed here as Volume is simply a wrapper 
-    std::vector<stk::Volume> fixed_volumes(_image_pair_count);
-    std::vector<stk::Volume> moving_volumes(_image_pair_count);
+    stk::Volume fixed_volumes[DF_MAX_IMAGE_PAIR_COUNT];
+    stk::Volume moving_volumes[DF_MAX_IMAGE_PAIR_COUNT];
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
         stk::VolumeFloat3 def = _deformation_pyramid.volume(l);
@@ -172,9 +121,11 @@ stk::Volume RegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            for (int i = 0; i < _image_pair_count; ++i) {
-                fixed_volumes[i] = _fixed_pyramids[i].volume(l);
-                moving_volumes[i] = _moving_pyramids[i].volume(l);
+            for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+                if (_fixed_pyramids[i].levels() > 0)
+                    fixed_volumes[i] = _fixed_pyramids[i].volume(l);
+                if (_moving_pyramids[i].levels() > 0)
+                    moving_volumes[i] = _moving_pyramids[i].volume(l);
             }
 
             UnaryFunction unary_fn(_settings.regularization_weight);
@@ -188,7 +139,7 @@ stk::Volume RegistrationEngine::execute()
                 );
             }
 
-            for (int i = 0; i < _image_pair_count; ++i) {
+            for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
                 auto& slot = _settings.image_slots[i];
                 if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
                     if (fixed_volumes[i].voxel_type() == stk::Type_Float) {
@@ -302,70 +253,6 @@ stk::Volume RegistrationEngine::execute()
 
     return _deformation_pyramid.volume(0);
 }
-
-bool RegistrationEngine::validate_input()
-{
-    // Rules:
-    // * All volumes for the same subject (i.e. fixed or moving) must have the same dimensions
-    // * All volumes for the same subject (i.e. fixed or moving) need to have the same origin and spacing
-    // * For simplicity any given initial deformation field must match the fixed image properties (size, origin, spacing)
-    // * Pairs must have a matching data type
-    // If hard constraints are enabled:
-    // * Constraint mask and values must match fixed image
-
-    dim3 fixed_dims = _fixed_pyramids[0].volume(0).size();
-    dim3 moving_dims = _moving_pyramids[0].volume(0).size();
-
-    float3 fixed_origin = _fixed_pyramids[0].volume(0).origin();
-    float3 moving_origin = _moving_pyramids[0].volume(0).origin();
-    
-    float3 fixed_spacing = _fixed_pyramids[0].volume(0).spacing();
-    float3 moving_spacing = _moving_pyramids[0].volume(0).spacing();
-
-    for (int i = 1; i < _image_pair_count; ++i) {
-        if (!_fixed_pyramids[i].volume(0).valid() ||
-            !_moving_pyramids[i].volume(0).valid()) {
-            LOG(Error) << "Missing image(s) at index " << i;
-            return false;
-        }
-
-        if (_fixed_pyramids[i].volume(0).voxel_type() != 
-            _moving_pyramids[i].volume(0).voxel_type()) {
-            LOG(Error) << "Mismatch in voxel type between pairs at index " << i;
-            return false;
-        }
-
-        std::stringstream ss; ss << "fixed image id " << i;
-        std::string fixed_name = ss.str();
-
-        if (!validate_volume_properties(_fixed_pyramids[i].volume(0), 
-                fixed_dims, fixed_origin, fixed_spacing, fixed_name.c_str()))
-            return false;
-    
-        ss.str(""); 
-        ss << "moving image id " << i;
-        std::string moving_name = ss.str();
-
-        if (!validate_volume_properties(_moving_pyramids[i].volume(0), 
-                moving_dims, moving_origin, moving_spacing, moving_name.c_str()))
-            return false;
-    }
-
-    if (_deformation_pyramid.volume(0).valid() && !validate_volume_properties(_deformation_pyramid.volume(0), 
-            fixed_dims, fixed_origin, fixed_spacing, "initial deformation field"))
-        return false;
-
-    if (_constraints_pyramid.volume(0).valid() && !validate_volume_properties(_constraints_pyramid.volume(0), 
-            fixed_dims, fixed_origin, fixed_spacing, "constraints values"))
-        return false;
-
-    if (_constraints_mask_pyramid.volume(0).valid() && !validate_volume_properties(_constraints_mask_pyramid.volume(0), 
-            fixed_dims, fixed_origin, fixed_spacing, "constraints mask"))
-        return false;
-
-
-    return true;
-}
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
 void RegistrationEngine::upsample_and_save(int level)
 {
@@ -416,14 +303,19 @@ void RegistrationEngine::upsample_and_save(int level)
 void RegistrationEngine::save_volume_pyramid()
 {
     for (int l = 0; l < _settings.num_pyramid_levels; ++l) {
-        for (int i = 0; i < _image_pair_count; ++i) {
-            std::stringstream file;
-            file << "fixed_pyramid_" << i << "_level_" << l << ".vtk";
-            stk::write_volume(file.str().c_str(), _fixed_pyramids[i].volume(l));
+        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
 
-            file.str("");
-            file << "moving_pyramid_" << i << "_level_" << l << ".vtk";            
-            stk::write_volume(file.str().c_str(), _moving_pyramids[i].volume(l));
+            if (_fixed_pyramids[i].levels() > 0) {
+                std::stringstream file;
+                file << "fixed_pyramid_" << i << "_level_" << l << ".vtk";
+                stk::write_volume(file.str().c_str(), _fixed_pyramids[i].volume(l));
+            }
+
+            if (_moving_pyramids[i].levels() > 0) {
+                std::stringstream file;
+                file << "moving_pyramid_" << i << "_level_" << l << ".vtk";            
+                stk::write_volume(file.str().c_str(), _moving_pyramids[i].volume(l));
+            }
         }
 
         std::stringstream file;

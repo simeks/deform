@@ -14,8 +14,6 @@ public:
     RegistrationEngine(const Settings& settings);
     ~RegistrationEngine();
 
-    void initialize(int image_pair_count);
-
     void set_initial_deformation(const stk::Volume& def);
     void set_image_pair(
         int i, 
@@ -34,11 +32,6 @@ public:
     /// Returns the resulting deformation field or an invalid volume if registration failed.
     stk::Volume execute();
 
-    /// Validates all volumes and makes sure everything is in order.
-    /// Should be called before performing executing the registration.
-    /// Returns true if the validation was successful, false if not.
-    bool validate_input();
-
 private:
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
     /// Upsamples the deformation field at the given level and saves it
@@ -49,7 +42,6 @@ private:
 #endif
     
     Settings _settings;
-    int _image_pair_count; // Number of image pairs (e.g. fat, water and mask makes 3)
 
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
