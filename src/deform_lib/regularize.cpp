@@ -1,3 +1,4 @@
+#include "arg_parser.h"
 #include "filters/resample.h"
 #include "platform/timer.h"
 #include "registration/volume_pyramid.h"
@@ -15,9 +16,6 @@
 
 namespace
 {
-    float default_precision = 0.5f;
-    int default_pyramid_levels = 6;
-
     int3 neighbors[] = {
         {1, 0, 0},
         {-1, 0, 0},
@@ -26,18 +24,6 @@ namespace
         {0, 0, 1},
         {0, 0, -1}
     };
-}
-
-void print_help_and_exit(const char* exe, const char* err=NULL)
-{
-    if (err) std::cout << "Error: " << err << std::endl;
-    std::cout << "Usage: " << exe << " regularize <deformation field>" << std::endl;
-    std::cout << "Arguments: " << std::endl
-              << "-p : Precision (Default: " << default_precision << ")" << std::endl
-              << "-l : Number of pyramid levels (Default: " << default_pyramid_levels << ")" << std::endl
-              << "-o, --output : Output file" << std::endl;
-              
-    exit(1);
 }
 
 void initialize_regularization(
@@ -191,67 +177,29 @@ void do_regularization(
     }
 }
 
-
 int run_regularize(int argc, char* argv[])
 {
-    if (argc < 3)
-        print_help_and_exit(argv[0]);
+    ArgParser args(argc, argv);
+    args.add_positional("command", "registration, transform, regularize, jacobian");
+    args.add_positional("deformation", "Path to the deformation field to regularize");
+    args.add_group();
+    args.add_option("output", "-o, --output", "Path to output (default: result_def.vtk)");
+    args.add_option("precision", "-p, --precision", "Precision (default: 0.5)");
+    args.add_option("pyramid_levels", "-l, --levels", "Number of pyramid levels (default: 6)");
+    args.add_group();
+    args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
+    args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
 
-    float precision = default_precision;
-    int pyramid_levels = default_pyramid_levels;
-
-    const char* constraint_mask_file = NULL;
-    const char* constraint_values_file = NULL;
-    const char* output_file = "result_def.vtk";
-        
-    /// Skip i=0,1,3 (name of executable + "regularize" + "<deformation field>")
-    int i = 3;
-    while (i < argc) {
-        std::string token = argv[i];
-        if (token[0] == '-') {
-            int b = token[1] == '-' ? 2 : 1;
-            std::string key = token.substr(b);
-
-            if (key == "help") {
-                print_help_and_exit(argv[0]);
-            }
-            else if (key == "p") {
-                if (++i >= argc) 
-                    print_help_and_exit(argv[0], "Missing arguments");
-                precision = (float)atof(argv[i]);
-            }
-            else if (key == "l") {
-                if (++i >= argc) 
-                    print_help_and_exit(argv[0], "Missing arguments");
-                pyramid_levels = atoi(argv[i]);
-            }
-            else if (key == "constraint_mask" ||
-                     key == "constraints_mask") {
-                if (++i >= argc) 
-                    print_help_and_exit(argv[0], "Missing arguments");
-                constraint_mask_file = argv[i];
-            }
-            else if (key == "constraint_values" ||
-                     key == "constraints_values") {
-                if (++i >= argc) 
-                    print_help_and_exit(argv[0], "Missing arguments");
-                constraint_values_file = argv[i];
-            }
-            else if (key == "o" || key == "output") {
-                if (++i >= argc)
-                    print_help_and_exit(argv[0], "Missing arguments");
-                output_file = argv[i];
-            }
-            else {
-                print_help_and_exit(argv[0], "Unrecognized option");
-            }
-        }
-        else
-        {
-            print_help_and_exit(argv[0], "Unrecognized option");
-        }
-        ++i;
+    if (!args.parse()) {
+        return 1;
     }
+
+    float precision = args.get<float>("precision", 0.5);
+    int pyramid_levels = args.get<int>("pyramid_levels", 6);
+
+    std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
+    std::string constraint_values_file = args.get<std::string>("constraint_values", "");
+    std::string output_file = args.get<std::string>("output", "result_def.vtk");
 
     double t_start = timer::seconds();
 
@@ -259,7 +207,7 @@ int run_regularize(int argc, char* argv[])
     deformation_pyramid.set_level_count(pyramid_levels);
     
     {
-        stk::Volume src = stk::read_volume(argv[2]);
+        stk::Volume src = stk::read_volume(args.positional("deformation").c_str());
         if (!src.valid()) return 1;
             
         if (src.voxel_type() != stk::Type_Float3) {
@@ -272,11 +220,11 @@ int run_regularize(int argc, char* argv[])
 
     bool use_constraints = false;
     stk::Volume constraints_mask, constraints_values;
-    if (constraint_mask_file && constraint_values_file) {
-        constraints_mask = stk::read_volume(constraint_mask_file);
+    if (!constraint_mask_file.empty() && !constraint_values_file.empty()) {
+        constraints_mask = stk::read_volume(constraint_mask_file.c_str());
         if (!constraints_mask.valid()) return 1;
 
-        constraints_values = stk::read_volume(constraint_values_file);
+        constraints_values = stk::read_volume(constraint_values_file.c_str());
         if (!constraints_values.valid()) return 1;
     
         use_constraints = true;
@@ -331,7 +279,7 @@ int run_regularize(int argc, char* argv[])
     int elapsed = int(round(t_end - t_start));
     LOG(Info) << "Regularization completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
 
-    stk::write_volume(output_file, deformation_pyramid.volume(0));
+    stk::write_volume(output_file.c_str(), deformation_pyramid.volume(0));
 
     return 0;
 }
