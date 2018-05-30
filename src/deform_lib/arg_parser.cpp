@@ -66,6 +66,8 @@ void ArgParser::add_positional(const char* name, const char* help)
 }
 bool ArgParser::parse()
 {
+    ASSERT(_option_values.empty()); // Should only be run once
+
     _positionals[0].read = _argv[0];
     int positional_idx = 1;
 
@@ -186,27 +188,58 @@ void ArgParser::print_help()
     }
 }
 
-bool ArgParser::is_set(const std::string& name)
+bool ArgParser::is_set(const char* name)
 {
     return _option_values.find(name) != _option_values.end();
 }
-
-std::string ArgParser::option(const std::string& name)
+std::string ArgParser::option(const char* name)
 {
     ASSERT(is_set(name));
     return _option_values[name];
 }
 
-std::string ArgParser::positional(const std::string& name)
+std::string ArgParser::positional(const char* name)
 {
     for (auto& p : _positionals) {
-        if (p.name && name == p.name) {
+        if (p.name && strcmp(name, p.name) == 0) {
             ASSERT(p.read);
             return p.read;
         }
     }
     ASSERT(false);
-    return "";
+    return 0;
+}
+template<>
+std::string ArgParser::get<std::string>(const char* name, std::string def)
+{
+    if (is_set(name)) {
+        return option(name);
+    }
+    return def;
+}
+template<>
+int ArgParser::get<int>(const char* name, int def)
+{
+    if (is_set(name)) {
+        return std::stoi(option(name));
+    }
+    return def;
+}
+template<>
+float ArgParser::get<float>(const char* name, float def)
+{
+    if (is_set(name)) {
+        return std::stof(option(name));
+    }
+    return def;
+}
+template<>
+double ArgParser::get<double>(const char* name, double def)
+{
+    if (is_set(name)) {
+        return std::stod(option(name));
+    }
+    return def;
 }
 
 std::string ArgParser::positional(int i)

@@ -90,20 +90,21 @@ public:
     // Use error() to figure out what went wrong if parsing failed. 
     bool parse();
 
-
-
     // Prints a help section of all added options.
     void print_help();
 
     // Returns true if the given option is set, could be either a flag or a 
     //  key-value
-    bool is_set(const std::string& name);
+    bool is_set(const char* name);
+
+    // Check if the parser holds a positional of the given name
+    bool has_positional(const char* name);
 
     // Returns the value of the given option, assuming it is set.
-    std::string option(const std::string& name);
+    std::string option(const char* name);
 
     // Returns the value of the given positional, assuming it is set.
-    std::string positional(const std::string& name);
+    std::string positional(const char* name);
 
     // Returns the positional at the given index. i=0 will always point to the
     //  name of the executable.
@@ -111,6 +112,9 @@ public:
 
     // Returns the last error.
     std::string error();
+
+    template<typename T>
+    T get(const char* name, T def);
 
 private:
     struct Option

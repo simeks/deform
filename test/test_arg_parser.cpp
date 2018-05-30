@@ -183,5 +183,33 @@ TEST_CASE("args", "")
         parser.add_option("required", "-r,--required", "required", true);
         REQUIRE(!parser.parse());
     }
+    SECTION("get")
+    {
+        int argc = 9;
+        char* argv[] = {
+            "test.exe",
+
+            "-n", "321",
+            "-n2", "1.5",
+            "-n3", "value0",
+
+            "cmd1",
+            "cmd2"
+        };
+
+        ArgParser parser(argc, argv);
+        init_parser(parser);
+        parser.parse();
+
+        REQUIRE(parser.get<int>("named_option", 0) == 321);
+        REQUIRE(parser.get<float>("named_option2", 0) == Approx(1.5f));
+        REQUIRE(parser.get<double>("named_option2", 0) == Approx(1.5));
+        REQUIRE(parser.get<std::string>("named_option3", "") == "value0");
+
+        REQUIRE(parser.get<int>("array0", 999) == 999);
+        REQUIRE(parser.get<float>("array1", 0.5f) == Approx(0.5f));
+        REQUIRE(parser.get<double>("array2", 0.5) == Approx(0.5));
+        REQUIRE(parser.get<std::string>("array3", "tmp") == "tmp");
+    }
 
 }
