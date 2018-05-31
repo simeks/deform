@@ -140,6 +140,9 @@ stk::Volume RegistrationEngine::execute()
             }
 
             for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+                if (!fixed_volumes[i].valid() || !moving_volumes[i].valid())
+                    continue; // Skip empty slots
+                
                 auto& slot = _settings.image_slots[i];
                 if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
                     if (fixed_volumes[i].voxel_type() == stk::Type_Float) {

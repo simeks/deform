@@ -101,6 +101,18 @@ namespace
         }
         return true;
     }
+    // Creates some default settings settings SSD as metric for all image pairs
+    void init_default_settings(Settings& settings)
+    {
+        // Assume that Settings-constructor has initialized some decent defaults,
+        //  we only need to define the matching metrics
+        
+        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+            settings.image_slots[i].cost_function = Settings::ImageSlot::CostFunction_SSD;
+            settings.image_slots[i].resample_method = Settings::ImageSlot::Resample_Gaussian;
+            settings.image_slots[i].normalize = true;
+        }
+    }
 }
 
 int run_registration(int argc, char* argv[])
@@ -120,6 +132,7 @@ int run_registration(int argc, char* argv[])
     args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
     args.add_group();
     args.add_flag("do_jacobian", "-j, --jacobian",  "Enable output of the resulting jacobian");
+    args.add_flag("do_transform", "-t, --transform",  "Will output the transformed version of the first moving volume");
     args.add_group();
     args.add_option("num_threads", "--num-threads", "Maximum number of threads");
 
@@ -139,6 +152,10 @@ int run_registration(int argc, char* argv[])
     if (!param_file.empty()) {
         if (!parse_registration_settings(param_file, settings))
             return 1;
+    } 
+    else {
+        init_default_settings(settings);
+        print_registration_settings(settings);
     }
 
     RegistrationEngine engine(settings);
@@ -165,6 +182,9 @@ int run_registration(int argc, char* argv[])
 
         std::string fixed_file = args.get<std::string>(fixed_id, "");
         std::string moving_file = args.get<std::string>(moving_id, "");
+
+        if (fixed_file == "" || moving_file == "")
+            continue;
 
         stk::Volume fixed = stk::read_volume(fixed_file);
         if (!fixed.valid()) return 1;
@@ -265,6 +285,11 @@ int run_registration(int argc, char* argv[])
     if (args.is_set("do_jacobian")) {
         stk::Volume jac = calculate_jacobian(moving_ref, def);
         stk::write_volume("result_jac.vtk", jac);
+    }
+
+    if (args.is_set("do_transform")) {
+        stk::Volume t = transform_volume(moving_ref, def);
+        stk::write_volume("result.vtk", t);
     }
 
     return 0;
