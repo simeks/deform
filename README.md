@@ -2,13 +2,13 @@
 
 ## Prerequisites
 * CMake : https://cmake.org/
-* Ninja : https://ninja-build.org/ (OPTIONAL)
 
 ## Build
-
+Use CMake (>=3.8) to generate build options of your own choosing.
 
 ## Run
-`deform -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
+To perform a registration
+`deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
 
 | Argument                    |                                             |
 | --------------------------- | ------------------------------------------- |
@@ -17,7 +17,8 @@
 | `-d0 <file>`                | Filename for initial deformation field.     |
 | `-constraint_mask <file>`   | Filename for constraint mask.               |
 | `-constraint_values <file>` | Filename for constraint values.             |
-| `-p <file>`                 | Filename of the parameter file (required).  |
+| `-p <file>`                 | Filename of the parameter file.             |
+| `-o <file>`                 | Filename of the resulting deformation field |
 
 * Requires a matching number of fixed and moving images.
 
@@ -41,13 +42,13 @@
             "name": "water",
             "resampler": "gaussian",
             "normalize": true,
-            "cost_function": "squared_distance"
+            "cost_function": "ssd"
         },
         "1": {
             "name": "sfcm",
             "resampler": "gaussian",
             "normalize": true,
-            "cost_function": "squared_distance"
+            "cost_function": "ssd"
         }
     }
 }
@@ -65,7 +66,4 @@ First two parameters, `pyramid_levels` and `pyramid_stop_level`, defines the siz
 
 `regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
 
-`image_slots`, specifies how to use the input images. `name` is simply for cosmetic purposes, `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` specifies which cost function to use.
-
-### Misc
-https://trello.com/b/pUNDcQ4n/project
+`image_slots`, specifies how to use the input images. `name` is simply for cosmetic purposes, `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` specifies which cost function to use ('ssd' for squared distance and 'ncc' for normalized cross correlation).
