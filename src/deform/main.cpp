@@ -122,8 +122,8 @@ int run_registration(int argc, char* argv[])
     
     args.add_group();
     args.add_option("param_file",   "-p",           "Path to the parameter file");
-    args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image");
-    args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image");
+    args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image", true);
+    args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image", true);
     args.add_option("output",       "-o, --output", "Path to the initial deformation field");
     args.add_group("Optional");
     args.add_option("init_deform",  "-d0", "Path to the initial deformation field");
@@ -150,14 +150,16 @@ int run_registration(int argc, char* argv[])
 
     Settings settings; // Default settings
     if (!param_file.empty()) {
+        LOG(Info) << "Running with parameter file: '" << param_file << "'";
         if (!parse_registration_settings(param_file, settings))
             return 1;
     } 
     else {
+        LOG(Info) << "Running with default settings.";
         init_default_settings(settings);
-        print_registration_settings(settings);
     }
 
+    print_registration_settings(settings);
     RegistrationEngine engine(settings);
 
     // Data is validated as it is read, includes fixed- and moving volumes, and
@@ -233,6 +235,9 @@ int run_registration(int argc, char* argv[])
         auto downsample_fn = filters::downsample_volume_gaussian;
 
         engine.set_image_pair(i, fixed, moving, downsample_fn);
+
+        LOG(Info) << "Fixed image [" << i << "]: '" << fixed_file << "'";
+        LOG(Info) << "Moving image [" << i << "]: '" << moving_file << "'";
     }
 
     std::string init_deform_file = args.get<std::string>("init_deform", "");
@@ -245,6 +250,8 @@ int run_registration(int argc, char* argv[])
             return 1;
 
         engine.set_initial_deformation(initial_deformation);
+
+        LOG(Info) << "Initial deformation '" << init_deform_file << "'";
     }
 
     std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
@@ -266,6 +273,10 @@ int run_registration(int argc, char* argv[])
             return 1;
 
         engine.set_voxel_constraints(constraint_mask, constraint_values);
+
+        LOG(Info) << "Constraint mask: '" << constraint_mask_file << "'";
+        LOG(Info) << "Constraint values: '" << constraint_values_file << "'";
+        
     }
     else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
         // Just a check to make sure the user didn't forget something
@@ -280,14 +291,17 @@ int run_registration(int argc, char* argv[])
     LOG(Info) << "Registration completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
 
     std::string out_file = args.get<std::string>("output", "result_def.vtk");
+    LOG(Info) << "Writing deformation field to '" << out_file << "'";
     stk::write_volume(out_file.c_str(), def);
 
     if (args.is_set("do_jacobian")) {
+        LOG(Info) << "Writing jacobian to 'result_jac.vtk'";
         stk::Volume jac = calculate_jacobian(moving_ref, def);
         stk::write_volume("result_jac.vtk", jac);
     }
 
     if (args.is_set("do_transform")) {
+        LOG(Info) << "Writing transformed image to 'result.vtk'";
         stk::Volume t = transform_volume(moving_ref, def);
         stk::write_volume("result.vtk", t);
     }

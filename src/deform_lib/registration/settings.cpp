@@ -104,7 +104,7 @@ bool read_value<Settings::ImageSlot::CostFunction>(const json& obj,
     if (fn == "none") {
         out = Settings::ImageSlot::CostFunction_None;
     }
-    else if (fn == "squared_distance") {
+    else if (fn == "squared_distance" || fn == "ssd") {
         out = Settings::ImageSlot::CostFunction_SSD;
     }
     else if (fn == "ncc") {
@@ -142,7 +142,7 @@ const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
 {
     switch (fn) {
     case Settings::ImageSlot::CostFunction_SSD:
-        return "squared_distance";
+        return "ssd";
     case Settings::ImageSlot::CostFunction_NCC:
         return "ncc";
     default:
@@ -270,8 +270,6 @@ bool parse_registration_settings(const std::string& parameter_file, Settings& se
             }
         }
     }
-
-    print_registration_settings(settings);
 
     return true;
 }
