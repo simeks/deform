@@ -7,7 +7,9 @@
 #include <stk/math/float3.h>
 #include <stk/math/int3.h>
 
+#include <memory>
 #include <tuple>
+#include <vector>
 
 struct Regularizer
 {
@@ -24,7 +26,7 @@ struct Regularizer
     /// def0 : Deformation in active voxel [voxels] (in fixed image space)
     /// def1 : Deformation in neighbor [voxels] (in fixed image space)
     /// step : Direction to neighbor [voxels]
-    inline float operator()(const int3& , const float3& def0, 
+    inline double operator()(const int3& , const float3& def0, 
                             const float3& def1, const int3& step)
     {
         float3 step_in_mm {
@@ -242,9 +244,6 @@ struct UnaryFunction
     UnaryFunction(float regularization_weight) : 
         _regularization_weight(regularization_weight)
     {
-        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT+1; ++i)
-            functions[i] = NULL;
-        num_functions = 0;
     }
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_regularization_weight_map(stk::VolumeFloat& map) 
@@ -253,19 +252,16 @@ struct UnaryFunction
     }
 #endif
 
-    void add_function(SubFunction* fn)
+    void add_function(std::unique_ptr<SubFunction> fn)
     {
-        ASSERT(num_functions < DF_MAX_IMAGE_PAIR_COUNT);
-        functions[num_functions++] = fn;
+        functions.push_back(std::move(fn));
     }
 
-    inline float operator()(const int3& p, const float3& def)
+    inline double operator()(const int3& p, const float3& def)
     {
-        float sum = 0.0f;
-        for (int i = 0; i < num_functions; ++i) {
-            if (functions[i] == NULL) continue;
-
-            sum += functions[i]->cost(p, def);
+        double sum = 0.0f;
+        for (auto& fn : functions) {
+            sum += fn->cost(p, def);
         }
 
         float w = _regularization_weight;
@@ -282,8 +278,7 @@ struct UnaryFunction
     stk::VolumeFloat _regularization_weight_map;
 #endif
 
-    SubFunction* functions[DF_MAX_IMAGE_PAIR_COUNT+1]; // +1 for constraints function
-    int num_functions;
+    std::vector<std::unique_ptr<SubFunction>> functions;
 };
 
 

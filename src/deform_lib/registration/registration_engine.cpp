@@ -131,7 +131,7 @@ stk::Volume RegistrationEngine::execute()
             UnaryFunction unary_fn(_settings.regularization_weight);
             if (_constraints_mask_pyramid.volume(l).valid()) {
                 unary_fn.add_function(
-                    new SoftConstraintsFunction(
+                    std::make_unique<SoftConstraintsFunction>(
                         _constraints_mask_pyramid.volume(l),
                         _constraints_pyramid.volume(l),
                         _settings.constraints_weight
@@ -147,7 +147,7 @@ stk::Volume RegistrationEngine::execute()
                 if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
                     if (fixed_volumes[i].voxel_type() == stk::Type_Float) {
                         unary_fn.add_function(
-                            new SquaredDistanceFunction<float>(
+                            std::make_unique<SquaredDistanceFunction<float>>(
                                 fixed_volumes[i],
                                 moving_volumes[i]
                             )
@@ -155,7 +155,7 @@ stk::Volume RegistrationEngine::execute()
                     }
                     else if (fixed_volumes[i].voxel_type() == stk::Type_Double) {
                         unary_fn.add_function(
-                            new SquaredDistanceFunction<double>(
+                            std::make_unique<SquaredDistanceFunction<double>>(
                                 fixed_volumes[i],
                                 moving_volumes[i]
                             )
@@ -171,7 +171,7 @@ stk::Volume RegistrationEngine::execute()
                     if (fixed_volumes[i].voxel_type() == stk::Type_Float)
                     {
                         unary_fn.add_function(
-                            new NCCFunction<float>(
+                            std::make_unique<NCCFunction<float>>(
                                 fixed_volumes[i],
                                 moving_volumes[i]
                             )
@@ -180,7 +180,7 @@ stk::Volume RegistrationEngine::execute()
                     else if (fixed_volumes[i].voxel_type() == stk::Type_Double)
                     {
                         unary_fn.add_function(
-                            new NCCFunction<double>(
+                            std::make_unique<NCCFunction<double>>(
                                 fixed_volumes[i],
                                 moving_volumes[i]
                             )
@@ -230,10 +230,6 @@ stk::Volume RegistrationEngine::execute()
                            << step_size_voxels << " [voxels]";
 
                 optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
-            }
-
-            for (int i = 0; i < unary_fn.num_functions; ++i) {
-                delete unary_fn.functions[i];
             }
         }
         else {
