@@ -89,6 +89,12 @@ bool ArgParser::parse()
         ++i;
     }
 
+    if (error() != "") {
+        std::cout << error() << std::endl << std::endl;
+        print_help();
+        return false;
+    }
+
     // Allow --help to print help section before any input validation
     if (is_set("help")) {
         print_help();
