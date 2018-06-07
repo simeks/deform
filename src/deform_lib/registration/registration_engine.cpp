@@ -35,6 +35,156 @@ namespace
             }
         }
     }
+
+    template<typename T>
+    std::unique_ptr<SubFunction> ssd_function_factory(
+        const stk::Volume& fixed, 
+        const stk::Volume& moving
+    )
+    {
+        return std::make_unique<SquaredDistanceFunction<T>>(
+            fixed, moving
+        );
+    }
+
+    template<typename T>
+    std::unique_ptr<SubFunction> ncc_function_factory(
+        const stk::Volume& fixed, 
+        const stk::Volume& moving
+    )
+    {
+        return std::make_unique<NCCFunction<T>>(
+            fixed, moving
+        );
+    }
+    void initialize_unary_function(
+        UnaryFunction& unary_fn,
+        const Settings& settings,
+        stk::Volume* fixed_volumes, stk::Volume* moving_volumes)
+    { 
+        typedef std::unique_ptr<SubFunction> (*FactoryFn)(
+            const stk::Volume&, const stk::Volume&
+        );
+
+        // nullptr => not supported
+        FactoryFn ssd_factory[] = {
+            nullptr, // Type_Unknown
+
+            ssd_function_factory<char>, // Type_Char
+            nullptr, // Type_Char2
+            nullptr, // Type_Char3
+            nullptr, // Type_Char4
+
+            ssd_function_factory<uint8_t>, // Type_UChar
+            nullptr, // Type_UChar2
+            nullptr, // Type_UChar3
+            nullptr, // Type_UChar4
+
+            ssd_function_factory<short>, // Type_Short
+            nullptr, // Type_Short2
+            nullptr, // Type_Short3
+            nullptr, // Type_Short4
+
+            ssd_function_factory<uint16_t>, // Type_UShort
+            nullptr, // Type_UShort2
+            nullptr, // Type_UShort3
+            nullptr, // Type_UShort4
+
+            ssd_function_factory<int>, // Type_Int
+            nullptr, // Type_Int2
+            nullptr, // Type_Int3
+            nullptr, // Type_Int4
+
+            ssd_function_factory<uint32_t>, // Type_UInt
+            nullptr, // Type_UInt2
+            nullptr, // Type_UInt3
+            nullptr, // Type_UInt4
+
+            ssd_function_factory<float>, // Type_Float
+            nullptr, // Type_Float2
+            nullptr, // Type_Float3
+            nullptr, // Type_Float4
+
+            ssd_function_factory<double>, // Type_Double
+            nullptr, // Type_Double2
+            nullptr, // Type_Double3
+            nullptr // Type_Double4
+        };
+        FactoryFn ncc_factory[] = {
+            nullptr, // Type_Unknown
+
+            ncc_function_factory<char>, // Type_Char
+            nullptr, // Type_Char2
+            nullptr, // Type_Char3
+            nullptr, // Type_Char4
+
+            ncc_function_factory<uint8_t>, // Type_UChar
+            nullptr, // Type_UChar2
+            nullptr, // Type_UChar3
+            nullptr, // Type_UChar4
+
+            ncc_function_factory<short>, // Type_Short
+            nullptr, // Type_Short2
+            nullptr, // Type_Short3
+            nullptr, // Type_Short4
+
+            ncc_function_factory<uint16_t>, // Type_UShort
+            nullptr, // Type_UShort2
+            nullptr, // Type_UShort3
+            nullptr, // Type_UShort4
+
+            ncc_function_factory<int>, // Type_Int
+            nullptr, // Type_Int2
+            nullptr, // Type_Int3
+            nullptr, // Type_Int4
+
+            ncc_function_factory<uint32_t>, // Type_UInt
+            nullptr, // Type_UInt2
+            nullptr, // Type_UInt3
+            nullptr, // Type_UInt4
+
+            ncc_function_factory<float>, // Type_Float
+            nullptr, // Type_Float2
+            nullptr, // Type_Float3
+            nullptr, // Type_Float4
+
+            ncc_function_factory<double>, // Type_Double
+            nullptr, // Type_Double2
+            nullptr, // Type_Double3
+            nullptr // Type_Double4
+        };
+
+        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+            if (!fixed_volumes[i].valid() || !moving_volumes[i].valid())
+                continue; // Skip empty slots
+
+            ASSERT(fixed_volumes[i].voxel_type() == moving_volumes[i].voxel_type());
+            auto& slot = settings.image_slots[i];
+            if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
+                FactoryFn factory = ssd_factory[fixed_volumes[i].voxel_type()];
+                if (factory) {
+                    unary_fn.add_function(factory(fixed_volumes[i], moving_volumes[i]));
+                }
+                else {
+                    FATAL() << "Unsupported voxel type (" << fixed_volumes[i].voxel_type() << ") "
+                            << "for metric 'ssd' "
+                            << "(slot: " << i << ")";
+                }
+            }
+            else if (slot.cost_function == Settings::ImageSlot::CostFunction_NCC)
+            {
+                FactoryFn factory = ncc_factory[fixed_volumes[i].voxel_type()];
+                if (factory) {
+                    unary_fn.add_function(factory(fixed_volumes[i], moving_volumes[i]));
+                }
+                else {
+                    FATAL() << "Unsupported voxel type (" << fixed_volumes[i].voxel_type() << ") "
+                            << "for metric 'ncc' "
+                            << "(slot: " << i << ")";
+                }
+            }            
+        }
+    }
 }
 
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
@@ -129,6 +279,7 @@ stk::Volume RegistrationEngine::execute()
             }
 
             UnaryFunction unary_fn(_settings.regularization_weight);
+            
             if (_constraints_mask_pyramid.volume(l).valid()) {
                 unary_fn.add_function(
                     std::make_unique<SoftConstraintsFunction>(
@@ -139,61 +290,12 @@ stk::Volume RegistrationEngine::execute()
                 );
             }
 
-            for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-                if (!fixed_volumes[i].valid() || !moving_volumes[i].valid())
-                    continue; // Skip empty slots
-                
-                auto& slot = _settings.image_slots[i];
-                if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
-                    if (fixed_volumes[i].voxel_type() == stk::Type_Float) {
-                        unary_fn.add_function(
-                            std::make_unique<SquaredDistanceFunction<float>>(
-                                fixed_volumes[i],
-                                moving_volumes[i]
-                            )
-                        );
-                    }
-                    else if (fixed_volumes[i].voxel_type() == stk::Type_Double) {
-                        unary_fn.add_function(
-                            std::make_unique<SquaredDistanceFunction<double>>(
-                                fixed_volumes[i],
-                                moving_volumes[i]
-                            )
-                        );
-                    }
-                    else {
-                        LOG(Error) << "Invalid cost function for volume of type " << fixed_volumes[i].voxel_type();
-                        return stk::Volume();
-                    }
-                }
-                else if (slot.cost_function == Settings::ImageSlot::CostFunction_NCC)
-                {
-                    if (fixed_volumes[i].voxel_type() == stk::Type_Float)
-                    {
-                        unary_fn.add_function(
-                            std::make_unique<NCCFunction<float>>(
-                                fixed_volumes[i],
-                                moving_volumes[i]
-                            )
-                        );
-                    }
-                    else if (fixed_volumes[i].voxel_type() == stk::Type_Double)
-                    {
-                        unary_fn.add_function(
-                            std::make_unique<NCCFunction<double>>(
-                                fixed_volumes[i],
-                                moving_volumes[i]
-                            )
-                        );
-                    }
-                    else
-                    {
-                        LOG(Error) << "Invalid cost function for volume of type " << fixed_volumes[i].voxel_type();
-                        return stk::Volume();
-                    }
-                }
-                
-            }
+            initialize_unary_function(unary_fn, 
+                _settings, 
+                fixed_volumes, 
+                moving_volumes
+            );
+            
             BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
                 _settings.block_size,
                 _settings.block_energy_epsilon
