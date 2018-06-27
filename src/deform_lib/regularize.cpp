@@ -78,7 +78,7 @@ void initialize_regularization(
                     }
                     
                     float3 new_def{0};
-                    float3 old_def = def(p);
+                    //float3 old_def = def(p);
 
                     float weight_sum = 0;
 

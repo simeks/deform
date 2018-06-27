@@ -3,6 +3,7 @@
 #include <stk/common/assert.h>
 
 #include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 
@@ -69,7 +70,7 @@ bool ArgParser::parse()
     ASSERT(_option_values.empty()); // Should only be run once
 
     _positionals[0].read = _argv[0];
-    int positional_idx = 1;
+    size_t positional_idx = 1;
 
     int i = 1; // Skip argv[0]
     while (i < _argc) {
@@ -108,7 +109,7 @@ bool ArgParser::parse()
         _error << "Missing arguments: '" 
                << _positionals[positional_idx].name << "'";
         
-        for (int p = positional_idx+1; p < _positionals.size(); ++p) {
+        for (auto p = positional_idx+1; p < _positionals.size(); ++p) {
             _error << ", '" << _positionals[p].name << "'";
         }
     }
@@ -157,14 +158,14 @@ void ArgParser::print_help()
     }
 
     // Skip argv[0]
-    for (int p = 1; p < _positionals.size(); ++p) {
+    for (size_t p = 1; p < _positionals.size(); ++p) {
         std::cout << " [" << _positionals[p].name << "]";
     }
 
     std::cout << std::endl << std::endl;
 
     std::string indent(4, ' ');
-    for (int p = 1; p < _positionals.size(); ++p) {
+    for (size_t p = 1; p < _positionals.size(); ++p) {
         std::cout << indent << std::setw(40) << std::left << _positionals[p].name 
             << _positionals[p].help << std::endl; 
     }
@@ -172,7 +173,7 @@ void ArgParser::print_help()
     std::cout << std::endl;
     std::cout << "OPTIONS:" << std::endl;
 
-    for (int g = 0; g < _groups.size(); ++g) {
+    for (int g = 0; g < (int) _groups.size(); ++g) {
         if (strcmp(_groups[g].name, "") != 0) {
             std::cout << indent << _groups[g].name << ":" << std::endl;
         }
@@ -250,7 +251,7 @@ double ArgParser::get<double>(const std::string& name, double def)
 
 std::string ArgParser::positional(int i)
 {
-    ASSERT(i < _positionals.size());
+    ASSERT(i < (int) _positionals.size());
     ASSERT(_positionals[i].read);
     return _positionals[i].read;
 }

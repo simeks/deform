@@ -2,6 +2,7 @@
 
 #include <deform_lib/registration/settings.h>
 
+#include <cstring>
 #include <fstream>
 
 namespace {

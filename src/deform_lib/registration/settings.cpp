@@ -202,7 +202,7 @@ bool parse_registration_settings(const std::string& parameter_file, Settings& se
     try {
         f >> root;
     }
-    catch(json::parse_error err) {
+    catch(json::parse_error &err) {
         LOG(Error) << "[Json] " << err.what();
         return false;
     }

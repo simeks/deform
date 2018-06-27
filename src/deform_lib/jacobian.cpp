@@ -16,7 +16,7 @@ stk::Volume calculate_jacobian(const stk::Volume& src, const stk::VolumeFloat3& 
 
     stk::BorderMode border_mode = stk::Border_Replicate;
 
-	float3 source_spacing = src.spacing();
+	//float3 source_spacing = src.spacing();
     float3 spacing = def.spacing();
     float3 spacing_inv{ 1 / spacing.x, 1 / spacing.y, 1 / spacing.z };
 
