@@ -25,7 +25,7 @@ TEST_CASE("args", "")
     SECTION("succeed")
     {
         int argc = 15;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
 
             "-n", "asd",
@@ -75,7 +75,7 @@ TEST_CASE("args", "")
     SECTION("array")
     {
         int argc = 5;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
             
             "-a", "value0",
@@ -92,7 +92,7 @@ TEST_CASE("args", "")
     SECTION("unexpected arg")
     {
         int argc = 17;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
 
             "-n", "asd",
@@ -118,7 +118,7 @@ TEST_CASE("args", "")
     SECTION("missing positional")
     {
         int argc = 14;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
 
             "-n", "asd",
@@ -141,7 +141,7 @@ TEST_CASE("args", "")
     SECTION("missing value")
     {
         int argc = 5;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
 
             "cmd1",
@@ -160,7 +160,7 @@ TEST_CASE("args", "")
     SECTION("missing value 2")
     {
         int argc = 4;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
 
             "cmd1",
@@ -175,7 +175,7 @@ TEST_CASE("args", "")
     SECTION("required")
     {
         int argc = 1;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe"
         };
 
@@ -186,7 +186,7 @@ TEST_CASE("args", "")
     SECTION("get")
     {
         int argc = 9;
-        char* argv[] = {
+        char * argv[] = {
             "test.exe",
 
             "-n", "321",

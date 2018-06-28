@@ -13,7 +13,7 @@ endif()
 
 project(deform)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -43,7 +43,7 @@ if (MSVC)
     if (DF_ENABLE_FAST_MATH)
         set(EXTRA_FLAGS "${extra_flags} /fp:fast")
     endif()
-elseif(CMAKE_CXX_COMPILER_ID matches "GNU")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(EXTRA_FLAGS "-Wall")
 
     if (DF_WARNINGS_ARE_ERRORS)
@@ -57,7 +57,7 @@ elseif(CMAKE_CXX_COMPILER_ID matches "GNU")
     if (DF_ENABLE_FAST_MATH)
         set(EXTRA_FLAGS "${extra_flags} -ffast-math")
     endif()
-elseif(CMAKE_CXX_COMPILER_ID matches "Clang")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(EXTRA_FLAGS "-Wall")
 
     if (DF_WARNINGS_ARE_ERRORS)

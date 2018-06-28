@@ -16,12 +16,13 @@
 #include <stk/io/io.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <omp.h>
 #include <string>
-#include <string.h>
 #include <vector>
 
 int run_jacobian(int argc, char* argv[]);

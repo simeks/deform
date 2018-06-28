@@ -9,7 +9,7 @@
     // Older versions of GCC do not support push/pop
     #if GCC_VERSION > 40604 // 4.6.4
         #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wdeprecated-register"
+        //#pragma GCC diagnostic ignored "-Wdeprecated-register"
     #endif
 
     #pragma GCC diagnostic ignored "-Wparentheses"
