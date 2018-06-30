@@ -117,7 +117,7 @@ stk::Volume filters::downsample_vectorfield(const stk::Volume& vol, float scale,
                     v = v + field.at(px, py+1, pz+1, stk::Border_Replicate);
                     v = v + field.at(px+1, py+1, pz+1, stk::Border_Replicate);
                     
-                    float s = scale / 8.0f;
+                    float s = 1.0f / 8.0f;
                     result(x, y, z) = float3{s*v.x, s*v.y, s*v.z};
                 }
             }
@@ -185,12 +185,11 @@ stk::Volume filters::upsample_vectorfield(
             for (int z = 0; z < int(new_dims.z); ++z) {
                 for (int y = 0; y < int(new_dims.y); ++y) {
                     for (int x = 0; x < int(new_dims.x); ++x) {
-                        float3 d = scale * 
-                            field.linear_at(
-                                inv_scale.x*x, 
-                                inv_scale.y*y, 
-                                inv_scale.z*z, 
-                                stk::Border_Replicate) 
+                        float3 d = field.linear_at(
+                                    inv_scale.x*x, 
+                                    inv_scale.y*y, 
+                                    inv_scale.z*z, 
+                                    stk::Border_Replicate) 
                             + residual_float3(x, y, z);
                         out(x, y, z) = d; 
                     }

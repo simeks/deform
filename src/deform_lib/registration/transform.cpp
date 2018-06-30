@@ -39,13 +39,17 @@ namespace
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
                     // [fixed] -> [world] -> [moving]
-                    float3 fixed_p = float3{float(x), float(y), float(z)} + def(x, y, z);
-                    float3 moving_p = (fixed_p * fixed_spacing + fixed_origin - moving_origin) 
+                    float3 world_p = float3{float(x), float(y), float(z)} * fixed_spacing 
+                        + fixed_origin;
+                    float3 moving_p = (world_p + def(x,y,z) - moving_origin) 
                         * inv_moving_spacing;
 
                     out(x, y, z) = src.at(
-                        int(round(moving_p.x)), int(round(moving_p.y)), int(round(moving_p.z)), 
-                        stk::Border_Constant);
+                        int(round(moving_p.x)), 
+                        int(round(moving_p.y)), 
+                        int(round(moving_p.z)), 
+                        stk::Border_Constant
+                    );
                 }
             }
         }
@@ -86,11 +90,13 @@ namespace
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
                     // [fixed] -> [world] -> [moving]
-                    float3 fixed_p = float3{float(x), float(y), float(z)} + def(x, y, z);
-                    float3 moving_p = (fixed_p * fixed_spacing + fixed_origin - moving_origin) 
+                    float3 world_p = float3{float(x), float(y), float(z)} * fixed_spacing 
+                        + fixed_origin;
+                    float3 moving_p = (world_p + def(x,y,z) - moving_origin) 
                         * inv_moving_spacing;
 
-                    out(x, y, z) = src.linear_at(moving_p.x, moving_p.y, moving_p.z, stk::Border_Constant);
+                    out(x, y, z) = src.linear_at(moving_p.x, moving_p.y, moving_p.z, 
+                                                 stk::Border_Constant);
                 }
             }
         }

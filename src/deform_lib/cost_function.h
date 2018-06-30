@@ -23,11 +23,11 @@ struct Regularizer
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
     /// p   : Position in fixed image
-    /// def0 : Deformation in active voxel [voxels] (in fixed image space)
-    /// def1 : Deformation in neighbor [voxels] (in fixed image space)
-    /// step : Direction to neighbor [voxels]
-    inline double operator()(const int3& , const float3& def0, 
-                            const float3& def1, const int3& step)
+    /// def0 : Deformation in active voxel [mm]
+    /// def1 : Deformation in neighbor [mm]
+    /// step : Direction to neighbor
+    inline double operator()(const int3& , const float3& def0,
+                             const float3& def1, const int3& step)
     {
         float3 step_in_mm {
             step.x*_spacing.x, 
@@ -36,13 +36,8 @@ struct Regularizer
         };
         
         float3 diff = def0 - def1;
-        float3 diff_in_mm {
-            diff.x*_spacing.x, 
-            diff.y*_spacing.y, 
-            diff.z*_spacing.z
-        };
         
-        float dist_squared = stk::norm2(diff_in_mm);
+        float dist_squared = stk::norm2(diff);
         float step_squared = stk::norm2(step_in_mm);
         
         float w = _weight;
@@ -91,16 +86,10 @@ struct SoftConstraintsFunction : public SubFunction
         if (_constraints_mask(p) != 0)
         {
             float3 diff = def - _constraints_values(p);
-            float3 diff_in_mm {
-                diff.x*_spacing.x, 
-                diff.y*_spacing.y, 
-                diff.z*_spacing.z
-            };
             
             // Distance^2 in [mm]
-            float dist_squared = stk::norm2(diff_in_mm);
+            float dist_squared = stk::norm2(diff);
             
-            // y=0.05x^2
             return std::min(_constraints_weight*dist_squared, 1000.0f); // Clamp to avoid explosion
         }
         return 0.0f;
@@ -124,14 +113,14 @@ struct SquaredDistanceFunction : public SubFunction
     float cost(const int3& p, const float3& def)
     {
         float3 fixed_p{
-            float(p.x) + def.x,
-            float(p.y) + def.y,
-            float(p.z) + def.z
-        }; 
+            float(p.x),
+            float(p.y),
+            float(p.z)
+        };
         
         // [fixed] -> [world] -> [moving]
         float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
+        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
 
         T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
@@ -165,14 +154,14 @@ struct NCCFunction : public SubFunction
     float cost(const int3& p, const float3& def)
     {
         float3 fixed_p{
-            float(p.x) + def.x,
-            float(p.y) + def.y,
-            float(p.z) + def.z
+            float(p.x),
+            float(p.y),
+            float(p.z)
         }; 
         
         // [fixed] -> [world] -> [moving]
         float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p - _moving.origin()) / _moving.spacing();
+        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
 
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x<0 || moving_p.x>_moving.size().x || 

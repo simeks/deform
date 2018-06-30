@@ -319,20 +319,7 @@ stk::Volume RegistrationEngine::execute()
                     binary_fn.set_weight_map(_regularization_weight_map.volume(l));
             #endif
     
-            float3 fixed_spacing = fixed_volumes[0].spacing();
-            for (int sm = 1; sm > 0; --sm) {
-                // Calculate step size in voxels
-                float3 step_size_voxels {
-                    sm*_settings.step_size / fixed_spacing.x,
-                    sm*_settings.step_size / fixed_spacing.y,
-                    sm*_settings.step_size / fixed_spacing.z
-                };
-
-                DLOG(Info) << "step_size: " << sm*_settings.step_size << " [mm] => "
-                           << step_size_voxels << " [voxels]";
-
-                optimizer.execute(unary_fn, binary_fn, step_size_voxels, def);
-            }
+            optimizer.execute(unary_fn, binary_fn, _settings.step_size, def);
         }
         else {
             LOG(Info) << "Skipping level " << l;

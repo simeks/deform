@@ -35,7 +35,7 @@ template<
 void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
     TUnaryTerm& unary_fn, 
     TBinaryTerm& binary_fn, 
-    float3 step_size, 
+    float step_size, 
     stk::VolumeFloat3& def)
 {
     dim3 dims = def.size();
@@ -137,11 +137,11 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
                     bool block_changed = false;
                     for (int n = 0; n < n_count; ++n) {
-                        // delta in [voxels]
+                        // delta in [mm]
                         float3 delta {
-                            step_size.x * _neighbors[n].x,
-                            step_size.y * _neighbors[n].y,
-                            step_size.z * _neighbors[n].z
+                            step_size * _neighbors[n].x,
+                            step_size * _neighbors[n].y,
+                            step_size * _neighbors[n].z
                         };
 
                         block_changed |= do_block(
@@ -186,7 +186,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     const int3& block_p,
     const int3& block_dims,
     const int3& block_offset,
-    const float3& delta, // delta in voxels
+    const float3& delta, // delta in mm
     stk::VolumeFloat3& def
 )
 {

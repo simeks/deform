@@ -105,6 +105,7 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
                         val = val + values(p);
                     }
                 }
+                // TODO: Div by zero?
                 result(x, y, z) = 0.5f * val / float(nmask);
             }
         }
