@@ -130,7 +130,7 @@ stk::Volume filters::downsample_vectorfield(const stk::Volume& vol, float scale,
             for (int y = 0; y < int(old_dims.y); ++y) {
                 for (int x = 0; x < int(old_dims.x); ++x) {
                     tmp(x, y, z) = field(x, y, z) - 
-                        inv_scale * result.linear_at(scale*x, scale*y, scale*z, stk::Border_Replicate);
+                        result.linear_at(scale*x, scale*y, scale*z, stk::Border_Replicate);
                 }
             }
         }
