@@ -18,8 +18,6 @@
 
 namespace
 {
-    float origin_epsilon = 0.1f; // .1 mm
-
     void constrain_deformation_field(stk::VolumeFloat3& def, 
         const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
     {

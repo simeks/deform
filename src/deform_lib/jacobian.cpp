@@ -23,7 +23,6 @@ stk::Volume calculate_jacobian(const stk::VolumeFloat3& def)
     for (int x = 0; x < W; x++) {
         for (int y = 0; y < H; y++) {
             for (int z = 0; z < D; z++) {
-                float3 deformation = def(x,y,z);
                 float3 def_dx = 0.5f * spacing_inv.x * (def.at(x+1,y,z, border_mode) - def.at(x-1,y,z, border_mode));
                 float3 def_dy = 0.5f * spacing_inv.y * (def.at(x,y+1,z, border_mode) - def.at(x,y-1,z, border_mode));
                 float3 def_dz = 0.5f * spacing_inv.z * (def.at(x,y,z+1, border_mode) - def.at(x,y,z-1, border_mode));
