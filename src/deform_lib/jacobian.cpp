@@ -2,7 +2,7 @@
 
 #include <stk/math/float3.h>
 
-stk::Volume calculate_jacobian(const stk::Volume& src, const stk::VolumeFloat3& def)
+stk::Volume calculate_jacobian(const stk::VolumeFloat3& def)
 {
     dim3 dims = def.size();
 

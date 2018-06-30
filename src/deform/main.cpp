@@ -297,7 +297,7 @@ int run_registration(int argc, char* argv[])
 
     if (args.is_set("do_jacobian")) {
         LOG(Info) << "Writing jacobian to 'result_jac.vtk'";
-        stk::Volume jac = calculate_jacobian(moving_ref, def);
+        stk::Volume jac = calculate_jacobian(def);
         stk::write_volume("result_jac.vtk", jac);
     }
 
