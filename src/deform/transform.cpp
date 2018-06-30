@@ -1,3 +1,4 @@
+#include <stk/common/log.h>
 #include <stk/image/volume.h>
 #include <stk/io/io.h>
 
@@ -23,6 +24,8 @@ int run_transform(int argc, char* argv[])
         return 1;
     }
 
+    LOG(Info) << "Transforming volume";
+
     transform::Interp interp = transform::Interp_Linear;
     if (args.is_set("interp")) {
         if (args.option("interp") == "nn") {
@@ -39,6 +42,10 @@ int run_transform(int argc, char* argv[])
         }
     }
 
+    LOG(Info) << "Interpolation method: " << ((interp == transform::Interp_Linear) ? "linear" : "nn");
+    LOG(Info) << "Input: '" << args.positional("source") << "'";
+    LOG(Info) << "Deformation: '" << args.positional("deformation") << "'";
+
     stk::Volume src = stk::read_volume(args.positional("source").c_str());
     if (!src.valid())
         return 1;
@@ -49,6 +56,7 @@ int run_transform(int argc, char* argv[])
     ASSERT(def.voxel_type() == stk::Type_Float3);
 
     stk::Volume result = transform_volume(src, def, interp);
+    LOG(Info) << "Writing to '" << args.positional("output") << "'";
     stk::write_volume(args.positional("output").c_str(), result);
     
     return 0;

@@ -1,3 +1,4 @@
+#include <stk/common/log.h>
 #include <stk/image/volume.h>
 #include <stk/io/io.h>
 
@@ -20,11 +21,16 @@ int run_jacobian(int argc, char* argv[])
         return 1;
     }
 
+    LOG(Info) << "Computing jacobian.";
+    LOG(Info) << "Input: '" << args.positional("deformation") << "'";
+
     stk::Volume def = stk::read_volume(args.positional("deformation").c_str());
     if (!def.valid())
         return 1;
 
     stk::Volume jac = calculate_jacobian(def);
+    
+    LOG(Info) << "Writing to '" << args.positional("output") << "'";
     stk::write_volume(args.positional("output").c_str(), jac);
     
     return 0;

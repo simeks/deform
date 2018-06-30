@@ -1,5 +1,6 @@
 #include <deform_lib/arg_parser.h>
 #include <deform_lib/config.h>
+#include <deform_lib/defer.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/jacobian.h>
 #include <deform_lib/platform/file_path.h>
@@ -140,10 +141,12 @@ int run_registration(int argc, char* argv[])
     if (!args.parse()) {
         return 1;
     }
+    
+    LOG(Info) << "Running registration";
 
     int num_threads = args.get<int>("num_threads", 0);
     if (num_threads > 0) {
-        DLOG(Info) << "Number of threads: " << num_threads;
+        LOG(Info) << "Number of threads: " << num_threads;
         omp_set_num_threads(num_threads);
     }
 
@@ -318,6 +321,11 @@ void print_version()
 int main(int argc, char* argv[])
 {
     timer::initialize();
+
+    stk::log_init();
+    defer{stk::log_shutdown();};
+    
+    stk::log_add_file("deform_log.txt", stk::Info);
 
     #ifdef _DEBUG
         LOG(Warning) << "Running debug build!";

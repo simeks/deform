@@ -193,8 +193,13 @@ int run_regularize(int argc, char* argv[])
         return 1;
     }
 
+    LOG(Info) << "Running regularization";
+
     float precision = args.get<float>("precision", 0.5);
     int pyramid_levels = args.get<int>("pyramid_levels", 6);
+
+    LOG(Info) << "Precision: " << precision;
+    LOG(Info) << "Pyramid levels: " << pyramid_levels;
 
     std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
     std::string constraint_values_file = args.get<std::string>("constraint_values", "");
@@ -206,6 +211,8 @@ int run_regularize(int argc, char* argv[])
     deformation_pyramid.set_level_count(pyramid_levels);
     
     {
+        LOG(Info) << "Input: '" << args.positional("deformation") << "'";
+        
         stk::Volume src = stk::read_volume(args.positional("deformation").c_str());
         if (!src.valid()) return 1;
             
@@ -220,6 +227,9 @@ int run_regularize(int argc, char* argv[])
     bool use_constraints = false;
     stk::Volume constraints_mask, constraints_values;
     if (!constraint_mask_file.empty() && !constraint_values_file.empty()) {
+        LOG(Info) << "Constraint mask: '" << constraint_mask_file << "'";
+        LOG(Info) << "Constraint values: '" << constraint_values_file << "'";
+
         constraints_mask = stk::read_volume(constraint_mask_file.c_str());
         if (!constraints_mask.valid()) return 1;
 
@@ -277,7 +287,7 @@ int run_regularize(int argc, char* argv[])
     double t_end = timer::seconds();
     int elapsed = int(round(t_end - t_start));
     LOG(Info) << "Regularization completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
-
+    LOG(Info) << "Writing to '" << output_file << "'";
     stk::write_volume(output_file.c_str(), deformation_pyramid.volume(0));
 
     return 0;
