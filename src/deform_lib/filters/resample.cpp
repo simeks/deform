@@ -208,7 +208,7 @@ stk::Volume filters::upsample_vectorfield(
                             inv_scale.y*y, 
                             inv_scale.z*z, 
                             stk::Border_Replicate);
-                        out(x, y, z) = scale * d; 
+                        out(x, y, z) = d; 
                     }
                 }
             }
