@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 
 option(DF_BUILD_TESTS "Build unit tests" ON)
+option(DF_BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
 option(DF_USE_CUDA "Enables CUDA support" OFF)
 option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
 option(DF_BUILD_WITH_DEBUG_INFO "Includes debug info in release builds" OFF)
@@ -13,7 +14,7 @@ endif()
 
 project(deform)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -30,7 +31,7 @@ if (MSVC)
 
     string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
     string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    
+
     if (DF_WARNINGS_ARE_ERRORS)
         set(EXTRA_FLAGS "${extra_flags} /WX")
     endif()
@@ -44,7 +45,7 @@ if (MSVC)
         set(EXTRA_FLAGS "${extra_flags} /fp:fast")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(EXTRA_FLAGS "-Wall")
+    set(EXTRA_FLAGS "-Wall -fPIC")
 
     if (DF_WARNINGS_ARE_ERRORS)
         set(EXTRA_FLAGS "${extra_flags} -Werror")
@@ -58,7 +59,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         set(EXTRA_FLAGS "${extra_flags} -ffast-math")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(EXTRA_FLAGS "-Wall")
+    set(EXTRA_FLAGS "-Wall -fPIC")
 
     if (DF_WARNINGS_ARE_ERRORS)
         set(EXTRA_FLAGS "${extra_flags} -Werror")
@@ -93,4 +94,3 @@ add_subdirectory(src)
 if (DF_BUILD_TESTS)
     add_subdirectory(test)
 endif()
-

@@ -11,3 +11,6 @@ set(STK_ENABLE_FAST_MATH ${DF_ENABLE_FAST_MATH})
 
 add_subdirectory(stk)
 
+if(DF_BUILD_PYTHON_WRAPPER)
+    add_subdirectory(pybind11)
+endif()
