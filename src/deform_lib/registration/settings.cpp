@@ -186,21 +186,12 @@ void print_registration_settings(const Settings& settings)
     }
 }
 
-bool parse_registration_settings(const std::string& parameter_file, Settings& settings)
+
+bool parse_registration_settings(const std::string& str, Settings& settings)
 {
-    // Defaults
-    settings = Settings();
-
-    std::ifstream f(parameter_file, std::ifstream::in);
-    if (!f.is_open()) {
-        LOG(Error) << "[Settings] Failed to open file '" << parameter_file << "'";
-        return false;
-    }
-
-
     json root;
     try {
-        f >> root;
+        root = json::parse(str);
     }
     catch(json::parse_error &err) {
         LOG(Error) << "[Json] " << err.what();
@@ -273,3 +264,21 @@ bool parse_registration_settings(const std::string& parameter_file, Settings& se
 
     return true;
 }
+
+bool parse_registration_file(const std::string& parameter_file, Settings& settings)
+{
+    // Defaults
+    settings = Settings();
+
+    std::ifstream f(parameter_file, std::ifstream::in);
+    if (!f.is_open()) {
+        LOG(Error) << "[Settings] Failed to open file '" << parameter_file << "'";
+        return false;
+    }
+
+    std::stringstream ss;
+    ss << f.rdbuf();
+
+    return parse_registration_settings(ss.str(), settings);
+}
+
