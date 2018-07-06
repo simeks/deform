@@ -28,7 +28,7 @@ def register(
         Boolean mask for the constraints on the displacement.
         Requires to provide `constraint_values`.
 
-    constraint_valuew: sitk.Image
+    constraint_values: sitk.Image
         Value for the constraints on the displacement.
         Requires to provide `constraint_mask`.
 

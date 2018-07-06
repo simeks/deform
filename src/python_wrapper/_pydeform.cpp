@@ -78,7 +78,7 @@ stk::Type get_stk_type(py::array& a) {
 }
 
 
-stk::Volume image_to_volume(py::array image, std::vector<double> spacing) {
+stk::Volume image_to_volume(py::array image, std::vector<double>& spacing) {
     float3 spacing_ {
         static_cast<float>(spacing[0]),
         static_cast<float>(spacing[1]),
@@ -98,8 +98,8 @@ stk::Volume image_to_volume(py::array image, std::vector<double> spacing) {
 py::array registration_wrapper(
         std::vector<py::array> fixed_images,
         std::vector<py::array> moving_images,
-        std::vector<double> fixed_spacing,
-        std::vector<double> moving_spacing,
+        std::vector<double>& fixed_spacing,
+        std::vector<double>& moving_spacing,
         py::object initial_displacement = py::none(),
         py::object constraint_mask = py::none(),
         py::object constraint_values = py::none(),
@@ -156,7 +156,6 @@ py::array registration_wrapper(
     shape.push_back(3l);
 
     return py::array_t<float>(shape, reinterpret_cast<const float*>(displacement.ptr()));
-    // return py::array_t<float>(shape, (const float*) fixed_volumes[0].ptr());
 }
 
 
