@@ -150,13 +150,20 @@ int run_registration(int argc, char* argv[])
         return 1;
     }
 
-    stk::Volume def = registration(settings,
-                                   fixed_volumes,
-                                   moving_volumes,
-                                   initial_deformation,
-                                   constraint_mask,
-                                   constraint_values,
-                                   args.get<int>("num_threads", 0));
+    stk::Volume def;
+    try {
+        def = registration(settings,
+                           fixed_volumes,
+                           moving_volumes,
+                           initial_deformation,
+                           constraint_mask,
+                           constraint_values,
+                           args.get<int>("num_threads", 0));
+    }
+    catch (ValidationError& e) {
+        LOG(Error) << e.what();
+        return 1;
+    }
 
     std::string out_file = args.get<std::string>("output", "result_def.vtk");
     LOG(Info) << "Writing deformation field to '" << out_file << "'";

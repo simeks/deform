@@ -30,7 +30,7 @@
 #include "registration.h"
 
 /// name : Name for printout
-bool validate_volume_properties(
+static void validate_volume_properties(
     const stk::Volume& vol,
     const dim3& expected_dims,
     const float3& expected_origin,
@@ -40,12 +40,14 @@ bool validate_volume_properties(
     dim3 dims = vol.size();
     float3 origin = vol.origin();
     float3 spacing = vol.spacing();
+    std::ostringstream osstr;
 
     if (dims != expected_dims)
     {
-        LOG(Error) << "Dimension mismatch for " << name << " (size: "
-                   << dims << ", expected: " << expected_dims << ")";
-        return false;
+        osstr << "Dimension mismatch for " << name
+              << " (size: " << dims << ", expected: "
+              << expected_dims << ")";
+        throw ValidationError(osstr.str());
     }
 
     // arbitrary epsilon but should suffice
@@ -53,22 +55,21 @@ bool validate_volume_properties(
         fabs(origin.y - expected_origin.y) > 0.0001f ||
         fabs(origin.z - expected_origin.z) > 0.0001f)
     {
-        LOG(Error) << "Origin mismatch for " << name
-                   << " (origin: " << origin << ", expected: "
-                   << expected_origin << ")";
-        return false;
+        osstr << "Origin mismatch for " << name
+              << " (origin: " << origin << ", expected: "
+              << expected_origin << ")";
+        throw ValidationError(osstr.str());
     }
 
     if (fabs(spacing.x - expected_spacing.x) > 0.0001f ||
         fabs(spacing.y - expected_spacing.y) > 0.0001f ||
         fabs(spacing.z - expected_spacing.z) > 0.0001f)
     {
-        LOG(Error) << "Spacing mismatch for " << name
-                   << " (spacing: " << spacing << ", expected: "
-                   << expected_spacing << ")";
-        return false;
+        osstr << "Spacing mismatch for " << name
+              << " (spacing: " << spacing << ", expected: "
+              << expected_spacing << ")";
+        throw ValidationError(osstr.str());
     }
-    return true;
 }
 
 // Creates some default settings settings SSD as metric for all image pairs
@@ -123,15 +124,19 @@ stk::Volume registration(
         std::string moving_id = "moving" + std::to_string(i);
 
         stk::Volume& fixed = fixed_volumes[i];
-        if (!fixed.valid())
-            throw std::runtime_error("Invalid fixed volume"); // FIXME
+        if (!fixed.valid()) {
+            throw ValidationError("Invalid fixed volume at index " + std::to_string(i));
+        }
         stk::Volume& moving = moving_volumes[i];
-        if (!moving.valid())
-            throw std::runtime_error("Invalid moving volume"); // FIXME
+        if (!moving.valid()) {
+            throw ValidationError("Invalid moving volume at index " + std::to_string(i));
+        }
 
         if (fixed.voxel_type() != moving.voxel_type()) {
-            LOG(Error) << "Mismatch in voxel type between pairs at index " << i;
-            throw std::runtime_error("Mismatching voxel type"); // FIXME
+            throw ValidationError("Mismatch in voxel type between pairs at index "
+                                  + std::to_string(i) + ", "
+                                  + "fixed type '" + stk::as_string(fixed.voxel_type()) + "', "
+                                  + "moving type '" + stk::as_string(moving.voxel_type()) + "'.");
         }
 
         if (!fixed_ref.valid() || !moving_ref.valid()) {
@@ -139,14 +144,10 @@ stk::Volume registration(
             moving_ref = moving;
         }
         else {
-            if (!validate_volume_properties(fixed, fixed_ref.size(),
-                    fixed_ref.origin(), fixed_ref.spacing(), fixed_id)) {
-                throw std::runtime_error("Invalid fixed volume properties"); // FIXME
-            }
-            if (!validate_volume_properties(moving, moving_ref.size(),
-                    moving_ref.origin(), moving_ref.spacing(), moving_id)) {
-                throw std::runtime_error("Invalid moving volume properties"); // FIXME
-            }
+            validate_volume_properties(fixed, fixed_ref.size(),
+                    fixed_ref.origin(), fixed_ref.spacing(), fixed_id);
+            validate_volume_properties(moving, moving_ref.size(),
+                    moving_ref.origin(), moving_ref.spacing(), moving_id);
         }
 
         auto& slot = settings.image_slots[i];
@@ -162,42 +163,41 @@ stk::Volume registration(
                 moving = stk::normalize<double>(moving, 0.0, 1.0);
             }
             else {
-                LOG(Error) << "Normalize only supported on volumes of type float or double";
-                throw std::runtime_error("Normalisation unsupported"); // FIXME
+                throw ValidationError("Normalize only supported on volumes of type float or double");
             }
         }
 
         // It's the only available fn for now
         auto downsample_fn = filters::downsample_volume_gaussian;
 
-        engine.set_image_pair(i, fixed, moving, downsample_fn);
+        engine.set_image_pair(static_cast<int>(i), fixed, moving, downsample_fn);
     }
 
     if (initial_deformation.has_value()) {
-        if (!initial_deformation.value().valid())
-            throw std::runtime_error("Invalid initial deformation volume"); // FIXME
+        if (!initial_deformation.value().valid()) {
+            throw ValidationError("Invalid initial deformation volume");
+        }
 
-        if (!validate_volume_properties(initial_deformation.value(), fixed_ref.size(),
-                fixed_ref.origin(), fixed_ref.spacing(), "initial deformation field"))
-            throw std::runtime_error("Invalid initial deformation properties"); // FIXME
+        validate_volume_properties(initial_deformation.value(), fixed_ref.size(),
+                fixed_ref.origin(), fixed_ref.spacing(), "initial deformation field");
 
         engine.set_initial_deformation(initial_deformation.value());
     }
 
     if (constraint_mask.has_value() && constraint_values.has_value()) {
-        if (!constraint_mask.value().valid())
-            throw std::runtime_error("Invalid constraint mask volume"); // FIXME
+        if (!constraint_mask.value().valid()) {
+            throw ValidationError("Invalid constraint mask volume");
+        }
 
-        if (!constraint_values.value().valid())
-            throw std::runtime_error("Invalid constraint values volume"); // FIXME
+        if (!constraint_values.value().valid()) {
+            throw ValidationError("Invalid constraint values volume");
+        }
 
-        if (!validate_volume_properties(constraint_mask.value(), fixed_ref.size(),
-                fixed_ref.origin(), fixed_ref.spacing(), "constraint mask"))
-            throw std::runtime_error("Invalid constraint mask properties"); // FIXME
+        validate_volume_properties(constraint_mask.value(), fixed_ref.size(),
+                fixed_ref.origin(), fixed_ref.spacing(), "constraint mask");
 
-        if (!validate_volume_properties(constraint_values.value(), fixed_ref.size(),
-                fixed_ref.origin(), fixed_ref.spacing(), "constraint values"))
-            throw std::runtime_error("Invalid constraint values properties"); // FIXME
+        validate_volume_properties(constraint_values.value(), fixed_ref.size(),
+                fixed_ref.origin(), fixed_ref.spacing(), "constraint values");
 
         engine.set_voxel_constraints(constraint_mask.value(), constraint_values.value());
     }

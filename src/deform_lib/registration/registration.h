@@ -1,3 +1,5 @@
+#pragma once
+
 #include <deform_lib/registration/settings.h>
 
 #include <stk/image/volume.h>
@@ -5,15 +7,22 @@
 #include <optional>
 #include <vector>
 
-bool validate_volume_properties(
-        const stk::Volume& vol,
-        const dim3& expected_dims,
-        const float3& expected_origin,
-        const float3& expected_spacing,
-        const std::string& name);
+class ValidationError : public std::invalid_argument
+{
+public:
+    using std::invalid_argument::invalid_argument;
+};
 
 void init_default_settings(Settings& settings);
 
+/*!
+ * \brief Validate input and perform registration.
+ *
+ * This function validates the volumes and handles the registration
+ * logic.
+ *
+ * #throws ValidationError
+ */
 stk::Volume registration(
         Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,

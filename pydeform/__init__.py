@@ -58,6 +58,7 @@ def register(
 
     fixed_origin = fixed_images[0].GetOrigin()
     fixed_spacing = fixed_images[0].GetSpacing()
+    moving_origin = moving_images[0].GetOrigin()
     moving_spacing = moving_images[0].GetSpacing()
 
     fixed_images = [sitk.GetArrayFromImage(img) for img in fixed_images]
@@ -74,6 +75,8 @@ def register(
 
     displacement = _pydeform.register(fixed_images,
                                       moving_images,
+                                      fixed_origin,
+                                      moving_origin,
                                       fixed_spacing,
                                       moving_spacing,
                                       initial_displacement,
