@@ -25,7 +25,7 @@ TEST_CASE("args", "")
     SECTION("succeed")
     {
         int argc = 15;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
 
             "-n", "asd",
@@ -42,7 +42,7 @@ TEST_CASE("args", "")
             "cmd2"
         };
 
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         parser.print_help();
         REQUIRE(parser.parse());
@@ -75,7 +75,7 @@ TEST_CASE("args", "")
     SECTION("array")
     {
         int argc = 5;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
             
             "-a", "value0",
@@ -84,7 +84,7 @@ TEST_CASE("args", "")
             "cmd2"
         };
         
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         REQUIRE(parser.parse());
         REQUIRE(parser.option("array0") == "value0");
@@ -92,7 +92,7 @@ TEST_CASE("args", "")
     SECTION("unexpected arg")
     {
         int argc = 17;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
 
             "-n", "asd",
@@ -111,14 +111,14 @@ TEST_CASE("args", "")
             "cmd2"
         };
 
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         REQUIRE(!parser.parse());
     }
     SECTION("missing positional")
     {
         int argc = 14;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
 
             "-n", "asd",
@@ -134,14 +134,14 @@ TEST_CASE("args", "")
             "cmd1"
         };
 
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         REQUIRE(!parser.parse());
     }
     SECTION("missing value")
     {
         int argc = 5;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
 
             "cmd1",
@@ -150,7 +150,7 @@ TEST_CASE("args", "")
             "--named",
             "--flag",
         };
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         parser.parse();
 
@@ -160,7 +160,7 @@ TEST_CASE("args", "")
     SECTION("missing value 2")
     {
         int argc = 4;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
 
             "cmd1",
@@ -168,25 +168,25 @@ TEST_CASE("args", "")
             
             "--named",
         };
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         REQUIRE(!parser.parse());
     }
     SECTION("required")
     {
         int argc = 1;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe"
         };
 
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         parser.add_option("required", "-r,--required", "required", true);
         REQUIRE(!parser.parse());
     }
     SECTION("get")
     {
         int argc = 9;
-        char * argv[] = {
+        const char * argv[] = {
             "test.exe",
 
             "-n", "321",
@@ -197,7 +197,7 @@ TEST_CASE("args", "")
             "cmd2"
         };
 
-        ArgParser parser(argc, argv);
+        ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         parser.parse();
 
