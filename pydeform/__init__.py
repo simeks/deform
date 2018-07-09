@@ -61,15 +61,15 @@ def register(
     moving_origin = moving_images[0].GetOrigin()
     moving_spacing = moving_images[0].GetSpacing()
 
-    fixed_images = [sitk.GetArrayFromImage(img) for img in fixed_images]
-    moving_images = [sitk.GetArrayFromImage(img) for img in moving_images]
+    fixed_images = [sitk.GetArrayViewFromImage(img) for img in fixed_images]
+    moving_images = [sitk.GetArrayViewFromImage(img) for img in moving_images]
 
     if initial_displacement:
-        initial_displacement = sitk.GetArrayFromImage(initial_displacement)
+        initial_displacement = sitk.GetArrayViewFromImage(initial_displacement)
     if constraint_mask:
-        constraint_mask = sitk.GetArrayFromImage(constraint_mask)
+        constraint_mask = sitk.GetArrayViewFromImage(constraint_mask)
     if constraint_values:
-        constraint_values = sitk.GetArrayFromImage(constraint_values)
+        constraint_values = sitk.GetArrayViewFromImage(constraint_values)
 
     settings_str = json.dumps(settings) if settings else ''
 
