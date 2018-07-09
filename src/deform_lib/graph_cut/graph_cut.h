@@ -2,7 +2,6 @@
 
 /// Interface for using the GCO graph cut solver.
 
-
 #if defined(__GNUC__) || defined(__clang__)
     #include "../platform/gcc.h"
 
@@ -24,6 +23,11 @@
 #endif
 namespace gco
 {
+    // Prevent breaking the build in C++17, where register was removed.
+    // The keyword is used within GCO, no idea why, since it is a few
+    // decades that it is "exactly as meaningful as whitespace" (cit).
+    #define register
+
     #include <gco/energy.h>
     #include <gco/graph.cpp>
     #include <gco/maxflow.cpp>
