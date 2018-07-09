@@ -3,8 +3,6 @@
 #include <deform_lib/defer.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/jacobian.h>
-#include <deform_lib/platform/file_path.h>
-#include <deform_lib/platform/timer.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/settings.h>
 #include <deform_lib/registration/transform.h>
@@ -19,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -189,10 +188,11 @@ stk::Volume registration(
         engine.set_voxel_constraints(constraint_mask.value(), constraint_values.value());
     }
 
-    double t_start = timer::seconds();
+    using namespace std::chrono;
+    auto t_start = high_resolution_clock::now();
     stk::Volume def = engine.execute();
-    double t_end = timer::seconds();
-    int elapsed = int(round(t_end - t_start));
+    auto t_end = high_resolution_clock::now();
+    int elapsed = int(round(duration_cast<duration<double>>(t_end - t_start).count()));
     LOG(Info) << "Registration completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
 
     return def;

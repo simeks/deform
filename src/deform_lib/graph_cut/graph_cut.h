@@ -3,7 +3,9 @@
 /// Interface for using the GCO graph cut solver.
 
 #if defined(__GNUC__) || defined(__clang__)
-    #include "../platform/gcc.h"
+    #define GCC_VERSION (__GNUC__ * 10000 \
+        + __GNUC_MINOR__ * 100 \
+        + __GNUC_PATCHLEVEL__)
 
     // Older versions of GCC do not support push/pop
     #if GCC_VERSION > 40604 // 4.6.4

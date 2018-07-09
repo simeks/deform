@@ -3,8 +3,6 @@
 #include <deform_lib/defer.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/jacobian.h>
-#include <deform_lib/platform/file_path.h>
-#include <deform_lib/platform/timer.h>
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/settings.h>
@@ -190,8 +188,6 @@ void print_version()
 
 int main(int argc, char* argv[])
 {
-    timer::initialize();
-
     stk::log_init();
     defer{stk::log_shutdown();};
 

@@ -10,12 +10,6 @@ set(DEFORM_LIB_SRCS
     "deform_lib/graph_cut/graph_cut.h"
     "deform_lib/graph_cut/graph_cut.inl"
 
-    "deform_lib/platform/file_path.cpp"
-    "deform_lib/platform/file_path.h"
-    "deform_lib/platform/gcc.h"
-    "deform_lib/platform/timer.h"
-    "deform_lib/platform/windows_wrapper.h"
-
     "deform_lib/registration/block_change_flags.cpp"
     "deform_lib/registration/block_change_flags.h"
     "deform_lib/registration/blocked_graph_cut_optimizer.h"
@@ -42,17 +36,6 @@ set(DEFORM_LIB_SRCS
     "deform_lib/jacobian.h"
     "deform_lib/regularize.cpp"
 )
-if(WIN32)
-    set(DEFORM_LIB_SRCS
-        ${DEFORM_LIB_SRCS}
-        "deform_lib/platform/timer_win.cpp"
-        )
-else()
-    set(DEFORM_LIB_SRCS
-        ${DEFORM_LIB_SRCS}
-        "deform_lib/platform/timer_posix.cpp"
-        )
-endif()
 
 set(DEFORM_SRCS 
     "deform/jacobian.cpp"
