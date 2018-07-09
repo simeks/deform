@@ -1,6 +1,17 @@
 import json
+import multiprocessing as mp
 import SimpleITK as sitk
 import _pydeform
+
+
+def _registration_worker(q, kwargs):
+    """ To be ran in a subprocess. """
+    try:
+        result = _pydeform.register(**kwargs)
+    except BaseException as e:
+        result = e
+    q.put(result)
+
 
 def register(
         fixed_images,
@@ -73,19 +84,36 @@ def register(
 
     settings_str = json.dumps(settings) if settings else ''
 
-    displacement = _pydeform.register(fixed_images,
-                                      moving_images,
-                                      fixed_origin,
-                                      moving_origin,
-                                      fixed_spacing,
-                                      moving_spacing,
-                                      initial_displacement,
-                                      constraint_mask,
-                                      constraint_values,
-                                      settings_str,
-                                      num_threads)
+    args = {
+        'fixed_images': fixed_images,
+        'moving_images': moving_images,
+        'fixed_origin': fixed_origin,
+        'moving_origin': moving_origin,
+        'fixed_spacing': fixed_spacing,
+        'moving_spacing': moving_spacing,
+        'initial_displacement': initial_displacement,
+        'constraint_mask': constraint_mask,
+        'constraint_values': constraint_values,
+        'settings_str': settings_str,
+        'num_threads': num_threads,
+    }
 
-    displacement = sitk.GetImageFromArray(displacement)
+    # Run call in a subprocess, to handle keyboard interrupts
+    q = mp.Queue()
+    p = mp.Process(target=_registration_worker, args=[q, args], daemon=True)
+    p.start()
+    try:
+        result = q.get()
+        if isinstance(result, BaseException):
+            raise result
+        p.join()
+    except BaseException as e:
+        p.terminate()
+        p.join()
+        raise e
+
+    # Convert the result to SimpleITK
+    displacement = sitk.GetImageFromArray(result)
     displacement.SetOrigin(fixed_origin)
     displacement.SetSpacing(fixed_spacing)
 
