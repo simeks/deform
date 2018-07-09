@@ -100,7 +100,6 @@ int run_registration(int argc, char* argv[])
     }
     else {
         LOG(Info) << "Running with default settings.";
-        init_default_settings(settings);
     }
 
     std::vector<stk::Volume> fixed_volumes;

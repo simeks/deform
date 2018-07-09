@@ -35,7 +35,7 @@ struct Settings
         bool normalize;
 
         ImageSlot() :
-            cost_function(CostFunction_None),
+            cost_function(CostFunction_SSD),
             resample_method(Resample_Gaussian),
             normalize(true) {}
     };

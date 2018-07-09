@@ -119,9 +119,6 @@ py::array registration_wrapper(
     if ("" != settings_str) {
         parse_registration_settings(settings_str, settings);
     }
-    else {
-        init_default_settings(settings);
-    }
 
     // Perform registration
     stk::Volume displacement = registration(settings,

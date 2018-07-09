@@ -13,8 +13,6 @@ public:
     using std::invalid_argument::invalid_argument;
 };
 
-void init_default_settings(Settings& settings);
-
 /*!
  * \brief Validate input and perform registration.
  *

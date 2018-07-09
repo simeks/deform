@@ -72,19 +72,6 @@ static void validate_volume_properties(
     }
 }
 
-// Creates some default settings settings SSD as metric for all image pairs
-void init_default_settings(Settings& settings)
-{
-    // Assume that Settings-constructor has initialized some decent defaults,
-    //  we only need to define the matching metrics
-
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-        settings.image_slots[i].cost_function = Settings::ImageSlot::CostFunction_SSD;
-        settings.image_slots[i].resample_method = Settings::ImageSlot::Resample_Gaussian;
-        settings.image_slots[i].normalize = true;
-    }
-}
-
 stk::Volume registration(
         Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
