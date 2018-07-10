@@ -6,7 +6,7 @@ stk::Volume calculate_jacobian(const stk::VolumeFloat3& def)
 {
     dim3 dims = def.size();
 
-    stk::VolumeHelper<double> out(dims);
+    stk::VolumeHelper<JAC_TYPE> out(dims);
     out.set_origin(def.origin());
     out.set_spacing(def.spacing());
 
@@ -28,17 +28,17 @@ stk::Volume calculate_jacobian(const stk::VolumeFloat3& def)
                 float3 def_dz = 0.5f * spacing_inv.z * (def.at(x,y,z+1, border_mode) - def.at(x,y,z-1, border_mode));
     
                 //Partial derivatives
-                double a = def_dx.x;
-                double b = def_dy.x;
-                double c = def_dz.x;
+                JAC_TYPE a = def_dx.x;
+                JAC_TYPE b = def_dy.x;
+                JAC_TYPE c = def_dz.x;
 
-                double d = def_dx.y;
-                double e = def_dy.y;
-                double f = def_dz.y;
+                JAC_TYPE d = def_dx.y;
+                JAC_TYPE e = def_dy.y;
+                JAC_TYPE f = def_dz.y;
 
-                double g = def_dx.z;
-                double h = def_dy.z;
-                double i = def_dz.z;
+                JAC_TYPE g = def_dx.z;
+                JAC_TYPE h = def_dy.z;
+                JAC_TYPE i = def_dz.z;
 
                 // Compose with the identity transform
                 a += 1;

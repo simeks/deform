@@ -59,7 +59,7 @@ setup(
     author_email='',
     description='',
     long_description='',
-    install_requires=['numpy', 'SimpleITK'],
+    install_requires=['numpy'],
     packages=['pydeform'],
     ext_modules=[CMakeExtension('.')],
     cmdclass={'build_ext': CMakeBuild},

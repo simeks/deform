@@ -72,12 +72,12 @@ static void validate_volume_properties(
 }
 
 stk::Volume registration(
-        Settings& settings,
+        const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
-        std::optional<stk::Volume> initial_deformation,
-        std::optional<stk::Volume> constraint_mask,
-        std::optional<stk::Volume> constraint_values,
+        const std::optional<stk::Volume> initial_deformation,
+        const std::optional<stk::Volume> constraint_mask,
+        const std::optional<stk::Volume> constraint_values,
         const int num_threads = 0
         )
 {
