@@ -5,7 +5,7 @@ import _pydeform
 
 
 def _registration_worker(q, kwargs):
-    """ To be run in a subprocess.
+    """ To be ran in a subprocess.
 
     Parameters
     ----------

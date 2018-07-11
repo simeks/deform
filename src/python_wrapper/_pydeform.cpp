@@ -15,7 +15,10 @@
 namespace py = pybind11;
 
 
-std::vector<ptrdiff_t> get_shape(const py::array& image) {
+/*!
+ * \brief Get the shape of the array as an std::vector.
+ */
+static std::vector<ptrdiff_t> get_shape(const py::array& image) {
     std::vector<ptrdiff_t> shape;
     for (py::ssize_t i = 0; i < image.ndim(); ++i) {
         shape.push_back(image.shape()[i]);
@@ -24,13 +27,22 @@ std::vector<ptrdiff_t> get_shape(const py::array& image) {
 }
 
 
-std::vector<ptrdiff_t> get_scalar_shape(const py::array& image) {
+/*!
+ * \brief Get the scalar shape of the array as an std::vector.
+ *
+ * Given an array representing a vector volume image, return the
+ * shape of the volume.
+ */
+static std::vector<ptrdiff_t> get_scalar_shape(const py::array& image) {
     auto shape = get_shape(image);
     shape.pop_back();
     return shape;
 }
 
 
+/*!
+ * \brief Get the stk::Type associated to a numpy image.
+ */
 stk::Type get_stk_type(const py::array& a) {
     stk::Type base_type = stk::Type_Unknown;
 
@@ -68,6 +80,24 @@ stk::Type get_stk_type(const py::array& a) {
 }
 
 
+/*!
+ * \brief Convert a numpy array to a stk::Volume.
+ *
+ * The new volume creates a copy of the input
+ * image data.
+ *
+ * @note The numpy array must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param image Array representing a volume image.
+ * @param origin Vector of length 3, containing
+ *               the (x, y,z) coordinates of the
+ *               volume origin.
+ * @param spacing Vector of length 3, containing
+ *                the (x, y,z) spacing of the
+ *                volume.
+ * @return A volume representing the same image.
+ */
 stk::Volume image_to_volume(
         const py::array image,
         const std::vector<double>& origin,
@@ -96,6 +126,53 @@ stk::Volume image_to_volume(
 }
 
 
+/*!
+ * \brief Wrap the registration routine, converting 
+ *        the input and the output to the correct object
+ *        types.
+ *
+ * @note All the numpy arrays must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param fixed_images Vector of numpy arrays, one for each
+ *                     modality of the fixed image. The
+ *                     order must match the moving images.
+ * @param moving_images Vector of numpy arrays, one for each
+ *                     modality of the moving image. The
+ *                     order must match the fixed images.
+ * @param fixed_origin Vector of length 3, containing
+ *                     the (x, y,z) coordinates of the
+ *                     origin for the fixed images.
+ * @param fixed_spacing Vector of length 3, containing
+ *                      the (x, y,z) spacing of the
+ *                      fixed images.
+ * @param moving_origin Analogous to `fixed_origin`.
+ * @param moving_spacing Analogous to `fixed_spacing`.
+ * @param initial_displacement Must be a numpy array. If `None`,
+ *                             a zero displacement is used instead.
+ * @param constraint_mask Must be a numpy array. If `None`, no
+ *                        constraints are used. If not `None`, a
+ *                        corresponding `constraint_values` must
+ *                        be provided, otherwise an exception
+ *                        is thrown.
+ * @param constraint_values Must be a numpy array. If `None`, no
+ *                          constraints are used. If not `None`, a
+ *                          corresponding `constraint_mask` must
+ *                          be provided, otherwise an exception
+ *                          is thrown.
+ * @param settings_str String containing the json dump of the
+ *                     settings. If empty, default settings are used.
+ * @param num_threads Number of OpenMP threads to be used. If zero,
+ *                    the number is determined automatically, usually
+ *                    equal to the number of logic processors available
+ *                    on the system.
+ *
+ * @return A numpy array whose shape is `(nz, ny, nx, 3)`, where
+ *         `(x, y, z)` is the shape of the fixed image, containing
+ *         the displacement field that registers the moving image.
+ *
+ * @throw ValidationError If the input is not consistent.
+ */
 py::array registration_wrapper(
         const std::vector<py::array> fixed_images,
         const std::vector<py::array> moving_images,
@@ -156,6 +233,33 @@ py::array registration_wrapper(
 }
 
 
+/*!
+ * \brief Resample an image with a given
+ *        displacement field.
+ *
+ * @note All the numpy arrays must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param image Tridimensional numpy array containing the
+ *              image data.
+ * @param displacement Quadridimensional numpy array containing
+ *                     the displacement field, in reference space
+ *                     coordinates, with indexing [z, y, x, d].
+ * @param fixed_origin Vector of length 3, containing the (x, y,z)
+ *                     coordinates of the origin for the reference
+ *                     space (displacement).
+ * @param fixed_spacing Vector of length 3, containing the (x, y,z)
+ *                      spacing of the reference space (displacement).
+ * @param moving_origin Analogous to `fixed_origin`, for the moving image.
+ * @param moving_spacing Analogous to `fixed_spacing`, for the moving image.
+ * @param interpolator Interpolator used in the resampling. The values are 
+ *                     exposed in Python as an enum class.
+ *
+ * @return A numpy array representing the resample image, matching in size,
+ *         origin, and spacing the input displacement.
+ *
+ * @throw ValidationError If the input is not consistent.
+ */
 py::array transform_wrapper(
         const py::array image,
         const py::array displacement,
@@ -176,14 +280,34 @@ py::array transform_wrapper(
 }
 
 
+/*!
+ * \brief Compute the Jacobian determinant of a vector field. 
+ *
+ * The Jacobian is computed with first order central differences.
+ *
+ * @note All the numpy arrays must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param displacement Quadridimensional numpy array containing
+ *                     the displacement field, in reference space
+ *                     coordinates, with indexing [z, y, x, d].
+ * @param origin Vector of length 3, containing the (x, y,z)
+ *               coordinates of the origin.
+ * @param spacing Vector of length 3, containing the (x, y,z) spacing.
+ *
+ * @return A numpy array representing the Jacobian determinant (scalar map)
+ *         size, origin, and spacing the input displacement.
+ *
+ * @throw ValidationError If the input is not consistent.
+ */
 py::array jacobian_wrapper(
-        const py::array image,
+        const py::array displacement,
         const std::vector<double>& origin,
         const std::vector<double>& spacing
         )
 {
-    auto jacobian = calculate_jacobian(image_to_volume(image, origin, spacing));
-    auto shape = get_scalar_shape(image);
+    auto jacobian = calculate_jacobian(image_to_volume(displacement, origin, spacing));
+    auto shape = get_scalar_shape(displacement);
     return py::array_t<JAC_TYPE>(shape, reinterpret_cast<const JAC_TYPE*>(jacobian.ptr()));
 }
 
