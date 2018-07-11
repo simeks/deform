@@ -187,6 +187,10 @@ py::array registration_wrapper(
         const int num_threads = 0
         )
 {
+    if (fixed_images.size() != moving_images.size()) {
+        throw ValidationError("The number of fixed and moving images must match.");
+    }
+
     // Convert fixed and moving images 
     std::vector<stk::Volume> fixed_volumes, moving_volumes;
     for (size_t i = 0; i < fixed_images.size(); ++i) {
