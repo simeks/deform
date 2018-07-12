@@ -1,14 +1,4 @@
-import _pydeform
+from _pydeform import *
 
-__all__ = ["numpy_api", "sitk_api"]
+__all__ = ['interruptible', 'sitk_api']
 
-Interpolator = _pydeform.Interpolator
-""" Enum class for the interpolator functions.
-
-Attributes
-----------
-Linear: int
-    Use trilinear interpolation.
-NearestNeighbour: int
-    Use nearest neighbour interpolation.
-"""

@@ -1,5 +1,6 @@
 import SimpleITK as sitk
-from . import numpy_api
+import pydeform
+from . import interruptible
 
 
 def register(
@@ -10,6 +11,7 @@ def register(
         constraint_values = None,
         settings = None,
         num_threads = 0,
+        subprocess = False,
         ):
     """ Perform deformable registration.
 
@@ -39,6 +41,12 @@ def register(
     num_threads: int
         Number of OpenMP threads to be used. If zero, the
         number is selected automatically.
+
+    subprocess: bool
+        If `True`, run the call in a subprocess and handle
+        keyboard interrupts. This has a memory overhead, since
+        a new instance of the intepreter is spawned and
+        input objects are copied in the subprocess memory.
 
     Returns
     -------
@@ -72,18 +80,20 @@ def register(
     if constraint_values:
         constraint_values = sitk.GetArrayViewFromImage(constraint_values)
 
+    register = interruptible.register if subprocess else pydeform.register
+
     # Perform registration through the numpy API
-    displacement = numpy_api.register(fixed_images=fixed_images,
-                                      moving_images=moving_images,
-                                      fixed_origin=fixed_origin,
-                                      moving_origin=moving_origin,
-                                      fixed_spacing=fixed_spacing,
-                                      moving_spacing=moving_spacing,
-                                      initial_displacement=initial_displacement,
-                                      constraint_mask=constraint_mask,
-                                      constraint_values=constraint_values,
-                                      settings=settings,
-                                      num_threads=num_threads)
+    displacement = register(fixed_images=fixed_images,
+                            moving_images=moving_images,
+                            fixed_origin=fixed_origin,
+                            moving_origin=moving_origin,
+                            fixed_spacing=fixed_spacing,
+                            moving_spacing=moving_spacing,
+                            initial_displacement=initial_displacement,
+                            constraint_mask=constraint_mask,
+                            constraint_values=constraint_values,
+                            settings=settings,
+                            num_threads=num_threads)
 
     # Convert the result to SimpleITK
     displacement = sitk.GetImageFromArray(displacement)

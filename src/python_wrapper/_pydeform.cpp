@@ -2,6 +2,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <cassert>
+#include <map>
 #include <optional>
 #include <string>
 
@@ -35,7 +37,22 @@ static std::vector<ptrdiff_t> get_shape(const py::array& image) {
  */
 static std::vector<ptrdiff_t> get_scalar_shape(const py::array& image) {
     auto shape = get_shape(image);
+    assert((shape.size() == 4 && "The image is already a scalar volume"));
     shape.pop_back();
+    return shape;
+}
+
+
+/*!
+ * \brief Get the vector shape of the array as an std::vector.
+ *
+ * Given an array representing a scalar volume image, return the
+ * shape of the volume of an associated vector image.
+ */
+static std::vector<ptrdiff_t> get_vector_shape(const py::array& image) {
+    auto shape = get_shape(image);
+    assert((shape.size() == 3 && "The image is already a vector volume"));
+    shape.push_back(3l);
     return shape;
 }
 
@@ -47,6 +64,9 @@ stk::Type get_stk_type(const py::array& a) {
     stk::Type base_type = stk::Type_Unknown;
 
     if (py::isinstance<py::array_t<char>>(a)) {
+        base_type = stk::Type_Char;
+    }
+    else if (py::isinstance<py::array_t<bool>>(a)) {
         base_type = stk::Type_Char;
     }
     else if (py::isinstance<py::array_t<uint8_t>>(a)) {
@@ -160,8 +180,8 @@ stk::Volume image_to_volume(
  *                          corresponding `constraint_mask` must
  *                          be provided, otherwise an exception
  *                          is thrown.
- * @param settings_str String containing the json dump of the
- *                     settings. If empty, default settings are used.
+ * @param settings Python dictionary for the settings. If `None`,
+ *                 default settings are used.
  * @param num_threads Number of OpenMP threads to be used. If zero,
  *                    the number is determined automatically, usually
  *                    equal to the number of logic processors available
@@ -174,54 +194,82 @@ stk::Volume image_to_volume(
  * @throw ValidationError If the input is not consistent.
  */
 py::array registration_wrapper(
-        const std::vector<py::array> fixed_images,
-        const std::vector<py::array> moving_images,
+        const py::object& fixed_images,
+        const py::object& moving_images,
         const std::vector<double>& fixed_origin,
         const std::vector<double>& moving_origin,
         const std::vector<double>& fixed_spacing,
         const std::vector<double>& moving_spacing,
-        const py::object initial_displacement = py::none(),
-        const py::object constraint_mask = py::none(),
-        const py::object constraint_values = py::none(),
-        const std::string settings_str = "",
-        const int num_threads = 0
+        const py::object& initial_displacement,
+        const py::object& constraint_mask,
+        const py::object& constraint_values,
+        const py::object& settings,
+        const int num_threads
         )
 {
-    if (fixed_images.size() != moving_images.size()) {
+    // Handle single images passed as objects, without a container 
+    std::vector<py::array> fixed_images_;
+    if (py::isinstance<py::array>(fixed_images)) {
+        fixed_images_ = {py::cast<py::array>(fixed_images)};
+    }
+    else {
+        fixed_images_ = py::cast<std::vector<py::array>>(fixed_images);
+    }
+
+    std::vector<py::array> moving_images_;
+    if (py::isinstance<py::array>(moving_images)) {
+        moving_images_ = {py::cast<py::array>(moving_images)};
+    }
+    else {
+        moving_images_ = py::cast<std::vector<py::array>>(moving_images);
+    }
+
+    // Ensure the number of fixed and moving images match
+    if (fixed_images_.size() != moving_images_.size()) {
         throw ValidationError("The number of fixed and moving images must match.");
     }
 
     // Convert fixed and moving images 
     std::vector<stk::Volume> fixed_volumes, moving_volumes;
-    for (size_t i = 0; i < fixed_images.size(); ++i) {
-        fixed_volumes.push_back(image_to_volume(fixed_images[i], fixed_origin, fixed_spacing));
-        moving_volumes.push_back(image_to_volume(moving_images[i], moving_origin, moving_spacing));
+    for (size_t i = 0; i < fixed_images_.size(); ++i) {
+        fixed_volumes.push_back(image_to_volume(fixed_images_[i], fixed_origin, fixed_spacing));
+        moving_volumes.push_back(image_to_volume(moving_images_[i], moving_origin, moving_spacing));
     }
 
-    // Convert optional arguments 
+    // Convert optional arguments. Try to cast to the correct numeric
+    // type if possible. 
     std::optional<stk::Volume> initial_displacement_;
     if (!initial_displacement.is_none()) {
-        initial_displacement_ = image_to_volume(initial_displacement, fixed_origin, fixed_spacing);
+        initial_displacement_ = image_to_volume(py::cast<py::array_t<float>>(initial_displacement),
+                                                fixed_origin,
+                                                fixed_spacing);
     }
 
     std::optional<stk::Volume> constraint_mask_;
     if (!constraint_mask.is_none()) {
-        constraint_mask_ = image_to_volume(constraint_mask, fixed_origin, fixed_spacing);
+        constraint_mask_ = image_to_volume(py::cast<py::array_t<unsigned char>>(constraint_mask),
+                                           fixed_origin,
+                                           fixed_spacing);
     }
 
     std::optional<stk::Volume> constraint_values_;
     if (!constraint_values.is_none()) {
-        constraint_values_ = image_to_volume(constraint_values, fixed_origin, fixed_spacing);
+        constraint_values_ = image_to_volume(py::cast<py::array_t<float>>(constraint_values),
+                                             fixed_origin,
+                                             fixed_spacing);
     }
 
     // Parse settings
-    Settings settings;
-    if ("" != settings_str) {
-        parse_registration_settings(settings_str, settings);
+    Settings settings_;
+    if (!settings.is_none()) {
+        py::object py_json_dumps = py::module::import("json").attr("dumps");
+        py::object py_settings_str = py_json_dumps(py::cast<py::dict>(settings));
+        std::string settings_str = py::cast<std::string>(py_settings_str);
+        parse_registration_settings(settings_str, settings_);
     }
 
     // Perform registration
-    stk::Volume displacement = registration(settings,
+    stk::Volume displacement = registration(settings_,
                                             fixed_volumes,
                                             moving_volumes,
                                             initial_displacement_,
@@ -230,11 +278,66 @@ py::array registration_wrapper(
                                             num_threads);
 
     // Build shape
-    auto shape = get_shape(fixed_images[0]);
-    shape.push_back(3l);
+    auto shape = get_vector_shape(fixed_images_[0]);
 
     return py::array_t<float>(shape, reinterpret_cast<const float*>(displacement.ptr()));
 }
+
+std::string registration_docstring =
+R"(Perform deformable registration.
+
+..note:
+    All the arrays must be C-contiguous.
+
+Parameters
+----------
+fixed_images: Union[np.ndarray, List[np.ndarray]]
+    Fixed image, or list of fixed images.
+
+moving_images: Union[np.ndarray, List[np.ndarray]]
+    Moving image, or list of moving images.
+
+fixed_origin: Tuple[Int]
+    Origin of the fixed images.
+
+moving_origin: Tuple[Int]
+    Origin of the moving images.
+
+fixed_spacing: Tuple[Int]
+    Spacing of the fixed images.
+
+moving_spacing: Tuple[Int]
+    Spacing of the moving images.
+
+initial_displacement: np.ndarray
+    Initial guess of the displacement field.
+
+constraint_mask: np.ndarray
+    Boolean mask for the constraints on the displacement.
+    Requires to provide `constraint_values`.
+
+constraint_values: np.ndarray
+    Value for the constraints on the displacement.
+    Requires to provide `constraint_mask`.
+
+settings: dict
+    Python dictionary containing the settings for the
+    registration.
+
+num_threads: int
+    Number of OpenMP threads to be used. If zero, the
+    number is selected automatically.
+
+Returns
+-------
+np.ndarray
+    Vector image containing the displacement that
+    warps the moving image(s) toward the fixed image(s).
+    The displacement is defined in the reference coordinates
+    of the fixed image(s), and each voxel contains the
+    displacement that allows to resample the voxel from the
+    moving image(s).
+)";
 
 
 /*!
@@ -271,7 +374,7 @@ py::array transform_wrapper(
         const std::vector<double>& moving_origin,
         const std::vector<double>& fixed_spacing,
         const std::vector<double>& moving_spacing,
-        const transform::Interp interpolator = transform::Interp_Linear
+        const transform::Interp interpolator
         )
 {
     const stk::Volume image_ = image_to_volume(image, moving_origin, moving_spacing);
@@ -282,6 +385,47 @@ py::array transform_wrapper(
     auto shape = get_scalar_shape(displacement);
     return py::array(image.dtype(), shape, reinterpret_cast<const float*>(result.ptr()));
 }
+
+std::string transform_docstring = 
+R"(Warp an image given a displacement field.
+
+The image is resampled using the given displacement field.
+The size of the result equals the size of the displacement.
+
+..note:
+    All the arrays must be C-contiguous.
+
+Parameters
+----------
+image: np.ndarray
+    Volume image to be warped.
+
+displacement: np.ndarray
+    Displacement field used to resample the image.
+
+fixed_origin: np.ndarray
+    Origin of the displacement field.
+
+moving_origin: np.ndarray
+    Origin of the moving image.
+
+fixed_spacing: np.ndarray
+    Spacing of the displacement field.
+
+moving_spacing: np.ndarray
+    Spacing of the moving image.
+
+interpolator: pydeform.Interpolator
+    Interpolator used in the resampling process, either
+    `pydeform.Interpolator.Linear` or
+    `pydeform.Interpolator.NearestNeighbour`.
+
+Returns
+-------
+np.ndarray
+    Deformed image obtained resampling the input image
+    with the given displacement field.
+)";
 
 
 /*!
@@ -316,16 +460,46 @@ py::array jacobian_wrapper(
 }
 
 
+std::string jacobian_docstring =
+R"(Compute the Jacobian determinant of the deformation associated to a displacement.
+
+Given a displacement field :math:`d(x)`, compute the
+Jacobian determinant of its associated deformation field
+:math:`D(x) = x + d(x)`.
+
+..note:
+    All the arrays must be C-contiguous.
+
+Parameters
+----------
+displacement: np.ndarray
+    Displacement field used to resample the image.
+
+origin: np.ndarray
+    Origin of the displacement field.
+
+spacing: np.ndarray
+    Spacing of the displacement field.
+
+Returns
+-------
+np.ndarray
+    Scalar volume image containing the Jacobian of the
+    deformation associated to the input displacement.
+)";
+
+
 PYBIND11_MODULE(_pydeform, m)
 {
-    py::enum_<transform::Interp>(m, "Interpolator")
-        .value("NearestNeighbour", transform::Interp_NN)
-        .value("Linear", transform::Interp_Linear)
+    py::enum_<transform::Interp>(m, "Interpolator", "Interpolator functions")
+        .value("NearestNeighbour", transform::Interp_NN, "Nearest neighbour interpolation")
+        .value("NearestNeighbor", transform::Interp_NN, "Non-British spelling for NearestNeighbour")
+        .value("Linear", transform::Interp_Linear, "Trilinear interpolation")
         .export_values();
 
     m.def("register",
           &registration_wrapper,
-          "Perform deformable registration",
+          registration_docstring.c_str(),
           py::arg("fixed_images"),
           py::arg("moving_images"),
           py::arg("fixed_origin") = py::make_tuple(0.0, 0.0, 0.0),
@@ -335,13 +509,13 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("initial_displacement") = py::none(),
           py::arg("constraint_mask") = py::none(),
           py::arg("constraint_values") = py::none(),
-          py::arg("settings_str") = "",
+          py::arg("settings") = py::none(),
           py::arg("num_threads") = 0
           );
 
     m.def("transform",
           &transform_wrapper,
-          "Deform an image by a displacement field",
+          transform_docstring.c_str(),
           py::arg("image"),
           py::arg("displacement"),
           py::arg("fixed_origin") = py::make_tuple(0.0, 0.0, 0.0),
@@ -353,7 +527,7 @@ PYBIND11_MODULE(_pydeform, m)
 
     m.def("jacobian",
           &jacobian_wrapper,
-          "Compute the Jacobian determinant map of a displacement field",
+          jacobian_docstring.c_str(),
           py::arg("displacement"),
           py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
           py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0)
