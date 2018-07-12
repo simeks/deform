@@ -39,6 +39,7 @@ class CMakeBuild(build_ext):
             '-DDF_BUILD_PYTHON_WRAPPER=ON',
             '-DDF_BUILD_TESTS=OFF',
             '-DF_BUILD_WITH_DEBUG_INFO=%s' % ('ON' if cfg == 'Debug' else 'OFF'),
+            '-DCMAKE_BUILD_TYPE=%s' % cfg,
             '-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
         ]
