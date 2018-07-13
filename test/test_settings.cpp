@@ -164,7 +164,7 @@ TEST_CASE("settings", "")
         f.close();
 
         Settings settings;
-        REQUIRE(parse_registration_settings("test_settings.json", settings));
+        REQUIRE(parse_registration_file("test_settings.json", settings));
 
         REQUIRE(settings.pyramid_stop_level == 2);
         REQUIRE(settings.num_pyramid_levels == 4);
@@ -229,7 +229,7 @@ TEST_CASE("settings", "")
     SECTION("no_file")
     {
         Settings settings;
-        REQUIRE(!parse_registration_settings("no_file_here.json", settings));
+        REQUIRE(!parse_registration_file("no_file_here.json", settings));
     }
     SECTION("broken_file")
     {
@@ -240,6 +240,6 @@ TEST_CASE("settings", "")
         f.close();
 
         Settings settings;
-        REQUIRE(!parse_registration_settings("broken_test_settings.json", settings));
+        REQUIRE(!parse_registration_file("broken_test_settings.json", settings));
     }
 }

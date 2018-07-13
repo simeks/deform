@@ -9,12 +9,6 @@ set(DEFORM_LIB_SRCS
 
     "deform_lib/graph_cut/graph_cut.h"
     "deform_lib/graph_cut/graph_cut.inl"
-    
-    "deform_lib/platform/file_path.cpp"
-    "deform_lib/platform/file_path.h"
-    "deform_lib/platform/gcc.h"
-    "deform_lib/platform/timer.h"
-    "deform_lib/platform/windows_wrapper.h"
 
     "deform_lib/registration/block_change_flags.cpp"
     "deform_lib/registration/block_change_flags.h"
@@ -30,6 +24,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/registration/volume_pyramid.h"
     "deform_lib/registration/voxel_constraints.cpp"
     "deform_lib/registration/voxel_constraints.h"
+    "deform_lib/registration/registration.cpp"
+    "deform_lib/registration/registration.h"
 
     "deform_lib/arg_parser.cpp"
     "deform_lib/arg_parser.h"
@@ -40,17 +36,6 @@ set(DEFORM_LIB_SRCS
     "deform_lib/jacobian.h"
     "deform_lib/regularize.cpp"
 )
-if(WIN32)
-    set(DEFORM_LIB_SRCS
-        ${DEFORM_LIB_SRCS}
-        "deform_lib/platform/timer_win.cpp"
-        )
-else()
-    set(DEFORM_LIB_SRCS
-        ${DEFORM_LIB_SRCS}
-        "deform_lib/platform/timer_posix.cpp"
-        )
-endif()
 
 set(DEFORM_SRCS 
     "deform/jacobian.cpp"
@@ -64,3 +49,10 @@ target_link_libraries(deform_lib stk json gco)
 
 add_executable(deform ${DEFORM_SRCS})
 target_link_libraries(deform deform_lib)
+
+if(DF_BUILD_PYTHON_WRAPPER)
+    pybind11_add_module(_pydeform "python_wrapper/_pydeform.cpp")
+    target_include_directories(_pydeform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(_pydeform PUBLIC stk json gco deform_lib)
+endif()
+

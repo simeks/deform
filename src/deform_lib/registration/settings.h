@@ -35,7 +35,7 @@ struct Settings
         bool normalize;
 
         ImageSlot() :
-            cost_function(CostFunction_None),
+            cost_function(CostFunction_SSD),
             resample_method(Resample_Gaussian),
             normalize(true) {}
     };
@@ -78,5 +78,8 @@ struct Settings
 void print_registration_settings(const Settings& settings);
 
 // Return true if parsing was successful, false if not
-bool parse_registration_settings(const std::string& parameter_file, Settings& settings);
+bool parse_registration_file(const std::string& parameter_file, Settings& settings);
+
+// Return true if parsing was successful, false if not
+bool parse_registration_settings(const std::string& str, Settings& settings);
 

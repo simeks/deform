@@ -1,6 +1,5 @@
 #include "arg_parser.h"
 #include "filters/resample.h"
-#include "platform/timer.h"
 #include "registration/volume_pyramid.h"
 #include "registration/voxel_constraints.h"
 
@@ -10,6 +9,7 @@
 #include <stk/math/float3.h>
 #include <stk/math/int3.h>
 
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 
@@ -205,7 +205,9 @@ int run_regularize(int argc, char* argv[])
     std::string constraint_values_file = args.get<std::string>("constraint_values", "");
     std::string output_file = args.get<std::string>("output", "result_def.vtk");
 
-    double t_start = timer::seconds();
+
+    using namespace std::chrono;
+    auto t_start = high_resolution_clock::now();
 
     VolumePyramid deformation_pyramid;
     deformation_pyramid.set_level_count(pyramid_levels);
@@ -284,8 +286,8 @@ int run_regularize(int argc, char* argv[])
             deformation_pyramid.set_volume(0, def);
         }
     }
-    double t_end = timer::seconds();
-    int elapsed = int(round(t_end - t_start));
+    auto t_end = high_resolution_clock::now();
+    int elapsed = int(round(duration_cast<duration<double>>(t_end - t_start).count()));
     LOG(Info) << "Regularization completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
     LOG(Info) << "Writing to '" << output_file << "'";
     stk::write_volume(output_file.c_str(), deformation_pyramid.volume(0));

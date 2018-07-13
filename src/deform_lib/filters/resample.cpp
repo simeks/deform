@@ -151,11 +151,6 @@ stk::Volume filters::upsample_vectorfield(
         stk::VolumeFloat3 field(vol);
 
         dim3 old_dims = field.size();
-        float3 scale{
-            new_dims.x / float(old_dims.x),
-            new_dims.y / float(old_dims.y),
-            new_dims.z / float(old_dims.z)
-        };
         float3 inv_scale{
             float(old_dims.x) / new_dims.x,
             float(old_dims.y) / new_dims.y,
