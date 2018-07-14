@@ -2,6 +2,7 @@
 
 #define DF_MAX_IMAGE_PAIR_COUNT 8
 
+//#define DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
 //#define DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
 // Use the SSE version of linear_at<float>
