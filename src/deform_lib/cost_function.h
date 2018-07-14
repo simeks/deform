@@ -18,6 +18,14 @@ struct Regularizer
     {
     }
 
+    // Sets the initial displacement for this registration level. This will be
+    //  the reference when computing the regularization energy. Any displacement 
+    //  identical to the initial displacement will result in zero energy.
+    void set_initial_displacement(const stk::VolumeFloat3& initial)
+    {
+        _initial = initial;
+    }
+
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_weight_map(stk::VolumeFloat& map) { _weight_map = map; }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -26,7 +34,7 @@ struct Regularizer
     /// def0 : Deformation in active voxel [mm]
     /// def1 : Deformation in neighbor [mm]
     /// step : Direction to neighbor
-    inline double operator()(const int3& , const float3& def0,
+    inline double operator()(const int3& p, const float3& def0,
                              const float3& def1, const int3& step)
     {
         float3 step_in_mm {
@@ -35,7 +43,8 @@ struct Regularizer
             step.z*_spacing.z
         };
         
-        float3 diff = def0 - def1;
+        // The diff should be relative to the initial displacement diff
+        float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
         
         float dist_squared = stk::norm2(diff);
         float step_squared = stk::norm2(step_in_mm);
@@ -57,11 +66,14 @@ struct Regularizer
         return w * dist_squared / step_squared;
     }
 
-    stk::VolumeFloat _weight_map;
     float _weight;
-    
     float3 _spacing;
 
+    stk::VolumeFloat3 _initial;
+
+    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        stk::VolumeFloat _weight_map;
+    #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 };
 
 struct SubFunction
