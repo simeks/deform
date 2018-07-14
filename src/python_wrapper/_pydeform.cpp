@@ -286,7 +286,7 @@ py::array registration_wrapper(
 std::string registration_docstring =
 R"(Perform deformable registration.
 
-..note:
+.. note::
     All the arrays must be C-contiguous.
 
 Parameters
@@ -392,7 +392,7 @@ R"(Warp an image given a displacement field.
 The image is resampled using the given displacement field.
 The size of the result equals the size of the displacement.
 
-..note:
+.. note::
     All the arrays must be C-contiguous.
 
 Parameters
@@ -467,7 +467,7 @@ Given a displacement field :math:`d(x)`, compute the
 Jacobian determinant of its associated deformation field
 :math:`D(x) = x + d(x)`.
 
-..note:
+.. note::
     All the arrays must be C-contiguous.
 
 Parameters

@@ -28,12 +28,14 @@ def _registration_worker(q, args, kwargs):
 def register(*args, **kwargs):
     """ Interruptible version of :func:`pydeform.register`.
 
-    ..note: This function calls the registration routine in a subprocess
+    .. note::
+        This function calls the registration routine in a subprocess
         in order to handle keyboard interrupts. This has a memory overhead,
         since a new instance of the intepreter is spawned and input objects
         are copied in the subprocess memory.
 
-    ..seealso: :func:`pydeform.register`
+    .. seealso::
+        :func:`pydeform.register`
     """
 
     # Run call in a subprocess, to handle keyboard interrupts
