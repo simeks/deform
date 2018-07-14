@@ -3,6 +3,9 @@ find_package(Sphinx REQUIRED)
 set(BINARY_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/_build")
 set(SPHINX_CACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_doctrees")
 set(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/html")
+
+set(SPHINX_STATIC "${CMAKE_CURRENT_SOURCE_DIR}/static")
+set(SPHINX_TEMPLATES "${CMAKE_CURRENT_SOURCE_DIR}/templates")
  
 configure_file(
     "conf.py"
