@@ -1,3 +1,4 @@
+#include "../config.h"
 #include "../cost_function.h"
 #include "../filters/resample.h"
 
@@ -208,7 +209,11 @@ void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
     ASSERT(def.voxel_type() == stk::Type_Float3); // Only single-precision supported for now
     ASSERT(_settings.num_pyramid_levels);
 
+#ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
     _deformation_pyramid.build_from_base_with_residual(def, filters::downsample_vectorfield);
+#else
+    _deformation_pyramid.build_from_base(def, filters::downsample_vectorfield);
+#endif
 }
 void RegistrationEngine::set_image_pair(
     int i, 
@@ -311,6 +316,9 @@ stk::Volume RegistrationEngine::execute()
             }
             
             Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
+            
+            // Clone the def, because the current copy will be changed when executing the optimizer
+            binary_fn.set_initial_displacement(_deformation_pyramid.volume(l).clone());
 
             #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
                 if (_regularization_weight_map.volume(l).valid())
@@ -326,8 +334,13 @@ stk::Volume RegistrationEngine::execute()
         if (l != 0) {
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
+            #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
                 filters::upsample_vectorfield(def, upsampled_dims, _deformation_pyramid.residual(l - 1)));
-                        
+            #else
+                filters::upsample_vectorfield(def, upsampled_dims)
+            #endif
+            );
+
             #ifdef DF_OUTPUT_DEBUG_VOLUMES
                 upsample_and_save(l);
             #endif // DF_OUTPUT_DEBUG_VOLUMES

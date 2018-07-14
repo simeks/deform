@@ -7,8 +7,10 @@
 
 
 VolumePyramid::VolumePyramid() : 
-    _levels(0), 
-    _save_residuals(false)
+    _levels(0)
+#ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
+    , _save_residuals(false)
+#endif
 {
 }
 VolumePyramid::~VolumePyramid()
@@ -26,13 +28,30 @@ void VolumePyramid::build_from_base(const stk::Volume& base,
     ASSERT(downsample_fn);
     ASSERT(_levels > 0);
 
+#ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
     _save_residuals = false;
+#endif
 
     _volumes[0] = base;
     for (int i = 0; i < _levels-1; ++i) {
         _volumes[i+1] = downsample_fn(_volumes[i], 0.5f);
     }
 }
+void VolumePyramid::set_volume(int level, const stk::Volume& vol)
+{
+    ASSERT(level < _levels);
+    _volumes[level] = vol;
+}
+const stk::Volume& VolumePyramid::volume(int level) const
+{
+    ASSERT(level < _levels);
+    return _volumes[level];
+}
+int VolumePyramid::levels() const
+{
+    return _levels;
+}
+#ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
 void VolumePyramid::build_from_base_with_residual(const stk::Volume& base, 
     DownsampleWithResidualFn downsample_fn)
 {
@@ -48,23 +67,10 @@ void VolumePyramid::build_from_base_with_residual(const stk::Volume& base,
         _volumes[i+1] = downsample_fn(_volumes[i], 0.5f, _residuals[i]);
     }
 }
-void VolumePyramid::set_volume(int level, const stk::Volume& vol)
-{
-    ASSERT(level < _levels);
-    _volumes[level] = vol;
-}
-const stk::Volume& VolumePyramid::volume(int level) const
-{
-    ASSERT(level < _levels);
-    return _volumes[level];
-}
 const stk::Volume& VolumePyramid::residual(int level) const
 {
     ASSERT(_save_residuals);
     ASSERT(level < _levels);
     return _residuals[level];
 }
-int VolumePyramid::levels() const
-{
-    return _levels;
-}
+#endif DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS

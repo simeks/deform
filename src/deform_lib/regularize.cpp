@@ -1,4 +1,5 @@
 #include "arg_parser.h"
+#include "config.h"
 #include "filters/resample.h"
 #include "registration/volume_pyramid.h"
 #include "registration/voxel_constraints.h"
@@ -223,7 +224,11 @@ int run_regularize(int argc, char* argv[])
             return 1;
         }
         
+    #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
         deformation_pyramid.build_from_base_with_residual(src, filters::downsample_vectorfield);
+    #else
+        deformation_pyramid.build_from_base(src, filters::downsample_vectorfield);
+    #endif
     }
 
     bool use_constraints = false;
@@ -280,7 +285,12 @@ int run_regularize(int argc, char* argv[])
         if (l != 0) {
             dim3 upsampled_dims = deformation_pyramid.volume(l - 1).size();
             deformation_pyramid.set_volume(l - 1,
-                filters::upsample_vectorfield(def, upsampled_dims, deformation_pyramid.residual(l - 1)));
+        #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
+                filters::upsample_vectorfield(def, upsampled_dims, deformation_pyramid.residual(l - 1))
+        #else
+                filters::upsample_vectorfield(def, upsampled_dims)
+        #endif
+            );
         }
         else {
             deformation_pyramid.set_volume(0, def);
