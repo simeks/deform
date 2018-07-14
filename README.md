@@ -24,7 +24,7 @@ To perform a registration
 
 ### Parameter file example
 
-```
+```json
 {
     "pyramid_levels": 6,
     "pyramid_stop_level": 0,

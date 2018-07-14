@@ -7,3 +7,5 @@ dist
 *.egg-info
 **/__pycache__
 .ycm_extra_conf.*
+sphinx/readme.rst
+sphinx/_*

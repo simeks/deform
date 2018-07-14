@@ -59,10 +59,11 @@ setup(
     author='Simon Ekström',
     author_email='',
     description='',
-    long_description='',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     install_requires=['numpy'],
     packages=['pydeform'],
-    ext_modules=[CMakeExtension('.')],
+    ext_modules=[CMakeExtension('_pydeform', '.')],
     cmdclass={'build_ext': CMakeBuild},
     zip_safe=False,
 )
