@@ -80,6 +80,8 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
     while (!done) {
         done = true;
 
+        size_t num_blocks_changed = 0;
+
         for (int use_shift = 0; use_shift < 2; ++use_shift) {
             if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
                 continue;
@@ -102,7 +104,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
             for (int black_or_red = 0; black_or_red < 2; black_or_red++) {
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
-                int num_blocks_changed = 0;
                 
                 #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
@@ -160,11 +161,11 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
                     change_flags.set_block(block_p, block_changed, use_shift == 1);
                 }
-
-                done = num_blocks_changed == 0;
             }
         }
 
+        done = num_blocks_changed == 0;
+        
         #ifdef DF_OUTPUT_VOLUME_ENERGY
             LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def);
         #endif
