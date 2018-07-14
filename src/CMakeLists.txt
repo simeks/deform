@@ -43,12 +43,20 @@ set(DEFORM_SRCS
     "deform/transform.cpp"
 )
 
+set(DEFORM_UTIL_SRCS 
+    "deform_util/main.cpp"
+    "deform_util/cost.cpp"
+)
+
 add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
 target_link_libraries(deform_lib stk json gco)
 
 add_executable(deform ${DEFORM_SRCS})
 target_link_libraries(deform deform_lib)
+
+add_executable(deform-util ${DEFORM_UTIL_SRCS})
+target_link_libraries(deform-util deform_lib)
 
 if(DF_BUILD_PYTHON_WRAPPER)
     pybind11_add_module(_pydeform "python_wrapper/_pydeform.cpp")
