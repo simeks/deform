@@ -56,133 +56,169 @@ namespace
             fixed, moving
         );
     }
-    void initialize_unary_function(
-        UnaryFunction& unary_fn,
-        const Settings& settings,
-        stk::Volume* fixed_volumes, stk::Volume* moving_volumes)
-    { 
-        typedef std::unique_ptr<SubFunction> (*FactoryFn)(
-            const stk::Volume&, const stk::Volume&
-        );
+}
 
-        // nullptr => not supported
-        FactoryFn ssd_factory[] = {
-            nullptr, // Type_Unknown
+void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
+{
+    binary_fn.set_fixed_spacing(_fixed_pyramids[0].volume(level).spacing());
+    binary_fn.set_regularization_weight(_settings.regularization_weight);
 
-            ssd_function_factory<char>, // Type_Char
-            nullptr, // Type_Char2
-            nullptr, // Type_Char3
-            nullptr, // Type_Char4
+    // Clone the def, because the current copy will be changed when executing the optimizer
+    binary_fn.set_initial_displacement(_deformation_pyramid.volume(level).clone());
+        
+    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        if (_regularization_weight_map.volume(level).valid())
+            binary_fn.set_weight_map(_regularization_weight_map.volume(level));
+    #endif
+}
+void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
+{
+    typedef std::unique_ptr<SubFunction> (*FactoryFn)(
+        const stk::Volume&, const stk::Volume&
+    );
 
-            ssd_function_factory<uint8_t>, // Type_UChar
-            nullptr, // Type_UChar2
-            nullptr, // Type_UChar3
-            nullptr, // Type_UChar4
+    // nullptr => not supported
+    FactoryFn ssd_factory[] = {
+        nullptr, // Type_Unknown
 
-            ssd_function_factory<short>, // Type_Short
-            nullptr, // Type_Short2
-            nullptr, // Type_Short3
-            nullptr, // Type_Short4
+        ssd_function_factory<char>, // Type_Char
+        nullptr, // Type_Char2
+        nullptr, // Type_Char3
+        nullptr, // Type_Char4
 
-            ssd_function_factory<uint16_t>, // Type_UShort
-            nullptr, // Type_UShort2
-            nullptr, // Type_UShort3
-            nullptr, // Type_UShort4
+        ssd_function_factory<uint8_t>, // Type_UChar
+        nullptr, // Type_UChar2
+        nullptr, // Type_UChar3
+        nullptr, // Type_UChar4
 
-            ssd_function_factory<int>, // Type_Int
-            nullptr, // Type_Int2
-            nullptr, // Type_Int3
-            nullptr, // Type_Int4
+        ssd_function_factory<short>, // Type_Short
+        nullptr, // Type_Short2
+        nullptr, // Type_Short3
+        nullptr, // Type_Short4
 
-            ssd_function_factory<uint32_t>, // Type_UInt
-            nullptr, // Type_UInt2
-            nullptr, // Type_UInt3
-            nullptr, // Type_UInt4
+        ssd_function_factory<uint16_t>, // Type_UShort
+        nullptr, // Type_UShort2
+        nullptr, // Type_UShort3
+        nullptr, // Type_UShort4
 
-            ssd_function_factory<float>, // Type_Float
-            nullptr, // Type_Float2
-            nullptr, // Type_Float3
-            nullptr, // Type_Float4
+        ssd_function_factory<int>, // Type_Int
+        nullptr, // Type_Int2
+        nullptr, // Type_Int3
+        nullptr, // Type_Int4
 
-            ssd_function_factory<double>, // Type_Double
-            nullptr, // Type_Double2
-            nullptr, // Type_Double3
-            nullptr // Type_Double4
-        };
-        FactoryFn ncc_factory[] = {
-            nullptr, // Type_Unknown
+        ssd_function_factory<uint32_t>, // Type_UInt
+        nullptr, // Type_UInt2
+        nullptr, // Type_UInt3
+        nullptr, // Type_UInt4
 
-            ncc_function_factory<char>, // Type_Char
-            nullptr, // Type_Char2
-            nullptr, // Type_Char3
-            nullptr, // Type_Char4
+        ssd_function_factory<float>, // Type_Float
+        nullptr, // Type_Float2
+        nullptr, // Type_Float3
+        nullptr, // Type_Float4
 
-            ncc_function_factory<uint8_t>, // Type_UChar
-            nullptr, // Type_UChar2
-            nullptr, // Type_UChar3
-            nullptr, // Type_UChar4
+        ssd_function_factory<double>, // Type_Double
+        nullptr, // Type_Double2
+        nullptr, // Type_Double3
+        nullptr // Type_Double4
+    };
+    FactoryFn ncc_factory[] = {
+        nullptr, // Type_Unknown
 
-            ncc_function_factory<short>, // Type_Short
-            nullptr, // Type_Short2
-            nullptr, // Type_Short3
-            nullptr, // Type_Short4
+        ncc_function_factory<char>, // Type_Char
+        nullptr, // Type_Char2
+        nullptr, // Type_Char3
+        nullptr, // Type_Char4
 
-            ncc_function_factory<uint16_t>, // Type_UShort
-            nullptr, // Type_UShort2
-            nullptr, // Type_UShort3
-            nullptr, // Type_UShort4
+        ncc_function_factory<uint8_t>, // Type_UChar
+        nullptr, // Type_UChar2
+        nullptr, // Type_UChar3
+        nullptr, // Type_UChar4
 
-            ncc_function_factory<int>, // Type_Int
-            nullptr, // Type_Int2
-            nullptr, // Type_Int3
-            nullptr, // Type_Int4
+        ncc_function_factory<short>, // Type_Short
+        nullptr, // Type_Short2
+        nullptr, // Type_Short3
+        nullptr, // Type_Short4
 
-            ncc_function_factory<uint32_t>, // Type_UInt
-            nullptr, // Type_UInt2
-            nullptr, // Type_UInt3
-            nullptr, // Type_UInt4
+        ncc_function_factory<uint16_t>, // Type_UShort
+        nullptr, // Type_UShort2
+        nullptr, // Type_UShort3
+        nullptr, // Type_UShort4
 
-            ncc_function_factory<float>, // Type_Float
-            nullptr, // Type_Float2
-            nullptr, // Type_Float3
-            nullptr, // Type_Float4
+        ncc_function_factory<int>, // Type_Int
+        nullptr, // Type_Int2
+        nullptr, // Type_Int3
+        nullptr, // Type_Int4
 
-            ncc_function_factory<double>, // Type_Double
-            nullptr, // Type_Double2
-            nullptr, // Type_Double3
-            nullptr // Type_Double4
-        };
+        ncc_function_factory<uint32_t>, // Type_UInt
+        nullptr, // Type_UInt2
+        nullptr, // Type_UInt3
+        nullptr, // Type_UInt4
 
-        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-            if (!fixed_volumes[i].valid() || !moving_volumes[i].valid())
-                continue; // Skip empty slots
+        ncc_function_factory<float>, // Type_Float
+        nullptr, // Type_Float2
+        nullptr, // Type_Float3
+        nullptr, // Type_Float4
 
-            ASSERT(fixed_volumes[i].voxel_type() == moving_volumes[i].voxel_type());
-            auto& slot = settings.image_slots[i];
-            if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
-                FactoryFn factory = ssd_factory[fixed_volumes[i].voxel_type()];
-                if (factory) {
-                    unary_fn.add_function(factory(fixed_volumes[i], moving_volumes[i]));
-                }
-                else {
-                    FATAL() << "Unsupported voxel type (" << fixed_volumes[i].voxel_type() << ") "
-                            << "for metric 'ssd' "
-                            << "(slot: " << i << ")";
-                }
+        ncc_function_factory<double>, // Type_Double
+        nullptr, // Type_Double2
+        nullptr, // Type_Double3
+        nullptr // Type_Double4
+    };
+
+    unary_fn.set_regularization_weight(_settings.regularization_weight);
+
+    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        if (_regularization_weight_map.volume(level).valid())
+            binary_fn.set_weight_map(_regularization_weight_map.volume(l));
+    #endif
+
+    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+        stk::Volume fixed;
+        stk::Volume moving;
+
+        if (_fixed_pyramids[i].levels() > 0)
+            fixed = _fixed_pyramids[i].volume(level);
+        if (_moving_pyramids[i].levels() > 0)
+            moving = _moving_pyramids[i].volume(level);
+
+        if (!fixed.valid() || !moving.valid())
+            continue; // Skip empty slots
+
+        ASSERT(fixed.voxel_type() == moving.voxel_type());
+        auto& slot = _settings.image_slots[i];
+        if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
+            FactoryFn factory = ssd_factory[fixed.voxel_type()];
+            if (factory) {
+                unary_fn.add_function(factory(fixed, moving));
             }
-            else if (slot.cost_function == Settings::ImageSlot::CostFunction_NCC)
-            {
-                FactoryFn factory = ncc_factory[fixed_volumes[i].voxel_type()];
-                if (factory) {
-                    unary_fn.add_function(factory(fixed_volumes[i], moving_volumes[i]));
-                }
-                else {
-                    FATAL() << "Unsupported voxel type (" << fixed_volumes[i].voxel_type() << ") "
-                            << "for metric 'ncc' "
-                            << "(slot: " << i << ")";
-                }
-            }            
+            else {
+                FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
+                        << "for metric 'ssd' "
+                        << "(slot: " << i << ")";
+            }
         }
+        else if (slot.cost_function == Settings::ImageSlot::CostFunction_NCC)
+        {
+            FactoryFn factory = ncc_factory[fixed.voxel_type()];
+            if (factory) {
+                unary_fn.add_function(factory(fixed, moving));
+            }
+            else {
+                FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
+                        << "for metric 'ncc' "
+                        << "(slot: " << i << ")";
+            }
+        }            
+    }
+ 
+    if (_constraints_mask_pyramid.volume(level).valid()) {
+        unary_fn.add_function(
+            std::make_unique<SoftConstraintsFunction>(
+                _constraints_mask_pyramid.volume(level),
+                _constraints_pyramid.volume(level),
+                _settings.constraints_weight
+            )
+        );
     }
 }
 
@@ -264,46 +300,17 @@ stk::Volume RegistrationEngine::execute()
         save_volume_pyramid();
     #endif
 
-    // No copying of image data is performed here as Volume is simply a wrapper 
-    stk::Volume fixed_volumes[DF_MAX_IMAGE_PAIR_COUNT];
-    stk::Volume moving_volumes[DF_MAX_IMAGE_PAIR_COUNT];
-
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
         stk::VolumeFloat3 def = _deformation_pyramid.volume(l);
 
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-                if (_fixed_pyramids[i].levels() > 0)
-                    fixed_volumes[i] = _fixed_pyramids[i].volume(l);
-                if (_moving_pyramids[i].levels() > 0)
-                    moving_volumes[i] = _moving_pyramids[i].volume(l);
-            }
+            UnaryFunction unary_fn;
+            build_unary_function(l, unary_fn);
 
-            UnaryFunction unary_fn(_settings.regularization_weight);
-            
-            if (_constraints_mask_pyramid.volume(l).valid()) {
-                unary_fn.add_function(
-                    std::make_unique<SoftConstraintsFunction>(
-                        _constraints_mask_pyramid.volume(l),
-                        _constraints_pyramid.volume(l),
-                        _settings.constraints_weight
-                    )
-                );
-            }
-
-            initialize_unary_function(unary_fn, 
-                _settings, 
-                fixed_volumes, 
-                moving_volumes
-            );
-            
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.block_size,
-                _settings.block_energy_epsilon
-            );
-  
+            Regularizer binary_fn;
+            build_regularizer(l, binary_fn);
 
             if (_constraints_mask_pyramid.volume(l).valid())
             {
@@ -315,16 +322,11 @@ stk::Volume RegistrationEngine::execute()
                 );
             }
             
-            Regularizer binary_fn(_settings.regularization_weight, fixed_volumes[0].spacing());
+            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
+                _settings.block_size,
+                _settings.block_energy_epsilon
+            );
             
-            // Clone the def, because the current copy will be changed when executing the optimizer
-            binary_fn.set_initial_displacement(_deformation_pyramid.volume(l).clone());
-
-            #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-                if (_regularization_weight_map.volume(l).valid())
-                    binary_fn.set_weight_map(_regularization_weight_map.volume(l));
-            #endif
-    
             optimizer.execute(unary_fn, binary_fn, _settings.step_size, def);
         }
         else {
@@ -351,6 +353,10 @@ stk::Volume RegistrationEngine::execute()
     }
 
     return _deformation_pyramid.volume(0);
+}
+stk::Volume RegistrationEngine::deformation_field(int level)
+{
+    return _deformation_pyramid.volume(level);
 }
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
 void RegistrationEngine::upsample_and_save(int level)

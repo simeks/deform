@@ -13,9 +13,18 @@
 
 struct Regularizer
 {
-    Regularizer(float weight, const float3& fixed_spacing) : 
-        _weight(weight), _spacing(fixed_spacing)
+    Regularizer(float weight=0.0f, const float3& spacing={1.0f, 1.0f, 1.0f}) :
+        _weight(weight), _spacing(spacing)
     {
+    }
+
+    void set_regularization_weight(float weight)
+    {
+        _weight = weight;
+    }
+    void set_fixed_spacing(const float3& spacing)
+    {
+        _spacing = spacing;
     }
 
     // Sets the initial displacement for this registration level. This will be
@@ -242,9 +251,13 @@ struct NCCFunction : public SubFunction
 
 struct UnaryFunction
 {
-    UnaryFunction(float regularization_weight) : 
+    UnaryFunction(float regularization_weight=0.0f) : 
         _regularization_weight(regularization_weight)
     {
+    }
+    void set_regularization_weight(float weight)
+    {
+        _regularization_weight = weight;
     }
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_regularization_weight_map(stk::VolumeFloat& map) 

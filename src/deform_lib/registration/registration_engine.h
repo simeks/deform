@@ -8,6 +8,9 @@
 
 #include <vector>
 
+struct Regularizer;
+struct UnaryFunction;
+
 class RegistrationEngine
 {
 public:
@@ -32,6 +35,15 @@ public:
     /// Returns the resulting deformation field or an invalid volume if registration failed.
     stk::Volume execute();
 
+    /// Builds a binary function for the specified pyramid level
+    void build_regularizer(int level, Regularizer& binary_fn);
+
+    /// Builds a unary function for the specified pyramid level
+    void build_unary_function(int level, UnaryFunction& unary_fn);
+
+    /// Returns the deformation field at the specified pyramid level
+    stk::Volume deformation_field(int level);
+    
 private:
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
     /// Upsamples the deformation field at the given level and saves it
