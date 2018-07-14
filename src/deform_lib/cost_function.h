@@ -207,7 +207,7 @@ struct NCCFunction : public SubFunction
         }
 
         if (n == 0)
-            return 1.0;
+            return 0.0f;
 
         // Subtract mean
         sff -= (sf * sf / n);
@@ -217,9 +217,9 @@ struct NCCFunction : public SubFunction
         double d = sqrt(sff*smm);
 
         if(d > 1e-14) {
-            return 1.0f - float(sfm / d);
+            return 0.5f*(1.0f-float(sfm / d));
         }
-        return 1.0;
+        return 0.0f;
     }
 
     stk::VolumeHelper<T> _fixed;
