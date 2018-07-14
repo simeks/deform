@@ -1,0 +1,58 @@
+set(DEFORM_LIB_SRCS 
+    "deform_lib/filters/gaussian_filter.cpp"
+    "deform_lib/filters/gaussian_filter.h"
+    "deform_lib/filters/resample.cpp"
+    "deform_lib/filters/resample.h"
+
+    "deform_lib/graph_cut/graph_cut.h"
+    "deform_lib/graph_cut/graph_cut.inl"
+
+    "deform_lib/graph_cut/graph_cut.h"
+    "deform_lib/graph_cut/graph_cut.inl"
+
+    "deform_lib/registration/block_change_flags.cpp"
+    "deform_lib/registration/block_change_flags.h"
+    "deform_lib/registration/blocked_graph_cut_optimizer.h"
+    "deform_lib/registration/blocked_graph_cut_optimizer.inl"
+    "deform_lib/registration/registration_engine.cpp"
+    "deform_lib/registration/registration_engine.h"
+    "deform_lib/registration/settings.cpp"
+    "deform_lib/registration/settings.h"
+    "deform_lib/registration/transform.cpp"
+    "deform_lib/registration/transform.h"
+    "deform_lib/registration/volume_pyramid.cpp"
+    "deform_lib/registration/volume_pyramid.h"
+    "deform_lib/registration/voxel_constraints.cpp"
+    "deform_lib/registration/voxel_constraints.h"
+    "deform_lib/registration/registration.cpp"
+    "deform_lib/registration/registration.h"
+
+    "deform_lib/arg_parser.cpp"
+    "deform_lib/arg_parser.h"
+    "deform_lib/benchmark.cpp"
+    "deform_lib/config.h"
+    "deform_lib/cost_function.h"
+    "deform_lib/jacobian.cpp"
+    "deform_lib/jacobian.h"
+    "deform_lib/regularize.cpp"
+)
+
+set(DEFORM_SRCS 
+    "deform/jacobian.cpp"
+    "deform/main.cpp"
+    "deform/transform.cpp"
+)
+
+add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
+target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
+target_link_libraries(deform_lib stk json gco)
+
+add_executable(deform ${DEFORM_SRCS})
+target_link_libraries(deform deform_lib)
+
+if(DF_BUILD_PYTHON_WRAPPER)
+    pybind11_add_module(_pydeform "python_wrapper/_pydeform.cpp")
+    target_include_directories(_pydeform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(_pydeform PUBLIC stk json gco deform_lib)
+endif()
+

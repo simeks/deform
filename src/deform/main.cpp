@@ -1,42 +1,41 @@
-#include "config.h"
-#include "jacobian.h"
-#include "registration/registration_engine.h"
-#include "registration/settings.h"
-#include "registration/transform.h"
-#include "registration/volume_pyramid.h"
+#include <deform_lib/arg_parser.h>
+#include <deform_lib/config.h>
+#include <deform_lib/defer.h>
+#include <deform_lib/filters/resample.h>
+#include <deform_lib/jacobian.h>
+#include <deform_lib/registration/registration.h>
+#include <deform_lib/registration/registration_engine.h>
+#include <deform_lib/registration/settings.h>
+#include <deform_lib/registration/transform.h>
+#include <deform_lib/registration/volume_pyramid.h>
 
-#include <framework/debug/assert.h>
-#include <framework/debug/log.h>
-#include <framework/filters/normalize.h>
-#include <framework/filters/resample.h>
-#include <framework/platform/file_path.h>
-#include <framework/platform/timer.h>
-#include <framework/profiler/microprofile.h>
-#include <framework/volume/volume.h>
-#include <framework/volume/volume_helper.h>
-#include <framework/volume/stb.h>
-#include <framework/volume/vtk.h>
+#include <stk/common/assert.h>
+#include <stk/common/log.h>
+#include <stk/filters/normalize.h>
+#include <stk/image/volume.h>
+#include <stk/io/io.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <omp.h>
+#include <optional>
 #include <string>
-#include <string.h>
 #include <vector>
 
-#ifdef DF_ENABLE_BENCHMARK
-    int run_benchmark(int argc, char* argv[]);
-#endif
-
+int run_jacobian(int argc, char* argv[]);
 int run_regularize(int argc, char* argv[]);
+int run_transform(int argc, char* argv[]);
 
 namespace
 {
     struct Args
     {
         const char* param_file;
-        
+
         const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
         const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
 
@@ -44,386 +43,177 @@ namespace
 
         int num_threads;
 
-        #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-            const char* constraint_mask;
-            const char* constraint_values;
-        #endif // DF_ENABLE_VOXEL_CONSTRAINTS
+        const char* constraint_mask;
+        const char* constraint_values;
     };
 
-    void print_help_and_exit(const char* err = 0)
+    void print_command_help(const char* exec)
     {
-        if (err)
-            std::cout << "Error: " << err << std::endl;
+        std::cout << "Usage: " << exec << " COMMAND ..." << std::endl << std::endl;
+        std::cout << "COMMANDS:" << std::endl << std::endl;
 
-        std::cout << "Arguments:" << std::endl
-                << "-f<i> <file> : Filename of the i:th fixed image (i < " 
-                    << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
-                << "-m<i> <file> : Filename of the i:th moving image (i < " 
-                    << DF_MAX_IMAGE_PAIR_COUNT << ")*." << std::endl
-                << "-d0 <file> : Filename for initial deformation field" << std::endl
-        #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-                << "-constraint_mask <file> : Filename for constraint mask" << std::endl
-                << "-constraint_values <file> : Filename for constraint values" << std::endl
-        #endif // DF_ENABLE_VOXEL_CONSTRAINTS
-                << "-p <file> : Filename of the parameter file (required)." << std::endl
-                << "--num-threads <num> : Maximum number of threads" << std::endl
-                << "--help : Shows this help section." << std::endl
-                << "*Requires a matching number of fixed and moving images";
-        exit(1);
-    }
-    void parse_command_line(Args& args, int argc, char** argv)
-    {
-        args = {0};
-
-        /// Skip i=0 (name of executable)
-        int i = 1;
-        while (i < argc)
-        {
-            std::string token = argv[i];
-            if (token[0] == '-')
-            {
-                int b = token[1] == '-' ? 2 : 1;
-                std::string key = token.substr(b);
-
-                if (key == "help")
-                {
-                    print_help_and_exit();
-                }
-                else if (key == "p")
-                {
-                    if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
-                    args.param_file = argv[i];
-                }
-                else if (key[0] == 'f')
-                {
-                    int img_index = std::stoi(key.substr(1));
-                    if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
-                        print_help_and_exit();
-
-                    if (++i >= argc)
-                        print_help_and_exit("Missing arguments");
-                    
-                    args.fixed_files[img_index] = argv[i];
-                }
-                else if (key[0] == 'm')
-                {
-                    int img_index = std::stoi(key.substr(1));
-                    if (img_index >= DF_MAX_IMAGE_PAIR_COUNT)
-                        print_help_and_exit();
-
-                    if (++i >= argc)
-                        print_help_and_exit("Missing arguments");
-                    
-                    args.moving_files[img_index] = argv[i];
-                }
-                else if (key == "d0")
-                {
-                    if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
-                    args.initial_deformation = argv[i];
-                }
-    #ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-                else if (key == "constraint_mask" || // Support both keys for backwards compatibility
-                         key == "constraints_mask")
-                {
-                    if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
-                    args.constraint_mask = argv[i];
-                }
-                else if (key == "constraint_values" ||
-                         key == "constraints_values")
-                {
-                    if (++i >= argc) 
-                        print_help_and_exit("Missing arguments");
-                    args.constraint_values = argv[i];
-                }
-    #endif // DF_ENABLE_VOXEL_CONSTRAINTS
-                else if (key == "num-threads")
-                {
-                    if (++i >= argc)
-                        print_help_and_exit("Missing arguments");
-                    args.num_threads = std::stoi(argv[i]);
-                }
-                else
-                {
-                    std::string err = std::string("Unrecognized option: " + token);
-                    print_help_and_exit(err.c_str());
-                }
-            }
-            else
-            {
-                std::string err = std::string("Unrecognized option: " + token);
-                print_help_and_exit(err.c_str());
-            }
-            ++i;
-        }
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "registration"
+                  << "Performs image registration" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "transform"
+                  << "Transforms a volume with a given deformation field" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "regularize"
+                  << "Regularizes a deformation field" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "jacobian"
+                  << "Computes the jacobian determinants of a deformation field" << std::endl;
     }
 }
 
-// Identifies and loads the given file
-// file : Filename
-// Returns the loaded volume, if load failed the returned volume will be flagged as invalid 
-Volume load_volume(const std::string& file)
+int run_registration(int argc, char* argv[])
 {
-    FilePath path(file);
-    std::string ext = path.extension();
-    
-    // To lower case
-    #ifdef DF_PLATFORM_LINUX
-        for (size_t i = 0; i < ext.size(); ++i) ext[i] = (char)::tolower(ext[i]);
-    #else
-        std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) -> char { return (char)::tolower(c); });
-    #endif
+    ArgParser args(argc, argv);
+    args.add_positional("command", "registration, transform, regularize, jacobian");
 
-    if (ext == "vtk")
-    {
-        vtk::Reader reader;
-        Volume vol = reader.execute(file.c_str());
-        if (!vol.valid())        
-        {
-            LOG(Error, "Failed to read '%s': %s\n", file.c_str(), reader.last_error());
-        }
-        return vol;
-    }
-    else if (ext == "png")
-    {
-        std::string err;
-        Volume vol = stb::read_image(file.c_str());
-        if (!vol.valid())
-        {
-            LOG(Error, "Failed to read '%s': %s\n", file.c_str(), stb::last_read_error());
-        }
-        return vol;
-    }
-    else
-    {
-        LOG(Error, "Unsupported file extension: '%s'\n", file.c_str());
-    }
-    // Returning an "invalid" volume
-    return Volume();
-}
+    args.add_group();
+    args.add_option("param_file",   "-p",           "Path to the parameter file");
+    args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image", true);
+    args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image", true);
+    args.add_option("output",       "-o, --output", "Path to the initial deformation field");
+    args.add_group("Optional");
+    args.add_option("init_deform",  "-d0", "Path to the initial deformation field");
+    args.add_group();
+    args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
+    args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
+    args.add_group();
+    args.add_flag("do_jacobian", "-j, --jacobian",  "Enable output of the resulting jacobian");
+    args.add_flag("do_transform", "-t, --transform",  "Will output the transformed version of the first moving volume");
+    args.add_group();
+    args.add_option("num_threads", "--num-threads", "Maximum number of threads");
 
-int run_transform(int argc, char* argv[])
-{
-    // Usage:
-    // ./deform transform <src> <deformation> <out> [-i <nn/linear>]
-
-    if (argc < 5)
-    {
-        std::cout << "Usage: " << argv[0] << " transform <src> <deformation> <out> [-i <nn/linear>]" << std::endl;
+    if (!args.parse()) {
         return 1;
     }
 
-    Volume src = load_volume(argv[2]);
-    if (!src.valid())
-        return 1;
+    std::string param_file = args.get<std::string>("param_file", "");
 
-    Volume def = load_volume(argv[3]);
-    if (!def.valid())
-        return 1;
-
-    transform::Interp interp = transform::Interp_Linear;
-
-    // TODO: Quick fix, include when refactoring command-line args
-    if (argc == 7 && strcmp(argv[5], "-i") == 0 && strcmp(argv[6], "nn") == 0)
-    {
-        interp = transform::Interp_NN;
+    Settings settings; // Default settings
+    if (!param_file.empty()) {
+        LOG(Info) << "Running with parameter file: '" << param_file << "'";
+        if (!parse_registration_file(param_file, settings))
+            return 1;
+    }
+    else {
+        LOG(Info) << "Running with default settings.";
     }
 
-    // TODO: Verify that def is float3
+    std::vector<stk::Volume> fixed_volumes;
+    std::vector<stk::Volume> moving_volumes;
 
-    Volume result = transform_volume(src, def, interp);
-    vtk::write_volume(argv[4], result);
-    
+    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+        std::string fixed_id = "fixed" + std::to_string(i);
+        std::string moving_id = "moving" + std::to_string(i);
+
+        std::string fixed_file = args.get<std::string>(fixed_id, "");
+        std::string moving_file = args.get<std::string>(moving_id, "");
+
+        if (fixed_file == "" || moving_file == "")
+            continue;
+
+        fixed_volumes.push_back(stk::read_volume(fixed_file));
+        moving_volumes.push_back(stk::read_volume(moving_file));
+
+        LOG(Info) << "Fixed image [" << i << "]: '" << fixed_file << "'";
+        LOG(Info) << "Moving image [" << i << "]: '" << moving_file << "'";
+    }
+
+    std::string init_deform_file = args.get<std::string>("init_deform", "");
+    LOG(Info) << "Initial deformation '" << init_deform_file << "'";
+
+    std::optional<stk::Volume> initial_deformation;
+    if (!init_deform_file.empty()) {
+        initial_deformation = stk::read_volume(init_deform_file.c_str());
+        LOG(Info) << "Initial deformation '" << init_deform_file << "'";
+    }
+
+    std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
+    std::string constraint_values_file = args.get<std::string>("constraint_values", "");
+
+    LOG(Info) << "Constraint mask: '" << constraint_mask_file << "'";
+    LOG(Info) << "Constraint values: '" << constraint_values_file << "'";
+
+    std::optional<stk::Volume> constraint_mask;
+    std::optional<stk::Volume> constraint_values;
+    if (!constraint_mask_file.empty() && !constraint_values_file.empty()) {
+        constraint_mask = stk::read_volume(constraint_mask_file.c_str());
+        constraint_values = stk::read_volume(constraint_values_file.c_str());
+    }
+    else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
+        // Just a check to make sure the user didn't forget something
+        LOG(Error) << "No constraints used, to use constraints, specify both a mask and a vectorfield";
+        return 1;
+    }
+
+    stk::Volume def;
+    try {
+        def = registration(settings,
+                           fixed_volumes,
+                           moving_volumes,
+                           initial_deformation,
+                           constraint_mask,
+                           constraint_values,
+                           args.get<int>("num_threads", 0));
+    }
+    catch (ValidationError& e) {
+        LOG(Error) << e.what();
+        return 1;
+    }
+
+    std::string out_file = args.get<std::string>("output", "result_def.vtk");
+    LOG(Info) << "Writing deformation field to '" << out_file << "'";
+    stk::write_volume(out_file.c_str(), def);
+
+    if (args.is_set("do_jacobian")) {
+        LOG(Info) << "Writing jacobian to 'result_jac.vtk'";
+        stk::Volume jac = calculate_jacobian(def);
+        stk::write_volume("result_jac.vtk", jac);
+    }
+
+    if (args.is_set("do_transform")) {
+        LOG(Info) << "Writing transformed image to 'result.vtk'";
+        stk::Volume t = transform_volume(moving_volumes[0], def);
+        stk::write_volume("result.vtk", t);
+    }
+
     return 0;
 }
 
-int run_jacobian(int argc, char* argv[])
+void print_version()
 {
-    // Usage:
-    // ./deform jacobian <source> <deformation> <out>
-
-    if (argc < 5)
-    {
-        std::cout << "Usage: " << argv[0] << " jacobian <source> <deformation> <out>" << std::endl;
-        return 1;
-    }
-
-    Volume src = load_volume(argv[2]);
-    if (!src.valid())
-        return 1;
-
-    Volume def = load_volume(argv[3]);
-    if (!def.valid())
-        return 1;
-
-    Volume jac = calculate_jacobian(src, def);
-    vtk::write_volume(argv[4], jac);
-    
-    return 0;
+    std::cout << "VERSION 0" << std::endl;
 }
-
 
 int main(int argc, char* argv[])
 {
-    timer::initialize();
+    stk::log_init();
+    defer{stk::log_shutdown();};
 
-    #if MICROPROFILE_ENABLED
-        MicroProfileOnThreadCreate("main");
+    stk::log_add_file("deform_log.txt", stk::Info);
 
-        // Name all OpenMP threads for profiler
-        auto main_thread = omp_get_thread_num();
-        #pragma omp parallel for num_threads(8)
-        for (int i = 0; i < 8; ++i)
-        {
-            if (omp_get_thread_num() != main_thread)
-                MicroProfileOnThreadCreate("omp_worker");
-        }
-
-        MicroProfileSetEnableAllGroups(true);
-        MicroProfileSetForceMetaCounters(true);
-        //MicroProfileStartContextSwitchTrace();
-    #endif // MICROPROFILE_ENABLED
-
-
-    #ifdef DF_BUILD_DEBUG
-        LOG(Warning, "Running debug build!\n");
+    #ifdef _DEBUG
+        LOG(Warning) << "Running debug build!";
     #endif
 
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
+            print_version();
+            return 0;
+        }
+    }
+
+    if (argc >= 2 && strcmp(argv[1], "registration") == 0)
+        return run_registration(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "transform") == 0)
         return run_transform(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "regularize") == 0)
         return run_regularize(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "jacobian") == 0)
         return run_jacobian(argc, argv);
-    
-    #ifdef DF_ENABLE_BENCHMARK
-        if (argc >= 2 && strcmp(argv[1], "benchmark") == 0)
-            return run_benchmark(argc, argv);
-    #endif
 
-    Args input_args = {0};
-    parse_command_line(input_args, argc, argv);
+    print_command_help(argv[0]);
 
-    if (input_args.num_threads > 0)
-    {
-        LOG(Debug, "Number of threads %d\n", input_args.num_threads);
-        omp_set_num_threads(input_args.num_threads);
-    }
-
-    if (input_args.param_file == 0)
-        print_help_and_exit();
-
-    Settings settings;
-    if (!parse_registration_settings(input_args.param_file, settings))
-        return 1;
-
-    int image_pair_count = 0;
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i)
-    {
-        if (input_args.fixed_files[i] && 
-            input_args.moving_files[i] &&
-            image_pair_count == i)
-            ++image_pair_count;
-    }
-
-    if (image_pair_count == 0)
-    {
-        LOG(Error, "No (or invalid) input images, are you sure you (1) gave a matching \
-            number of fixed and moving images, and (2) filled the slots incrementally (0, 1, ... n)?\n");
-        return 1;
-    }
-
-    RegistrationEngine engine(settings);
-    engine.initialize(image_pair_count);
-    
-    std::vector<Volume> moving_volumes;
-    for (int i = 0; i < image_pair_count; ++i)
-    {
-        Volume fixed = load_volume(input_args.fixed_files[i]);
-        if (!fixed.valid()) return 1;
-        Volume moving = load_volume(input_args.moving_files[i]);
-        if (!moving.valid()) return 1;
-
-        auto& slot = settings.image_slots[i];
-    
-        if (slot.normalize)
-        {
-            if (fixed.voxel_type() == voxel::Type_Float &&
-                moving.voxel_type() == voxel::Type_Float)
-            {
-                fixed = filters::normalize<float>(fixed, 0.0f, 1.0f);
-                moving = filters::normalize<float>(moving, 0.0f, 1.0f);
-            }
-            else if (fixed.voxel_type() == voxel::Type_Double &&
-                     moving.voxel_type() == voxel::Type_Double)
-            {
-                fixed = filters::normalize<double>(fixed, 0.0, 1.0);
-                moving = filters::normalize<double>(moving, 0.0, 1.0);
-            }
-            else
-            {
-                LOG(Error, "Normalize only supported on volumes of type float or double\n");
-                return 1;
-            }
-        }
-        
-        // It's the only available fn for now
-        Volume (*downsample_fn)(const Volume&, float) = filters::downsample_volume_gaussian;
-
-        moving_volumes.push_back(moving);
-        engine.set_image_pair(i, fixed, moving, downsample_fn);
-    }
-
-    if (input_args.initial_deformation)
-    {
-        Volume initial_deformation = load_volume(input_args.initial_deformation);
-        if (!initial_deformation.valid()) return 1;
-
-        engine.set_initial_deformation(initial_deformation);
-    }
-
-#ifdef DF_ENABLE_VOXEL_CONSTRAINTS
-    if (input_args.constraint_mask && input_args.constraint_values)
-    {
-        Volume constraint_mask = load_volume(input_args.constraint_mask);
-        if (!constraint_mask.valid()) return 1;
-
-        Volume constraint_values = load_volume(input_args.constraint_values);
-        if (!constraint_values.valid()) return 1;
-
-        engine.set_voxel_constraints(constraint_mask, constraint_values);
-    }
-    else if (input_args.constraint_mask || input_args.constraint_values)
-    {
-        // Just a check to make sure the user didn't forget something
-        LOG(Warning, "No constraints used, to use constraints, specify both a mask and a vectorfield\n");
-    }
-#endif // DF_ENABLE_VOXEL_CONSTRAINTS
-
-    if (!engine.validate_input())
-        exit(1);
-
-    double t_start = timer::seconds();
-    Volume def = engine.execute();
-    double t_end = timer::seconds();
-    int elapsed = int(round(t_end - t_start));
-    LOG(Info, "Registration completed in %d:%02d\n", elapsed / 60, elapsed % 60);
-
-    vtk::write_volume("result_def.vtk", def);
-
-    Volume result = transform_volume(moving_volumes[0], def);
-    vtk::write_volume("result.vtk", result);
-
-    Volume jac = calculate_jacobian(moving_volumes[0], def);
-    vtk::write_volume("result_jac.vtk", jac);
-
-
-    #if MICROPROFILE_ENABLED
-        MicroProfileDumpFileImmediately("profiler_dump.html", "profiler_dump.csv", NULL);
-        MicroProfileShutdown();
-    #endif // MICROPROFILE_ENABLED
-
-    return 0;
+    return 1;
 }

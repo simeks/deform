@@ -1,22 +1,14 @@
 # deform
 
 ## Prerequisites
-* Premake5 : https://premake.github.io/
-* Ninja : https://ninja-build.org/ (OPTIONAL)
+* CMake : https://cmake.org/
 
 ## Build
-### Visual Studio 2017
-To build using VS2017, run `premake5 vs2017` to set up the workspace. You will find the generated project files under `build/`.
-
-### GNU Make
-Run `premake5 gmake` to setup the workspace. Build the project using `make -c build config=release_x64`.
-
-### Ninja
-Run `premake5 ninja` to setup the workspace. Build the project using `ninja -C build release`
-
+Use CMake (>=3.8) to generate build options of your own choosing.
 
 ## Run
-`deform -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
+To perform a registration
+`deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
 
 | Argument                    |                                             |
 | --------------------------- | ------------------------------------------- |
@@ -25,13 +17,14 @@ Run `premake5 ninja` to setup the workspace. Build the project using `ninja -C b
 | `-d0 <file>`                | Filename for initial deformation field.     |
 | `-constraint_mask <file>`   | Filename for constraint mask.               |
 | `-constraint_values <file>` | Filename for constraint values.             |
-| `-p <file>`                 | Filename of the parameter file (required).  |
+| `-p <file>`                 | Filename of the parameter file.             |
+| `-o <file>`                 | Filename of the resulting deformation field |
 
 * Requires a matching number of fixed and moving images.
 
 ### Parameter file example
 
-```
+```json
 {
     "pyramid_levels": 6,
     "pyramid_stop_level": 0,
@@ -49,13 +42,13 @@ Run `premake5 ninja` to setup the workspace. Build the project using `ninja -C b
             "name": "water",
             "resampler": "gaussian",
             "normalize": true,
-            "cost_function": "squared_distance"
+            "cost_function": "ssd"
         },
         "1": {
             "name": "sfcm",
             "resampler": "gaussian",
             "normalize": true,
-            "cost_function": "squared_distance"
+            "cost_function": "ssd"
         }
     }
 }
@@ -73,7 +66,4 @@ First two parameters, `pyramid_levels` and `pyramid_stop_level`, defines the siz
 
 `regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
 
-`image_slots`, specifies how to use the input images. `name` is simply for cosmetic purposes, `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` specifies which cost function to use.
-
-### Misc
-https://trello.com/b/pUNDcQ4n/project
+`image_slots`, specifies how to use the input images. `name` is simply for cosmetic purposes, `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` specifies which cost function to use ('ssd' for squared distance and 'ncc' for normalized cross correlation).

@@ -1,54 +1,37 @@
-#include "jacobian.h"
+#include <stk/common/log.h>
+#include <stk/image/volume.h>
+#include <stk/io/io.h>
 
-//#include <framework/debug/log.h>
-#include <framework/math/float3.h>
+#include "deform_lib/arg_parser.h"
+#include "deform_lib/jacobian.h"
 
-Volume calculate_jacobian(const Volume& src, const VolumeFloat3& def)
+#include <iostream>
+
+int run_jacobian(int argc, char* argv[])
 {
-    Dims dims = def.size();
+    // Usage:
+    // ./deform jacobian <source> <deformation> <out>
 
-    VolumeHelper<double> out(dims);
-    out.set_origin(def.origin());
-    out.set_spacing(def.spacing());
+    ArgParser args(argc, argv);
+    args.add_positional("command", "registration, transform, regularize, jacobian");
+    args.add_positional("deformation", "Path to the deformation field");
+    args.add_positional("output", "Path to the resulting file");
 
-    long W = dims.width;
-    long H = dims.height;
-    long D = dims.depth;
-
-    volume::BorderMode border_mode = volume::Border_Replicate;
-
-	float3 source_spacing = src.spacing();
-    float3 spacing = def.spacing();
-    float3 spacing_inv{ 1 / spacing.x, 1 / spacing.y, 1 / spacing.z };
-
-
-    #pragma omp parallel for
-    for (int x = 0; x < W; x++) {
-        for (int y = 0; y < H; y++) {
-            for (int z = 0; z < D; z++) {
-                float3 deformation = def(x, y, z) + float3{ float(x), float(y), float(z) };
-                float3 def_dx = spacing_inv.x*((def.at(x + 1, y, z, border_mode) + float3{ float(x + 1), float(y), float(z) } - deformation) * spacing);
-                float3 def_dy = spacing_inv.y*((def.at(x, y + 1, z, border_mode) + float3{ float(x), float(y + 1), float(z) } - deformation) * spacing);
-                float3 def_dz = spacing_inv.z*((def.at(x, y, z + 1, border_mode) + float3{ float(x), float(y), float(z + 1) } - deformation) * spacing);
-
-                //Partial derivatives
-                double a = def_dx.x;
-                double b = def_dy.x;
-                double c = def_dz.x;
-
-                double d = def_dx.y;
-                double e = def_dy.y;
-                double f = def_dz.y;
-
-                double g = def_dx.z;
-                double h = def_dy.z;
-                double i = def_dz.z;
-
-                out(x, y, z) = a*e*i + b*f*g + c*d*h - c*e*g - b*d*i - a*f*h;
-            }
-        }
+    if (!args.parse()) {
+        return 1;
     }
 
-    return out;
-}
+    LOG(Info) << "Computing jacobian.";
+    LOG(Info) << "Input: '" << args.positional("deformation") << "'";
 
+    stk::Volume def = stk::read_volume(args.positional("deformation").c_str());
+    if (!def.valid())
+        return 1;
+
+    stk::Volume jac = calculate_jacobian(def);
+    
+    LOG(Info) << "Writing to '" << args.positional("output") << "'";
+    stk::write_volume(args.positional("output").c_str(), jac);
+    
+    return 0;
+}
