@@ -7,7 +7,38 @@
    :maxdepth: 2
    :caption: Contents:
 
-.. include:: readme.rst
+.. mdinclude:: ../README.md
 
-.. include:: source/pydeform.rst
+
+pydeform package
+================
+
+
+Module contents
+---------------
+
+.. automodule:: pydeform
+    :members:
+    :undoc-members:
+    :imported-members:
+
+
+Submodules
+----------
+
+pydeform.interruptible module
+-----------------------------
+
+.. automodule:: pydeform.interruptible
+    :members:
+    :undoc-members:
+    :imported-members:
+
+pydeform.sitk\_api module
+-------------------------
+
+.. automodule:: pydeform.sitk_api
+    :members:
+    :undoc-members:
+    :imported-members:
 

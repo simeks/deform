@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-with open('../setup.py') as f:
+with open('@SETUP_PY@') as f:
     setup_text = f.read()
 
     project = 'deform'

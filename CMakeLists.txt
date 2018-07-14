@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
 option(DF_BUILD_TESTS "Build unit tests" ON)
+option(DF_BUILD_DOCS "Build Sphinx docs" OFF)
 option(DF_BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
 option(DF_USE_CUDA "Enables CUDA support" OFF)
 option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
@@ -91,6 +94,12 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${EXTRA_LI
 add_subdirectory(third_party)
 add_subdirectory(src)
 
+if (DF_BUILD_DOCS)
+    set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
+    add_subdirectory(sphinx)
+endif()
+
 if (DF_BUILD_TESTS)
     add_subdirectory(test)
 endif()
+
