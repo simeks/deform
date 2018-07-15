@@ -7,149 +7,93 @@
 
 namespace {
 const char* sample_settings = R"(
-{
-    "pyramid_levels": 4,
-    "pyramid_stop_level": 2,
+pyramid_levels: 4
+pyramid_stop_level: 2
 
-    "block_size": [20, 24, 38],
-    "block_energy_epsilon": 0.00000000009,
-    "step_size": 10.5,
-    "regularization_weight": 0.95,
+block_size: [20, 24, 38]
+block_energy_epsilon: 0.00000000009
+step_size: 10.5
+regularization_weight: 0.95
 
-    "constraints_weight": 1234.1234,
+constraints_weight: 1234.1234
 
-    "image_slots":
-    {
-        "0": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "none"
-        },
-        "1": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "squared_distance"
-        },
-        "2": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "ncc"
-        },
-        "3": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "none"
-        },
-        "4": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "squared_distance"
-        },
-        "5": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "ncc"
-        },
-        "6": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "squared_distance"
-        },
-        "7": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "none"
-        }
-    }
-}
+image_slots:
+  - name: ""
+    resampler: gaussian
+    normalize: true
+    cost_function: none
+  - name: ""
+    resampler: gaussian
+    normalize: true
+    cost_function: squared_distance
+  - name: ""
+    resampler: gaussian
+    normalize: true
+    cost_function: ncc
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: none
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: squared_distance
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: ncc
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: squared_distance
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: none
 )";
 const char* broken_sample_settings = R"(
-{
-    "pyramid_levels": 4,
-    "pyramid_stop_level": 2,
+pyramid_levels: 4
+pyramid_stop_level: 2
 
-    "block_size": [20, 24,
-    ": 10.5,
-    "regularization_weight": 0.95,
+block_size: [20, 24
+": 10.5
+regularization_weight: 0.95
 
-    "constraints_weight": 1234.1234,
+constraints_weight: 1234.1234
 
-    "image_slots":
-    {
-        "0": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "none"
-        },
-        "1": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "squared_distance"
-        },
-        "2": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "ncc"
-        },
-        "3": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "none"
-        },
-        "4": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "squared_distance"
-        },
-        "5": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "ncc"
-        },
-        "6": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "squared_distance"
-        },
-        "7": 
-        { 
-            "name": "",
-            "resampler": "gaussian", 
-            "normalize": false, 
-            "cost_function": "none"
-        }
-    }
-}
+image_slots:
+  - name: ""
+    resampler: gaussian
+    normalize: true
+    cost_function: none
+  - name: ""
+    resampler: gaussian
+    normalize: true
+    cost_function: squared_distance
+  - name: ""
+    resampler: gaussian
+    normalize: true
+    cost_function: ncc
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: none
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: squared_distance
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: ncc
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: squared_distance
+  - name: ""
+    resampler: gaussian
+    normalize: false
+    cost_function: none
 )";
 }
 
@@ -157,14 +101,14 @@ TEST_CASE("settings", "")
 {
     SECTION("test_file")
     {
-        std::ofstream f("test_settings.json");
+        std::ofstream f("test_settings.yml");
         REQUIRE(f.is_open());
 
         f.write(sample_settings, strlen(sample_settings));
         f.close();
 
         Settings settings;
-        REQUIRE(parse_registration_file("test_settings.json", settings));
+        REQUIRE(parse_registration_file("test_settings.yml", settings));
 
         REQUIRE(settings.pyramid_stop_level == 2);
         REQUIRE(settings.num_pyramid_levels == 4);
@@ -229,17 +173,17 @@ TEST_CASE("settings", "")
     SECTION("no_file")
     {
         Settings settings;
-        REQUIRE(!parse_registration_file("no_file_here.json", settings));
+        REQUIRE(!parse_registration_file("no_file_here.yml", settings));
     }
     SECTION("broken_file")
     {
-        std::ofstream f("broken_test_settings.json");
+        std::ofstream f("broken_test_settings.yml");
         REQUIRE(f.is_open());
 
         f.write(broken_sample_settings, strlen(broken_sample_settings));
         f.close();
 
         Settings settings;
-        REQUIRE(!parse_registration_file("broken_test_settings.json", settings));
+        REQUIRE(!parse_registration_file("broken_test_settings.yml", settings));
     }
 }

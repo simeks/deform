@@ -1,5 +1,8 @@
-add_library(json INTERFACE)
-target_include_directories(json INTERFACE json)
+
+if (NOT YAML-CPP_FOUND)
+    set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Do not build yaml-cpp tests")
+    add_subdirectory(yaml-cpp)
+endif()
 
 add_library(gco INTERFACE)
 target_include_directories(gco INTERFACE gco-v3.0)

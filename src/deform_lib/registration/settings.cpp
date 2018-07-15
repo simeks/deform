@@ -1,106 +1,93 @@
 #include "settings.h"
 
-#include <nlohmann/json.hpp>
+#include <yaml-cpp/yaml.h>
 #include <stk/common/log.h>
 
 #include <fstream>
 
-using json = nlohmann::json;
-
 /*
-    "pyramid_levels": 6,
-    "pyramid_stop_level": 0,
+pyramid_levels: 6
+pyramid_stop_level: 0
 
-    "constraints_weight": 1000,
+constraints_weight: 1000
 
-    "block_size": [12, 12, 12],
-    "block_energy_epsilon": 0.001,
-    "step_size": 0.5,
-    "regularization_weight": 0.05,
+block_size: [12, 12, 12]
+block_energy_epsilon: 0.001
+step_size: 0.5
+regularization_weight: 0.05
 
-    "image_slots":
-    {
-        "0": 
-        { 
-            "name": "water",
-            "resampler": "gaussian", 
-            "normalize": true, 
-            "cost_function": "squared_distance"
-        },
-        "1": 
-        {
-            "name": "fat",
-            "resampler": "gaussian", 
-            "normalize": true,
-            "cost_function": "squared_distance"
-        },
-        "2": 
-        {
-            "name": "sfcm",
-            "resampler": "gaussian", 
-            "normalize": true,
-            "cost_function": "squared_distance"
-        },
-    },
+image_slots:
+  - name: water
+    resampler: gaussian
+    normalize: true
+    cost_function: squared_distance
+  - name: fat
+    resampler: gaussian
+    normalize: true
+    cost_function: squared_distance
+  - name: sfcm
+    resampler: gaussian
+    normalize: true
+    cost_function: squared_distance
 
-    */
+*/
 
 
 // Return true on success, false on failure
 template<typename T>
-bool read_value(const json& obj, const char* name, T& out);
+bool read_value(const YAML::Node& obj, const char* name, T& out);
 
 template<>
-bool read_value<int>(const json& obj, const char* name, int& out)
+bool read_value<int>(const YAML::Node& obj, const char* name, int& out)
 {
-    if (!obj[name].is_number()) {
+    if (!obj[name].IsScalar()) {
         LOG(Error) << "Settings: '" << name << "', expected integer";
         return false;
     }
-    out = obj[name].get<int>();
+    out = obj[name].as<int>();
     return true;
 }
 template<>
-bool read_value<float>(const json& obj, const char* name, float& out)
+bool read_value<float>(const YAML::Node& obj, const char* name, float& out)
 {
-    if (!obj[name].is_number()) {
+    if (!obj[name].IsScalar()) {
         LOG(Error) << "Settings: '" << name << "', expected float";
         return false;
     }
-    out = obj[name].get<float>();
+    out = obj[name].as<float>();
     return true;
 }
 template<>
-bool read_value<double>(const json& obj, const char* name, double& out)
+bool read_value<double>(const YAML::Node& obj, const char* name, double& out)
 {
-    if (!obj[name].is_number()) {
+    if (!obj[name].IsScalar()) {
         LOG(Error) << "Settings: '" << name << "', expected double";
         return false;
     }
-    out = obj[name].get<double>();
+    out = obj[name].as<double>();
     return true;
 }
 template<>
-bool read_value<bool>(const json& obj, const char* name, bool& out)
+bool read_value<bool>(const YAML::Node& obj, const char* name, bool& out)
 {
-    if (!obj[name].is_boolean()) {
+    if (!obj[name].IsScalar()) {
         LOG(Error) << "Settings: '" << name << "', expected boolean";
         return false;
     }
-    out = obj[name].get<bool>();
+    out = obj[name].as<bool>();
     return true;
 }
 
 template<>
-bool read_value<Settings::ImageSlot::CostFunction>(const json& obj, 
+bool read_value<Settings::ImageSlot::CostFunction>(const YAML::Node& obj, 
     const char* name, Settings::ImageSlot::CostFunction& out)
 {
-    if (!obj[name].is_string()) {
+    if (!obj[name].IsScalar()) {
         LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
-    std::string fn = obj[name].get<std::string>();
+    std::string fn = obj[name].as<std::string>();
     if (fn == "none") {
         out = Settings::ImageSlot::CostFunction_None;
     }
@@ -118,15 +105,15 @@ bool read_value<Settings::ImageSlot::CostFunction>(const json& obj,
     return true;
 }
 template<>
-bool read_value<Settings::ImageSlot::ResampleMethod>(const json& obj, 
+bool read_value<Settings::ImageSlot::ResampleMethod>(const YAML::Node& obj, 
     const char* name, Settings::ImageSlot::ResampleMethod& out)
 {
-    if (!obj[name].is_string()) {
+    if (!obj[name].IsScalar()) {
         LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
-    std::string fn = obj[name].get<std::string>();
+    std::string fn = obj[name].as<std::string>();
     if (fn == "gaussian") {
         out = Settings::ImageSlot::Resample_Gaussian;
     }
@@ -172,7 +159,7 @@ void print_registration_settings(const Settings& settings)
     LOG(Info) << "constraints_weight = " << settings.constraints_weight;
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-        auto& slot = settings.image_slots[i];
+        auto slot = settings.image_slots[i];
 
         // Dont print unused slots
         if (slot.cost_function == Settings::ImageSlot::CostFunction_None)
@@ -189,73 +176,73 @@ void print_registration_settings(const Settings& settings)
 
 bool parse_registration_settings(const std::string& str, Settings& settings)
 {
-    json root;
+    YAML::Node root;
     try {
-        root = json::parse(str);
+        root = YAML::Load(str);
     }
-    catch(json::parse_error &err) {
-        LOG(Error) << "[Json] " << err.what();
+    catch (YAML::ParserException& e) {
+        LOG(Error) << "[YAML] " << e.what();
         return false;
     }
     
-    if (!root["pyramid_levels"].is_null() &&
+    if (root["pyramid_levels"] &&
         !read_value(root, "pyramid_levels", settings.num_pyramid_levels))
         return false;
 
-    if (!root["pyramid_stop_level"].is_null() &&
+    if (root["pyramid_stop_level"] &&
         !read_value(root, "pyramid_stop_level", settings.pyramid_stop_level))
         return false;
 
-    if (!root["step_size"].is_null() &&
+    if (root["step_size"] &&
         !read_value(root, "step_size", settings.step_size))
         return false;
 
-    if (!root["regularization_weight"].is_null() &&
+    if (root["regularization_weight"] &&
         !read_value(root, "regularization_weight", settings.regularization_weight))
         return false;
 
-    auto& block_size = root["block_size"];
-    if (!block_size.is_null()) {
-        if (!block_size.is_array() || 
+    auto block_size = root["block_size"];
+    if (block_size) {
+        if (!block_size.IsSequence() || 
             block_size.size() != 3 ||
-            !block_size[0].is_number() ||
-            !block_size[1].is_number() ||
-            !block_size[2].is_number()) {
+            !block_size[0].IsScalar() ||
+            !block_size[1].IsScalar() ||
+            !block_size[2].IsScalar()) {
             LOG(Error) << "Settings: 'block_size', expected an array of 3 integers.";
             return false;
         }
 
         settings.block_size = {
-            block_size[0].get<int>(),
-            block_size[1].get<int>(),
-            block_size[2].get<int>()
+            block_size[0].as<int>(),
+            block_size[1].as<int>(),
+            block_size[2].as<int>()
         };
     }
 
-    if (!root["block_energy_epsilon"].is_null() &&
+    if (root["block_energy_epsilon"] &&
         !read_value(root, "block_energy_epsilon", settings.block_energy_epsilon))
         return false;
 
-    if (!root["constraints_weight"].is_null() &&
+    if (root["constraints_weight"] &&
         !read_value(root, "constraints_weight", settings.constraints_weight))
         return false;
 
-    auto& image_slots = root["image_slots"];
-    if (image_slots.is_object()) {
+    auto image_slots = root["image_slots"];
+    if (image_slots && image_slots.IsSequence()) {
         for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
             std::string is = std::to_string((long long int)i);
 
-            auto& slot = image_slots[is];
-            if (slot.is_object()) {
-                if (!slot["cost_function"].is_null() &&
+            auto slot = image_slots[is];
+            if (slot.IsMap()) {
+                if (slot["cost_function"] &&
                     !read_value(slot, "cost_function", settings.image_slots[i].cost_function))
                     return false;
 
-                if (!slot["resampler"].is_null() &&
+                if (slot["resampler"] &&
                     !read_value(slot, "resampler", settings.image_slots[i].resample_method))
                     return false;
 
-                if (!slot["normalize"].is_null() &&
+                if (slot["normalize"] &&
                     !read_value(slot, "normalize", settings.image_slots[i].normalize))
                     return false;
             }
