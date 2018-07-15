@@ -262,8 +262,8 @@ py::array registration_wrapper(
     // Parse settings
     Settings settings_;
     if (!settings.is_none()) {
-        py::object py_json_dumps = py::module::import("json").attr("dumps");
-        py::object py_settings_str = py_json_dumps(py::cast<py::dict>(settings));
+        py::object py_yaml_dump = py::module::import("yaml").attr("dump");
+        py::object py_settings_str = py_yaml_dump(py::cast<py::dict>(settings));
         std::string settings_str = py::cast<std::string>(py_settings_str);
         parse_registration_settings(settings_str, settings_);
     }
