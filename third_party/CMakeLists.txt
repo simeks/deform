@@ -1,5 +1,21 @@
-add_library(json INTERFACE)
-target_include_directories(json INTERFACE json)
+
+if (NOT YAML-CPP_FOUND)
+    set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Do not build yaml-cpp tests")
+    set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Do not build yaml-cpp tools")
+    set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Do not build yaml-cpp contrib")
+    add_subdirectory(yaml-cpp)
+
+    if (WIN32)
+        # /wd4100 : "'type': unreferenced formal parameter"
+        # /wd4127 : "conditional expression is constant"
+        # /wd4244 : "conversion from 'unsigned int' to 'unsigned char'"
+        # /wd4456 : "declaration of 'token' hides previous local declaration"
+        # /wd4702 : "unreachable code"
+        set_target_properties(yaml-cpp PROPERTIES COMPILE_FLAGS 
+            "/wd4100 /wd4127 /wd4244 /wd4456 /wd4702"
+            )
+    endif()
+endif()
 
 add_library(gco INTERFACE)
 target_include_directories(gco INTERFACE gco-v3.0)
