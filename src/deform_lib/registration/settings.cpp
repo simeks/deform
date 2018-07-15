@@ -1,7 +1,18 @@
 #include "settings.h"
 
-#include <yaml-cpp/yaml.h>
 #include <stk/common/log.h>
+
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4127)
+#endif
+
+#include <yaml-cpp/yaml.h>
+
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
+
 
 #include <fstream>
 
