@@ -40,41 +40,49 @@ bool read_value(const YAML::Node& obj, const char* name, T& out);
 template<>
 bool read_value<int>(const YAML::Node& obj, const char* name, int& out)
 {
-    if (!obj[name].IsScalar()) {
+    try {
+        out = obj[name].as<int>();
+    }
+    catch (YAML::TypedBadConversion<int>&) {
         LOG(Error) << "Settings: '" << name << "', expected integer";
         return false;
     }
-    out = obj[name].as<int>();
     return true;
 }
 template<>
 bool read_value<float>(const YAML::Node& obj, const char* name, float& out)
 {
-    if (!obj[name].IsScalar()) {
+    try {
+        out = obj[name].as<float>();
+    }
+    catch (YAML::TypedBadConversion<float>&) {
         LOG(Error) << "Settings: '" << name << "', expected float";
         return false;
     }
-    out = obj[name].as<float>();
     return true;
 }
 template<>
 bool read_value<double>(const YAML::Node& obj, const char* name, double& out)
 {
-    if (!obj[name].IsScalar()) {
+    try {
+        out = obj[name].as<double>();
+    }
+    catch (YAML::TypedBadConversion<double>&) {
         LOG(Error) << "Settings: '" << name << "', expected double";
         return false;
     }
-    out = obj[name].as<double>();
     return true;
 }
 template<>
 bool read_value<bool>(const YAML::Node& obj, const char* name, bool& out)
 {
-    if (!obj[name].IsScalar()) {
+    try {
+        out = obj[name].as<bool>();
+    }
+    catch (YAML::TypedBadConversion<bool>&) {
         LOG(Error) << "Settings: '" << name << "', expected boolean";
         return false;
     }
-    out = obj[name].as<bool>();
     return true;
 }
 
@@ -82,12 +90,15 @@ template<>
 bool read_value<Settings::ImageSlot::CostFunction>(const YAML::Node& obj, 
     const char* name, Settings::ImageSlot::CostFunction& out)
 {
-    if (!obj[name].IsScalar()) {
+    std::string fn;
+    try {
+        fn = obj[name].as<std::string>();
+    }
+    catch (YAML::TypedBadConversion<std::string>&) {
         LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
-    std::string fn = obj[name].as<std::string>();
     if (fn == "none") {
         out = Settings::ImageSlot::CostFunction_None;
     }
@@ -108,12 +119,15 @@ template<>
 bool read_value<Settings::ImageSlot::ResampleMethod>(const YAML::Node& obj, 
     const char* name, Settings::ImageSlot::ResampleMethod& out)
 {
-    if (!obj[name].IsScalar()) {
+    std::string fn;
+    try {
+        fn = obj[name].as<std::string>();
+    }
+    catch (YAML::TypedBadConversion<std::string>&) {
         LOG(Error) << "Settings: '" << name << "', expected string";
         return false;
     }
 
-    std::string fn = obj[name].as<std::string>();
     if (fn == "gaussian") {
         out = Settings::ImageSlot::Resample_Gaussian;
     }
@@ -203,20 +217,21 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
 
     auto block_size = root["block_size"];
     if (block_size) {
-        if (!block_size.IsSequence() || 
-            block_size.size() != 3 ||
-            !block_size[0].IsScalar() ||
-            !block_size[1].IsScalar() ||
-            !block_size[2].IsScalar()) {
+        if (!block_size.IsSequence() || block_size.size() != 3) {
             LOG(Error) << "Settings: 'block_size', expected an array of 3 integers.";
             return false;
         }
-
-        settings.block_size = {
-            block_size[0].as<int>(),
-            block_size[1].as<int>(),
-            block_size[2].as<int>()
-        };
+        try {
+            settings.block_size = {
+                block_size[0].as<int>(),
+                block_size[1].as<int>(),
+                block_size[2].as<int>()
+            };
+        }
+        catch (YAML::TypedBadConversion<int>&) {
+            LOG(Error) << "Settings: 'block_size', expected an array of 3 integers.";
+            return false;
+        }
     }
 
     if (root["block_energy_epsilon"] &&
