@@ -18,36 +18,35 @@ regularization_weight: 0.95
 constraints_weight: 1234.1234
 
 image_slots:
-  - name: ""
-    resampler: gaussian
+  # water
+  - resampler: gaussian
     normalize: true
     cost_function: none
-  - name: ""
-    resampler: gaussian
+
+  # fat
+  - resampler: gaussian
     normalize: true
     cost_function: squared_distance
-  - name: ""
-    resampler: gaussian
+
+  # mask
+  - resampler: gaussian
     normalize: true
     cost_function: ncc
-  - name: ""
-    resampler: gaussian
+
+  - resampler: gaussian
     normalize: false
     cost_function: none
-  - name: ""
-    resampler: gaussian
+
+  - resampler: gaussian
     normalize: false
     cost_function: squared_distance
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: ncc
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: squared_distance
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: none
 )";
@@ -62,36 +61,28 @@ regularization_weight: 0.95
 constraints_weight: 1234.1234
 
 image_slots:
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: true
     cost_function: none
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: true
     cost_function: squared_distance
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: true
     cost_function: ncc
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: none
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: squared_distance
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: ncc
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: squared_distance
-  - name: ""
-    resampler: gaussian
+  - resampler: gaussian
     normalize: false
     cost_function: none
 )";
