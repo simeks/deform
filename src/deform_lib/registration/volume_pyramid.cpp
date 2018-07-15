@@ -73,4 +73,4 @@ const stk::Volume& VolumePyramid::residual(int level) const
     ASSERT(level < _levels);
     return _residuals[level];
 }
-#endif DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
+#endif // DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
