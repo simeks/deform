@@ -28,16 +28,19 @@ step_size: 0.5
 regularization_weight: 0.05
 
 image_slots:
-  - name: water
-    resampler: gaussian
+
+  # water
+  - resampler: gaussian
     normalize: true
     cost_function: squared_distance
-  - name: fat
-    resampler: gaussian
+
+  # fat
+  - resampler: gaussian
     normalize: true
     cost_function: squared_distance
-  - name: sfcm
-    resampler: gaussian
+
+  # sfcm
+  - resampler: gaussian
     normalize: true
     cost_function: squared_distance
 
