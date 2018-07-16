@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../config.h"
+#include "cost_function.h"
 #include "settings.h"
 #include "volume_pyramid.h"
 
@@ -55,6 +56,9 @@ private:
     
     Settings _settings;
 
+    UnaryFunction _unary_fn;
+    Regularizer _binary_fn;
+    
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;

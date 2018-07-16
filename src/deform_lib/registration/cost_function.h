@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../config.h"
+#include "level_context.h"
 
 #include <stk/common/assert.h>
 #include <stk/image/volume.h>
@@ -13,31 +14,27 @@
 
 struct Regularizer
 {
-    Regularizer(float weight=0.0f, const float3& spacing={1.0f, 1.0f, 1.0f}) :
-        _weight(weight), _spacing(spacing)
+    Regularizer() :
+        _weight(0.0f), _spacing({1.0f, 1.0f, 1.0f})
     {
     }
 
-    void set_regularization_weight(float weight)
+    // Called at the beginning of each registration level
+    //  initial : 
+    //  spacing : Fixed volume spacing for this level.
+    void begin_level(const LevelContext& ctx)
     {
-        _weight = weight;
-    }
-    void set_fixed_spacing(const float3& spacing)
-    {
-        _spacing = spacing;
-    }
-
-    // Sets the initial displacement for this registration level. This will be
-    //  the reference when computing the regularization energy. Any displacement 
-    //  identical to the initial displacement will result in zero energy.
-    void set_initial_displacement(const stk::VolumeFloat3& initial)
-    {
-        _initial = initial;
-    }
-
+        // The initial displacement will be used as the reference when computing
+        //  the regularization energy. Any displacement identical to the initial
+        //  displacement will result in zero energy.
+        _initial = ctx.initial_displacement;
+        // TODO: Is it safe to assume slot 0 is always set?
+        _spacing = ctx.fixed_volumes[0].spacing();
+        _weight = ctx.regularization_weight;
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    void set_weight_map(stk::VolumeFloat& map) { _weight_map = map; }
+        _weight_map = ctx.regularization_weight_map;
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    }
 
     /// p   : Position in fixed image
     /// def0 : Deformation in active voxel [mm]
@@ -87,49 +84,55 @@ struct Regularizer
 
 struct SubFunction
 {
+    virtual void begin_level(const LevelContext& ctx) = 0;
     virtual float cost(const int3& p, const float3& def) = 0;
 };
 
 
 struct SoftConstraintsFunction : public SubFunction
 {
-    SoftConstraintsFunction(const stk::VolumeUChar& constraint_mask,
-                            const stk::VolumeFloat3& constraints_values,
-                            float constraints_weight) :
-        _constraints_mask(constraint_mask),
-        _constraints_values(constraints_values),
-        _constraints_weight(constraints_weight),
-        _spacing(_constraints_values.spacing())
+    SoftConstraintsFunction(float constraint_weight) :
+        _constraint_weight(constraint_weight)
     {}
+
+    void begin_level(const LevelContext& ctx)
+    {
+        _constraint_mask = ctx.constraint_mask;
+        _constraint_values = ctx.constraint_values;
+        _constraint_values = ctx.constraint_values;
+    }
 
     float cost(const int3& p, const float3& def) 
     {
-        if (_constraints_mask(p) != 0)
+        if (_constraint_mask(p) != 0)
         {
-            float3 diff = def - _constraints_values(p);
+            float3 diff = def - _constraint_values(p);
             
             // Distance^2 in [mm]
             float dist_squared = stk::norm2(diff);
             
-            return std::min(_constraints_weight*dist_squared, 1000.0f); // Clamp to avoid explosion
+            return std::min(_constraint_weight*dist_squared, 1000.0f); // Clamp to avoid explosion
         }
         return 0.0f;
     }
-    stk::VolumeUChar _constraints_mask;
-    stk::VolumeFloat3 _constraints_values;
-    float _constraints_weight;
-    float3 _spacing;
+    stk::VolumeUChar _constraint_mask;
+    stk::VolumeFloat3 _constraint_values;
+    float _constraint_weight;
 };
 
 
 template<typename T>
 struct SquaredDistanceFunction : public SubFunction
 {
-    SquaredDistanceFunction(const stk::VolumeHelper<T>& fixed,
-                            const stk::VolumeHelper<T>& moving) :
-        _fixed(fixed),
-        _moving(moving)
+    // image_slot : Slot for source image data
+    SquaredDistanceFunction(int image_slot) : _image_slot(image_slot)
     {}
+
+    void begin_level(const LevelContext& ctx)
+    {
+        _fixed = ctx.fixed_volumes[_image_slot];
+        _moving = ctx.moving_volumes[_image_slot];
+    }
 
     float cost(const int3& p, const float3& def)
     {
@@ -152,11 +155,11 @@ struct SquaredDistanceFunction : public SubFunction
             return 0;
         }
 
-
-        // TODO: Float cast
         float f = fabs(float(_fixed(p) - moving_v));
         return f*f;
     }
+
+    int _image_slot;
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
@@ -165,12 +168,16 @@ struct SquaredDistanceFunction : public SubFunction
 template<typename T>
 struct NCCFunction : public SubFunction
 {
-    NCCFunction(const stk::VolumeHelper<T>& fixed,
-                const stk::VolumeHelper<T>& moving) :
-        _fixed(fixed),
-        _moving(moving)
+    NCCFunction(int image_slot, int radius) : 
+        _image_slot(image_slot),
+        _radius2(radius*radius)
     {}
 
+    void begin_level(const LevelContext& ctx)
+    {
+        _fixed = ctx.fixed_volumes[_image_slot];
+        _moving = ctx.moving_volumes[_image_slot];
+    }
 
     float cost(const int3& p, const float3& def)
     {
@@ -203,7 +210,7 @@ struct NCCFunction : public SubFunction
                 for (int dx = -2; dx <= 2; ++dx) {
                     // TODO: Does not account for anisotropic volumes
                     int r2 = dx*dx + dy*dy + dz*dz;
-                    if (r2 > 4)
+                    if (r2 > _radius2)
                         continue;
 
                     int3 fp{p.x + dx, p.y + dy, p.z + dz};
@@ -243,6 +250,9 @@ struct NCCFunction : public SubFunction
         return 0.0f;
     }
 
+    int _image_slot;
+    int _radius2;
+
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
 };
@@ -256,20 +266,21 @@ struct UnaryFunction
         std::unique_ptr<SubFunction> function;
     };
 
-    UnaryFunction(float regularization_weight=0.0f) : 
-        _regularization_weight(regularization_weight)
+    UnaryFunction() : 
+        _regularization_weight(0.0f)
     {
     }
-    void set_regularization_weight(float weight)
+
+    void begin_level(const LevelContext& ctx)
     {
-        _regularization_weight = weight;
-    }
+        _regularization_weight = ctx.regularization_weight;
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    void set_regularization_weight_map(stk::VolumeFloat& map) 
-    {
-        _regularization_weight_map = map;
-    }
+        _regularization_weight_map = ctx.regularization_weight_map;
 #endif
+        for (auto& fn : functions) {
+            fn.function->begin_level(ctx);
+        }
+    }
 
     void add_function(std::unique_ptr<SubFunction> fn, float weight)
     {
@@ -299,5 +310,3 @@ struct UnaryFunction
 
     std::vector<WeightedFunction> functions;
 };
-
-
