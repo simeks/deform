@@ -29,7 +29,6 @@ set(DEFORM_LIB_SRCS
 
     "deform_lib/arg_parser.cpp"
     "deform_lib/arg_parser.h"
-    "deform_lib/benchmark.cpp"
     "deform_lib/config.h"
     "deform_lib/cost_function.h"
     "deform_lib/jacobian.cpp"
