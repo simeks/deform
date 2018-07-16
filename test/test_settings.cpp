@@ -39,13 +39,18 @@ image_slots:
 
   - resampler: gaussian
     normalize: false
-    cost_function: squared_distance
+    cost_function:
+      ssd: 0.4
+      ncc: 0.3
+
   - resampler: gaussian
     normalize: false
     cost_function: ncc
+
   - resampler: gaussian
     normalize: false
     cost_function: squared_distance
+
   - resampler: gaussian
     normalize: false
     cost_function: none
@@ -88,7 +93,108 @@ image_slots:
 )";
 }
 
-TEST_CASE("settings", "")
+TEST_CASE("parse_registration_settings")
+{
+    SECTION("test_cost_function_single_component")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function: ncc\n";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        REQUIRE(settings.image_slots[0].resample_method ==
+                Settings::ImageSlot::Resample_Gaussian);
+        REQUIRE(settings.image_slots[0].normalize == true);
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 1.0f);
+    }
+    SECTION("test_cost_function_multi_component_1")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      ncc: 0.3\n";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        REQUIRE(settings.image_slots[0].resample_method ==
+                Settings::ImageSlot::Resample_Gaussian);
+        REQUIRE(settings.image_slots[0].normalize == true);
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.3f);
+    }
+    SECTION("test_cost_function_multi_component_2")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      ncc: 0.5\n"
+                "      ssd: 0.8\n";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        REQUIRE(settings.image_slots[0].resample_method ==
+                Settings::ImageSlot::Resample_Gaussian);
+        REQUIRE(settings.image_slots[0].normalize == true);
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.5f);
+        REQUIRE(settings.image_slots[0].cost_functions[1].function ==
+                Settings::ImageSlot::CostFunction_SSD);
+        REQUIRE(settings.image_slots[0].cost_functions[1].weight == 0.8f);
+    }
+    SECTION("test_cost_function_broken_1")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      ncc: \n"
+                "      ssd: 0.8\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
+    SECTION("test_cost_function_broken_2")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      crt: 0.3\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
+    SECTION("test_cost_function_broken_3")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      ssd: ncc\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
+}
+
+TEST_CASE("parse_registration_file", "")
 {
     SECTION("test_file")
     {
@@ -116,50 +222,70 @@ TEST_CASE("settings", "")
         REQUIRE(settings.image_slots[0].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[0].normalize == true);
-        REQUIRE(settings.image_slots[0].cost_function == 
+        REQUIRE(settings.image_slots[0].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_None);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 
+                1.0f);
 
         REQUIRE(settings.image_slots[1].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[1].normalize == true);
-        REQUIRE(settings.image_slots[1].cost_function == 
+        REQUIRE(settings.image_slots[1].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_SSD);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 
+                1.0f);
         
         REQUIRE(settings.image_slots[2].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[2].normalize == true);
-        REQUIRE(settings.image_slots[2].cost_function == 
+        REQUIRE(settings.image_slots[2].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[2].cost_functions[0].weight == 
+                1.0f);
                 
         REQUIRE(settings.image_slots[3].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[3].normalize == false);
-        REQUIRE(settings.image_slots[3].cost_function == 
+        REQUIRE(settings.image_slots[3].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_None);
+        REQUIRE(settings.image_slots[3].cost_functions[0].weight == 
+                1.0f);
 
         REQUIRE(settings.image_slots[4].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[4].normalize == false);
-        REQUIRE(settings.image_slots[4].cost_function == 
+        REQUIRE(settings.image_slots[4].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_SSD);
+        REQUIRE(settings.image_slots[4].cost_functions[0].weight == 
+                0.4f);
+        REQUIRE(settings.image_slots[4].cost_functions[1].function == 
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[4].cost_functions[1].weight == 
+                0.3f);
         
         REQUIRE(settings.image_slots[5].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[5].normalize == false);
-        REQUIRE(settings.image_slots[5].cost_function == 
+        REQUIRE(settings.image_slots[5].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[5].cost_functions[0].weight == 
+                1.0f);
 
         REQUIRE(settings.image_slots[6].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[6].normalize == false);
-        REQUIRE(settings.image_slots[6].cost_function == 
+        REQUIRE(settings.image_slots[6].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_SSD);
+        REQUIRE(settings.image_slots[6].cost_functions[0].weight == 
+                1.0f);
 
         REQUIRE(settings.image_slots[7].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[7].normalize == false);
-        REQUIRE(settings.image_slots[7].cost_function == 
+        REQUIRE(settings.image_slots[7].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_None);
+        REQUIRE(settings.image_slots[7].cost_functions[0].weight == 
+                1.0f);
     }
     SECTION("no_file")
     {
