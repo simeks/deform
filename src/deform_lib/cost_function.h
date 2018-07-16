@@ -251,6 +251,11 @@ struct NCCFunction : public SubFunction
 
 struct UnaryFunction
 {
+    struct WeightedFunction {
+        float weight;
+        std::unique_ptr<SubFunction> function;
+    };
+
     UnaryFunction(float regularization_weight=0.0f) : 
         _regularization_weight(regularization_weight)
     {
@@ -266,16 +271,16 @@ struct UnaryFunction
     }
 #endif
 
-    void add_function(std::unique_ptr<SubFunction> fn)
+    void add_function(std::unique_ptr<SubFunction> fn, float weight)
     {
-        functions.push_back(std::move(fn));
+        functions.push_back({weight, std::move(fn)});
     }
 
     inline double operator()(const int3& p, const float3& def)
     {
         double sum = 0.0f;
         for (auto& fn : functions) {
-            sum += fn->cost(p, def);
+            sum += fn.weight * fn.function->cost(p, def);
         }
 
         float w = _regularization_weight;
@@ -292,7 +297,7 @@ struct UnaryFunction
     stk::VolumeFloat _regularization_weight_map;
 #endif
 
-    std::vector<std::unique_ptr<SubFunction>> functions;
+    std::vector<WeightedFunction> functions;
 };
 
 

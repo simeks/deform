@@ -99,36 +99,6 @@ bool read_value<bool>(const YAML::Node& obj, const char* name, bool& out)
     }
     return true;
 }
-
-template<>
-bool read_value<Settings::ImageSlot::CostFunction>(const YAML::Node& obj, 
-    const char* name, Settings::ImageSlot::CostFunction& out)
-{
-    std::string fn;
-    try {
-        fn = obj[name].as<std::string>();
-    }
-    catch (YAML::TypedBadConversion<std::string>&) {
-        LOG(Error) << "Settings: '" << name << "', expected string";
-        return false;
-    }
-
-    if (fn == "none") {
-        out = Settings::ImageSlot::CostFunction_None;
-    }
-    else if (fn == "squared_distance" || fn == "ssd") {
-        out = Settings::ImageSlot::CostFunction_SSD;
-    }
-    else if (fn == "ncc") {
-        out = Settings::ImageSlot::CostFunction_NCC;
-    }
-    else {
-        LOG(Error) << "Settings: Unrecognized value '" << fn << "'.";
-        return false;
-    }
-    
-    return true;
-}
 template<>
 bool read_value<Settings::ImageSlot::ResampleMethod>(const YAML::Node& obj, 
     const char* name, Settings::ImageSlot::ResampleMethod& out)
@@ -150,6 +120,68 @@ bool read_value<Settings::ImageSlot::ResampleMethod>(const YAML::Node& obj,
         return false;
     }
     
+    return true;
+}
+
+Settings::ImageSlot::CostFunction str_to_cost_function(const std::string& fn)
+{
+    if (fn == "none") {
+        return Settings::ImageSlot::CostFunction_None;
+    }
+    else if (fn == "squared_distance" || fn == "ssd") {
+        return Settings::ImageSlot::CostFunction_SSD;
+    }
+    else if (fn == "ncc") {
+        return Settings::ImageSlot::CostFunction_NCC;
+    }
+
+    throw UnrecognisedCostFunction(fn);
+}
+
+bool read_cost_functions(const YAML::Node& slot_node, Settings::ImageSlot& slot) {
+    if (!slot_node) {
+        return false;
+    }
+
+    // the cost can be a map from functions to weights
+    if (slot_node.IsMap()) {
+        size_t k = 0;
+        slot.cost_functions.resize(slot_node.size());
+        for(auto it = slot_node.begin(); it != slot_node.end(); ++it) {
+            try {
+                slot.cost_functions[k].function = str_to_cost_function(it->first.as<std::string>());
+                slot.cost_functions[k].weight = it->second.as<float>();
+                ++k;
+            }
+            catch (YAML::TypedBadConversion<std::string>&) {
+                LOG(Error) << "Settings: expected a cost function";
+                return false;
+            }
+            catch (YAML::TypedBadConversion<float>&) {
+                LOG(Error) << "Settings: expected a weight (float number)";
+                return false;
+            }
+            catch (UnrecognisedCostFunction& e) {
+                LOG(Error) << "Settings: Unrecognized cost function '" << e.what() << "'.";
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // or it can be a scalar, i.e. a single function (with implicit weight 1.0)
+    try {
+        slot.cost_functions[0].function = str_to_cost_function(slot_node.as<std::string>());
+        slot.cost_functions[0].weight = 1.0f;
+    }
+    catch (YAML::TypedBadConversion<std::string>&) {
+        LOG(Error) << "Settings: expected a cost function";
+        return false;
+    }
+    catch (UnrecognisedCostFunction& e) {
+        LOG(Error) << "Settings: Unrecognized cost function '" << e.what() << "'.";
+        return false;
+    }
     return true;
 }
 
@@ -190,13 +222,20 @@ void print_registration_settings(const Settings& settings)
         auto slot = settings.image_slots[i];
 
         // Dont print unused slots
-        if (slot.cost_function == Settings::ImageSlot::CostFunction_None)
+        if (0 == slot.cost_functions.size() || 
+                Settings::ImageSlot::CostFunction_None == slot.cost_functions[0].function) {
             continue;
+        }
 
         LOG(Info) << "image_slot[" << i << "] = {";
-        LOG(Info) << "  cost_function = " << cost_function_to_str(slot.cost_function);        
         LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);        
         LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
+        LOG(Info) << "  cost_functions = {";
+        for (size_t k = 0; k < slot.cost_functions.size(); ++k) {
+            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": "
+                                << slot.cost_functions[k].weight;
+        }
+        LOG(Info) << "  }";
         LOG(Info) << "}";
     }
 }
@@ -264,7 +303,7 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
             auto slot = image_slots[is];
             if (slot.IsMap()) {
                 if (slot["cost_function"] &&
-                    !read_value(slot, "cost_function", settings.image_slots[i].cost_function))
+                    !read_cost_functions(slot["cost_function"], settings.image_slots[i]))
                     return false;
 
                 if (slot["resampler"] &&

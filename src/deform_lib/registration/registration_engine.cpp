@@ -185,30 +185,31 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             continue; // Skip empty slots
 
         ASSERT(fixed.voxel_type() == moving.voxel_type());
-        auto& slot = _settings.image_slots[i];
-        if (slot.cost_function == Settings::ImageSlot::CostFunction_SSD) {
-            FactoryFn factory = ssd_factory[fixed.voxel_type()];
-            if (factory) {
-                unary_fn.add_function(factory(fixed, moving));
+        for (auto& fn : _settings.image_slots[i].cost_functions) {
+            if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
+                FactoryFn factory = ssd_factory[fixed.voxel_type()];
+                if (factory) {
+                    unary_fn.add_function(factory(fixed, moving), fn.weight);
+                }
+                else {
+                    FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
+                            << "for metric 'ssd' "
+                            << "(slot: " << i << ")";
+                }
             }
-            else {
-                FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
-                        << "for metric 'ssd' "
-                        << "(slot: " << i << ")";
+            else if (Settings::ImageSlot::CostFunction_NCC == fn.function)
+            {
+                FactoryFn factory = ncc_factory[fixed.voxel_type()];
+                if (factory) {
+                    unary_fn.add_function(factory(fixed, moving), fn.weight);
+                }
+                else {
+                    FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
+                            << "for metric 'ncc' "
+                            << "(slot: " << i << ")";
+                }
             }
         }
-        else if (slot.cost_function == Settings::ImageSlot::CostFunction_NCC)
-        {
-            FactoryFn factory = ncc_factory[fixed.voxel_type()];
-            if (factory) {
-                unary_fn.add_function(factory(fixed, moving));
-            }
-            else {
-                FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
-                        << "for metric 'ncc' "
-                        << "(slot: " << i << ")";
-            }
-        }            
     }
  
     if (_constraints_mask_pyramid.volume(level).valid()) {
@@ -217,7 +218,8 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                 _constraints_mask_pyramid.volume(level),
                 _constraints_pyramid.volume(level),
                 _settings.constraints_weight
-            )
+            ),
+            1.0f
         );
     }
 }
