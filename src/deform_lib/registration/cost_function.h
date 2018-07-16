@@ -1,6 +1,6 @@
 #pragma once
 
-#include "config.h"
+#include "../config.h"
 
 #include <stk/common/assert.h>
 #include <stk/image/volume.h>

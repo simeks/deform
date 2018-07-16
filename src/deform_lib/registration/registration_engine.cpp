@@ -1,8 +1,8 @@
 #include "../config.h"
-#include "../cost_function.h"
 #include "../filters/resample.h"
 
 #include "blocked_graph_cut_optimizer.h"
+#include "cost_function.h"
 #include "registration_engine.h"
 #include "transform.h"
 
