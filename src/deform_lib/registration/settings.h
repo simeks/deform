@@ -6,10 +6,6 @@
 
 #include <stk/math/int3.h>
 
-class UnrecognisedCostFunction : public std::runtime_error {
-    using std::runtime_error::runtime_error;
-};
-
 struct Settings
 {
     // Settings for a specific image slot, each image pair (i.e. fixed and moving) is considered

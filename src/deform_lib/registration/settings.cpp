@@ -16,6 +16,14 @@
 
 #include <fstream>
 
+class UnrecognisedCostFunction : public YAML::RepresentationException {
+public:
+    UnrecognisedCostFunction(const YAML::Mark& mark_)
+      : RepresentationException(mark_, "invalid cost function") {}
+    UnrecognisedCostFunction(const UnrecognisedCostFunction&) = default;
+    virtual ~UnrecognisedCostFunction() noexcept {};
+};
+
 /*
 pyramid_levels: 6
 pyramid_stop_level: 0
@@ -32,7 +40,11 @@ image_slots:
   # water
   - resampler: gaussian
     normalize: true
-    cost_function: squared_distance
+    cost_function:
+      - function: ssd
+        weight: 0.3
+      - function: ncc
+        weight: 0.4
 
   # fat
   - resampler: gaussian
@@ -123,8 +135,16 @@ bool read_value<Settings::ImageSlot::ResampleMethod>(const YAML::Node& obj,
     return true;
 }
 
-Settings::ImageSlot::CostFunction str_to_cost_function(const std::string& fn)
+Settings::ImageSlot::CostFunction read_cost_function_name(const YAML::Node& node)
 {
+    std::string fn;
+    try {
+        fn = node.as<std::string>();
+    }
+    catch (YAML::TypedBadConversion<std::string>&) {
+        throw UnrecognisedCostFunction(node.Mark());
+    }
+
     if (fn == "none") {
         return Settings::ImageSlot::CostFunction_None;
     }
@@ -135,51 +155,63 @@ Settings::ImageSlot::CostFunction str_to_cost_function(const std::string& fn)
         return Settings::ImageSlot::CostFunction_NCC;
     }
 
-    throw UnrecognisedCostFunction(fn);
+    throw UnrecognisedCostFunction(node.Mark());
 }
 
-bool read_cost_functions(const YAML::Node& slot_node, Settings::ImageSlot& slot) {
-    if (!slot_node) {
+bool read_cost_function(const YAML::Node& node, Settings::ImageSlot::WeightedFunction& fn) {
+    if (node["function"]) {
+        try {
+            fn.function = read_cost_function_name(node["function"]);
+        }
+        catch (UnrecognisedCostFunction& e) {
+            LOG(Error) << e.what();
+            return false;
+        }
+    }
+    else {
+        LOG(Error) << "Settings: line " << node.Mark().line << ", missing function";
         return false;
     }
 
-    // the cost can be a map from functions to weights
-    if (slot_node.IsMap()) {
-        size_t k = 0;
-        slot.cost_functions.resize(slot_node.size());
-        for(auto it = slot_node.begin(); it != slot_node.end(); ++it) {
-            try {
-                slot.cost_functions[k].function = str_to_cost_function(it->first.as<std::string>());
-                slot.cost_functions[k].weight = it->second.as<float>();
-                ++k;
-            }
-            catch (YAML::TypedBadConversion<std::string>&) {
-                LOG(Error) << "Settings: expected a cost function";
-                return false;
-            }
-            catch (YAML::TypedBadConversion<float>&) {
-                LOG(Error) << "Settings: expected a weight (float number)";
-                return false;
-            }
-            catch (UnrecognisedCostFunction& e) {
-                LOG(Error) << "Settings: Unrecognized cost function '" << e.what() << "'.";
+    if (node["weight"]) {
+        try {
+            fn.weight = node["weight"].as<float>();
+        }
+        catch (YAML::TypedBadConversion<float>& e) {
+            LOG(Error) << "Settings: line " << node.Mark().line << ", expected a weight";
+            return false;
+        }
+    }
+    else {
+        fn.weight = 1.0f;
+    }
+    return true;
+}
+
+bool read_cost_functions(const YAML::Node& cost_functions, Settings::ImageSlot& slot) {
+    if (!cost_functions) {
+        return false;
+    }
+
+    // can be a list of cost functions
+    if (cost_functions.IsSequence()) {
+        slot.cost_functions.resize(cost_functions.size());
+        for(size_t k = 0; k < cost_functions.size(); ++k) {
+            if(!read_cost_function(cost_functions[k], slot.cost_functions[k])) {
                 return false;
             }
         }
         return true;
     }
 
-    // or it can be a scalar, i.e. a single function (with implicit weight 1.0)
+    // or it can be a scalar, i.e. the name of a function
+    // (with default parameters) 
     try {
-        slot.cost_functions[0].function = str_to_cost_function(slot_node.as<std::string>());
+        slot.cost_functions[0].function = read_cost_function_name(cost_functions);
         slot.cost_functions[0].weight = 1.0f;
     }
-    catch (YAML::TypedBadConversion<std::string>&) {
-        LOG(Error) << "Settings: expected a cost function";
-        return false;
-    }
     catch (UnrecognisedCostFunction& e) {
-        LOG(Error) << "Settings: Unrecognized cost function '" << e.what() << "'.";
+        LOG(Error) << e.what();
         return false;
     }
     return true;

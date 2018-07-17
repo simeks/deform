@@ -39,8 +39,10 @@ image_slots:
   - resampler: gaussian
     normalize: true
     cost_function:
-      ssd: 0.3
-      ncc: 0.4
+      - function: ssd
+        weight: 0.3
+      - function: ncc
+        weight: 0.4
 
   # sfcm
   - resampler: gaussian

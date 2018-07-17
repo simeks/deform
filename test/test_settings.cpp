@@ -40,8 +40,10 @@ image_slots:
   - resampler: gaussian
     normalize: false
     cost_function:
-      ssd: 0.4
-      ncc: 0.3
+      - function: ssd
+        weight: 0.4
+      - function: ncc
+        weight: 0.3
 
   - resampler: gaussian
     normalize: false
@@ -121,7 +123,8 @@ TEST_CASE("parse_registration_settings")
                 "  - resampler: gaussian\n"
                 "    normalize: true\n"
                 "    cost_function:\n"
-                "      ncc: 0.3\n";
+                "      - function: ncc\n"
+                "        weight: 0.3\n";
 
         REQUIRE(parse_registration_settings(settings_str, settings));
 
@@ -140,8 +143,10 @@ TEST_CASE("parse_registration_settings")
                 "  - resampler: gaussian\n"
                 "    normalize: true\n"
                 "    cost_function:\n"
-                "      ncc: 0.5\n"
-                "      ssd: 0.8\n";
+                "      - function: ncc\n"
+                "        weight: 0.5\n"
+                "      - function: ssd\n"
+                "        weight: 0.8\n";
 
         REQUIRE(parse_registration_settings(settings_str, settings));
 
@@ -163,8 +168,8 @@ TEST_CASE("parse_registration_settings")
                 "  - resampler: gaussian\n"
                 "    normalize: true\n"
                 "    cost_function:\n"
-                "      ncc: \n"
-                "      ssd: 0.8\n";
+                "      - function: ncc\n"
+                "      - weight: 0.8\n";
 
         REQUIRE(!parse_registration_settings(settings_str, settings));
     }
@@ -176,7 +181,8 @@ TEST_CASE("parse_registration_settings")
                 "  - resampler: gaussian\n"
                 "    normalize: true\n"
                 "    cost_function:\n"
-                "      crt: 0.3\n";
+                "      - function: crt\n"
+                "        weight: 0.3\n";
 
         REQUIRE(!parse_registration_settings(settings_str, settings));
     }
@@ -188,7 +194,8 @@ TEST_CASE("parse_registration_settings")
                 "  - resampler: gaussian\n"
                 "    normalize: true\n"
                 "    cost_function:\n"
-                "      ssd: ncc\n";
+                "      - function: 0.3\n"
+                "        weight: 0.3\n";
 
         REQUIRE(!parse_registration_settings(settings_str, settings));
     }
