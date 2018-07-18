@@ -57,14 +57,19 @@ namespace YAML {
     {
         static bool decode(const Node& node, int3& out) {
             if(!node.IsSequence() || node.size() != 3) {
-                throw YAML::RepresentationException(node.Mark(), "expected int3");
+                throw YAML::RepresentationException(node.Mark(), "expected vector of 3 integers");
             }
             
-            out = {
-                node[0].as<int>(),
-                node[1].as<int>(),
-                node[2].as<int>()
-            };
+            try {
+                out = {
+                    node[0].as<int>(),
+                    node[1].as<int>(),
+                    node[2].as<int>()
+                };
+            }
+            catch (YAML::TypedBadConversion<int>&) {
+                throw YAML::RepresentationException(node.Mark(), "expected vector of 3 integers");
+            }
 
             return true;
         }
@@ -78,7 +83,14 @@ namespace YAML {
                 throw YAML::RepresentationException(node.Mark(), "expected resampler");
             }
 
-            const std::string fn = node.as<std::string>();
+            std::string fn;
+            try {
+                fn = node.as<std::string>();
+            }
+            catch (YAML::TypedBadConversion<std::string> &) {
+                throw YAML::RepresentationException(node.Mark(), "expected resampler");
+            }
+
             if (fn == "gaussian") {
                 out = Settings::ImageSlot::Resample_Gaussian;
                 return true;
@@ -96,7 +108,14 @@ namespace YAML {
                 throw YAML::RepresentationException(node.Mark(), "expected cost function");
             }
 
-            const std::string fn = node.as<std::string>();
+            std::string fn;
+            try {
+                fn = node.as<std::string>();
+            }
+            catch (YAML::TypedBadConversion<std::string> &) {
+                throw YAML::RepresentationException(node.Mark(), "expected cost function");
+            }
+
             if (fn == "none") {
                 out = Settings::ImageSlot::CostFunction_None;
                 return true;
@@ -168,7 +187,12 @@ namespace YAML {
 
             // Normalisation
             if (node["normalize"]) {
-                out.normalize = node["normalize"].as<bool>();
+                try {
+                    out.normalize = node["normalize"].as<bool>();
+                }
+                catch (YAML::TypedBadConversion<bool> &) {
+                    throw YAML::RepresentationException(node.Mark(), "expected bool");
+                }
             }
 
             return true;
