@@ -290,7 +290,7 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
         LOG(Error) << "[YAML] " << e.what();
         return false;
     }
-    catch (std::runtime_error& e) {
+    catch (YAML::RepresentationException& e) {
         LOG(Error) << "[Settings] " << e.what();
         return false;
     }
