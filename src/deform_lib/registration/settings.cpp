@@ -75,7 +75,7 @@ namespace YAML {
     {
         static bool decode(const Node& node, Settings::ImageSlot::ResampleMethod& out) {
             if(!node.IsScalar()) {
-                return false;
+                throw YAML::RepresentationException(node.Mark(), "expected resampler");
             }
 
             const std::string fn = node.as<std::string>();
@@ -84,7 +84,7 @@ namespace YAML {
                 return true;
             }
             
-            throw YAML::RepresentationException(node.Mark(), "expected resampling function");
+            throw YAML::RepresentationException(node.Mark(), "unrecognised resampler " + fn);
         }
     };
 
@@ -110,7 +110,7 @@ namespace YAML {
                 return true;
             }
             
-            throw YAML::RepresentationException(node.Mark(), "expected cost function");
+            throw YAML::RepresentationException(node.Mark(), "unrecognised cost function " + fn);
         }
     };
 
@@ -177,18 +177,6 @@ namespace YAML {
 
 } // namespace YAML
 
-template<typename T>
-T read_value(const YAML::Node& obj, const char* name)
-{
-    try {
-        return obj[name].as<T>();
-    }
-    catch (YAML::TypedBadConversion<T>&) {
-        throw YAML::RepresentationException(obj.Mark(),
-                                            std::string(name) + ", expected " + typeid(T).name());
-    }
-}
-
 const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
 {
     switch (fn) {
@@ -252,31 +240,31 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
         YAML::Node root = YAML::Load(str);
         
         if (root["pyramid_levels"]) {
-            settings.num_pyramid_levels = read_value<int>(root, "pyramid_levels");
+            settings.num_pyramid_levels = root["pyramid_levels"].as<int>();
         }
 
         if (root["pyramid_stop_level"]) {
-            settings.pyramid_stop_level = read_value<int>(root, "pyramid_stop_level");
+            settings.pyramid_stop_level = root["pyramid_stop_level"].as<int>();
         }
 
         if (root["step_size"]) {
-            settings.step_size = read_value<float>(root, "step_size");
+            settings.step_size = root["step_size"].as<float>();
         }
 
         if (root["regularization_weight"]) {
-            settings.regularization_weight = read_value<float>(root, "regularization_weight");
+            settings.regularization_weight = root["regularization_weight"].as<float>();
         }
 
         if (root["block_size"]) {
-            settings.block_size = read_value<int3>(root, "block_size");
+            settings.block_size = root["block_size"].as<int3>();
         }
 
         if (root["block_energy_epsilon"]) {
-            settings.block_energy_epsilon = read_value<float>(root, "block_energy_epsilon");
+            settings.block_energy_epsilon = root["block_energy_epsilon"].as<float>();
         }
 
         if (root["constraints_weight"]) {
-            settings.constraints_weight = read_value<float>(root, "constraints_weight");
+            settings.constraints_weight = root["constraints_weight"].as<float>();
         }
 
         auto is = root["image_slots"];
@@ -286,11 +274,7 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
             }
         }
     }
-    catch (YAML::ParserException& e) {
-        LOG(Error) << "[YAML] " << e.what();
-        return false;
-    }
-    catch (YAML::RepresentationException& e) {
+    catch (YAML::Exception& e) {
         LOG(Error) << "[Settings] " << e.what();
         return false;
     }
