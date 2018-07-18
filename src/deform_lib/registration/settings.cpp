@@ -15,7 +15,6 @@
 
 
 #include <fstream>
-#include <iostream>
 
 /*
 pyramid_levels: 6
