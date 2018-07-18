@@ -1,8 +1,9 @@
 #include "../config.h"
-#include "../cost_function.h"
 #include "../filters/resample.h"
 
 #include "blocked_graph_cut_optimizer.h"
+#include "cost_function.h"
+#include "level_context.h"
 #include "registration_engine.h"
 #include "transform.h"
 
@@ -58,19 +59,6 @@ namespace
     }
 }
 
-void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
-{
-    binary_fn.set_fixed_spacing(_fixed_pyramids[0].volume(level).spacing());
-    binary_fn.set_regularization_weight(_settings.regularization_weight);
-
-    // Clone the def, because the current copy will be changed when executing the optimizer
-    binary_fn.set_initial_displacement(_deformation_pyramid.volume(level).clone());
-        
-    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-        if (_regularization_weight_map.volume(level).valid())
-            binary_fn.set_weight_map(_regularization_weight_map.volume(level));
-    #endif
-}
 void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
 {
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
@@ -308,28 +296,47 @@ stk::Volume RegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            UnaryFunction unary_fn;
-            build_unary_function(l, unary_fn);
+            LevelContext ctx;
+            ctx.level = l;
+            // We clone this b/c it shouldn't change after optimization has begun
+            ctx.initial_displacement = def.clone();
+            ctx.constraint_mask = _constraints_mask_pyramid.volume(l);
+            ctx.constraint_values = _constraints_pyramid.volume(l);
+            ctx.regularization_weight = _settings.regularization_weight;
 
-            Regularizer binary_fn;
-            build_regularizer(l, binary_fn);
+            ctx.fixed_volumes.resize(DF_MAX_IMAGE_PAIR_COUNT);
+            ctx.moving_volumes.resize(DF_MAX_IMAGE_PAIR_COUNT);
+            for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+                if (_fixed_pyramids[i].levels() > 0)
+                    ctx.fixed_volumes[i] = _fixed_pyramids[i].volume(level);
+                if (_moving_pyramids[i].levels() > 0)
+                    ctx.moving_volumes[i] = _moving_pyramids[i].volume(level);
+
+            }
+
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+            ctx.regularization_weight_map = _regularization_weight_map.volume(l);
+#endif
 
             if (_constraints_mask_pyramid.volume(l).valid())
             {
                 // Fix constrained voxels by updating the initial deformation field
                 constrain_deformation_field(
                     def,
-                    _constraints_mask_pyramid.volume(l),
-                    _constraints_pyramid.volume(l)
+                    ctx.constraint_mask,
+                    ctx.constraint_values
                 );
             }
+            
+            _unary_fn.begin_level(ctx);
+            _binary_fn.begin_level(ctx);
             
             BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
                 _settings.block_size,
                 _settings.block_energy_epsilon
             );
             
-            optimizer.execute(unary_fn, binary_fn, _settings.step_size, def);
+            optimizer.execute(_unary_fn, _binary_fn, _settings.step_size, def);
         }
         else {
             LOG(Info) << "Skipping level " << l;

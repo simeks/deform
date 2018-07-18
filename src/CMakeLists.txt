@@ -14,6 +14,7 @@ set(DEFORM_LIB_SRCS
     "deform_lib/registration/block_change_flags.h"
     "deform_lib/registration/blocked_graph_cut_optimizer.h"
     "deform_lib/registration/blocked_graph_cut_optimizer.inl"
+    "deform_lib/registration/cost_function.h"
     "deform_lib/registration/registration_engine.cpp"
     "deform_lib/registration/registration_engine.h"
     "deform_lib/registration/settings.cpp"
@@ -29,9 +30,7 @@ set(DEFORM_LIB_SRCS
 
     "deform_lib/arg_parser.cpp"
     "deform_lib/arg_parser.h"
-    "deform_lib/benchmark.cpp"
     "deform_lib/config.h"
-    "deform_lib/cost_function.h"
     "deform_lib/jacobian.cpp"
     "deform_lib/jacobian.h"
     "deform_lib/regularize.cpp"

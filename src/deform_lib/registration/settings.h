@@ -61,6 +61,7 @@ struct Settings
     // Block size, (0,0,0) is the same as using only a single large block
     int3 block_size;
     // Epsilon used for termination
+    // TODO: Should probably be replaced by a iteration limit
     double block_energy_epsilon;
     // Step size in [mm]
     float step_size;
