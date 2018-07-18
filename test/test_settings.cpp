@@ -199,6 +199,19 @@ TEST_CASE("parse_registration_settings")
 
         REQUIRE(!parse_registration_settings(settings_str, settings));
     }
+    SECTION("test_cost_function_broken_4")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: foo\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: ncc\n"
+                "        weight: 0.3\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
 }
 
 TEST_CASE("parse_registration_file", "")
