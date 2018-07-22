@@ -38,7 +38,11 @@ image_slots:
   # water
   - resampler: gaussian
     normalize: true
-    cost_function: ssd
+    cost_function:
+      - function: ssd
+        weight: 0.3
+      - function: ncc
+        weight: 0.4
 
   # sfcm
   - resampler: gaussian
@@ -58,4 +62,4 @@ First two parameters, `pyramid_levels` and `pyramid_stop_level`, defines the siz
 
 `regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
 
-`image_slots`, specifies how to use the input images. `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` specifies which cost function to use ('ssd' for squared distance and 'ncc' for normalized cross correlation).
+`image_slots`, specifies how to use the input images. `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` allows to provide one or more cost functions to use. Its value can be the name of a single function ('ssd' for squared distance and 'ncc' for normalized cross correlation), in which case its weight is assumed to be `1.0`, otherwise one or multiple weighted components can be specified by listing each function and its weight.

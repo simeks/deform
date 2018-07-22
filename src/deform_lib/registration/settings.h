@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "../config.h"
 
 #include <stk/math/int3.h>
@@ -25,8 +27,14 @@ struct Settings
             Resample_Gaussian // Applies a gaussian filter before downsampling
         };
 
-        // Cost function to apply on this image pair
-        CostFunction cost_function;
+        // A function associated with a weight
+        struct WeightedFunction {
+            float weight = 1.0;
+            CostFunction function = CostFunction_None;
+        };
+
+        // Cost functions to apply on this image pair
+        std::vector<WeightedFunction> cost_functions;
 
         // Specifies which resampler to use when building the pyramid
         ResampleMethod resample_method;
@@ -35,9 +43,9 @@ struct Settings
         bool normalize;
 
         ImageSlot() :
-            cost_function(CostFunction_SSD),
-            resample_method(Resample_Gaussian),
-            normalize(true) {}
+            cost_functions{{1.0, CostFunction_SSD}},
+            resample_method{Resample_Gaussian},
+            normalize{true} {}
     };
 
     // Which level to start registration on
