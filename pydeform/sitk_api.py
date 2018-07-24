@@ -6,6 +6,8 @@ from . import interruptible
 def register(
         fixed_images,
         moving_images,
+        fixed_landmarks = None,
+        moving_landmarks = None,
         initial_displacement = None,
         constraint_mask = None,
         constraint_values = None,
@@ -13,7 +15,7 @@ def register(
         num_threads = 0,
         subprocess = False,
         ):
-    """ Perform deformable registration.
+    R""" Perform deformable registration.
 
     Parameters
     ----------
@@ -22,6 +24,16 @@ def register(
 
     moving_images: Union[sitk.Image, List[sitk.Image]]
         Moving image, or list of moving images.
+
+    fixed_landmarks: np.ndarray
+        Array of shape :math:`n \times 3`, containing
+        `n` landmarks with (x, y, z) coordinates in
+        image space. Requires to provide `moving_landmarks`.
+
+    moving_landmarks: np.ndarray
+        Array of shape :math:`n \times 3`, containing
+        `n` landmarks with (x, y, z) coordinates in
+        image space. Requires to provide `fixed_landmarks`.
 
     initial_displacement: sitk.Image
         Initial guess of the displacement field.
@@ -89,6 +101,8 @@ def register(
                             moving_origin=moving_origin,
                             fixed_spacing=fixed_spacing,
                             moving_spacing=moving_spacing,
+                            fixed_landmarks=fixed_landmarks,
+                            moving_landmarks=moving_landmarks,
                             initial_displacement=initial_displacement,
                             constraint_mask=constraint_mask,
                             constraint_values=constraint_values,

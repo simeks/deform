@@ -94,11 +94,9 @@ struct SubFunction
 struct SoftConstraintsFunction : public SubFunction
 {
     SoftConstraintsFunction(const stk::VolumeUChar& constraint_mask,
-                            const stk::VolumeFloat3& constraints_values,
-                            float constraints_weight) :
+                            const stk::VolumeFloat3& constraints_values) :
         _constraints_mask(constraint_mask),
         _constraints_values(constraints_values),
-        _constraints_weight(constraints_weight),
         _spacing(_constraints_values.spacing())
     {}
 
@@ -111,13 +109,12 @@ struct SoftConstraintsFunction : public SubFunction
             // Distance^2 in [mm]
             float dist_squared = stk::norm2(diff);
             
-            return std::min(_constraints_weight*dist_squared, 1000.0f); // Clamp to avoid explosion
+            return std::min(dist_squared, 1000.0f); // Clamp to avoid explosion
         }
         return 0.0f;
     }
     stk::VolumeUChar _constraints_mask;
     stk::VolumeFloat3 _constraints_values;
-    float _constraints_weight;
     float3 _spacing;
 };
 
@@ -247,6 +244,53 @@ struct NCCFunction : public SubFunction
     stk::VolumeHelper<T> _moving;
 };
 
+
+struct LandmarksFunction : public SubFunction
+{
+    LandmarksFunction(const std::vector<float3>& fixed_landmarks,
+                      const std::vector<float3>& moving_landmarks,
+                      const float3& fixed_origin,
+                      const float3& fixed_spacing,
+                      const dim3& fixed_size) :
+        landmarks {fixed_landmarks},
+        fixed_origin {fixed_origin},
+        fixed_spacing {fixed_spacing},
+        fixed_size {fixed_size}
+    {
+        ASSERT(fixed_landmarks.size() == moving_landmarks.size());
+        for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
+            displacements.push_back(moving_landmarks[i] - fixed_landmarks[i]);
+        }
+    }
+
+    // TODO: precompute distance map in the constructor
+    float cost(const int3& p, const float3& def)
+    {
+        float cost = 0.0f;
+        const float epsilon = 1e-6f;
+
+        const float3 fixed_p{
+            static_cast<float>(p.x),
+            static_cast<float>(p.y),
+            static_cast<float>(p.z)
+        };
+
+        const float3 world_p = fixed_origin + fixed_p * fixed_spacing;
+
+        for (size_t i = 0; i < landmarks.size(); ++i) {
+            cost += stk::norm2(def - displacements[i]) /
+                    (stk::norm2(landmarks[i] - world_p) + epsilon);
+        }
+
+        return cost;
+    }
+
+    const std::vector<float3> landmarks;
+    std::vector<float3> displacements;
+    const float3 fixed_origin;
+    const float3 fixed_spacing;
+    const dim3 fixed_size;
+};
 
 
 struct UnaryFunction

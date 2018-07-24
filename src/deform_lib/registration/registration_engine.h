@@ -28,6 +28,10 @@ public:
     void set_regularization_weight_map(const stk::Volume& map);
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
+    /// Sets fixed and moving landmarks.
+    void set_landmarks(const std::vector<float3>& fixed_landmarks,
+                       const std::vector<float3>& moving_landmarks);
+
     /// Sets mask and values for constraints
     void set_voxel_constraints(const stk::VolumeUChar& mask, const stk::VolumeFloat3& values);
 
@@ -58,6 +62,9 @@ private:
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
+
+    std::vector<float3> _fixed_landmarks;
+    std::vector<float3> _moving_landmarks;
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     VolumePyramid _regularization_weight_map;

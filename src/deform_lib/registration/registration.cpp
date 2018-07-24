@@ -75,6 +75,8 @@ stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
+        const std::optional<std::vector<float3>> fixed_landmarks,
+        const std::optional<std::vector<float3>> moving_landmarks,
         const std::optional<stk::Volume> initial_deformation,
         const std::optional<stk::Volume> constraint_mask,
         const std::optional<stk::Volume> constraint_values,
@@ -186,6 +188,18 @@ stk::Volume registration(
                 fixed_ref.origin(), fixed_ref.spacing(), "constraint values");
 
         engine.set_voxel_constraints(constraint_mask.value(), constraint_values.value());
+    }
+
+    if (fixed_landmarks.has_value() || moving_landmarks.has_value()) {
+        if (!fixed_landmarks.has_value() || !moving_landmarks.has_value()) {
+            throw ValidationError("Landmarks must be specified for both fixed and moving");
+        }
+
+        if (fixed_landmarks.value().size() != moving_landmarks.value().size()) {
+            throw ValidationError("The number of fixed and moving landmarks must match");
+        }
+
+        engine.set_landmarks(fixed_landmarks.value(), moving_landmarks.value());
     }
 
     using namespace std::chrono;
