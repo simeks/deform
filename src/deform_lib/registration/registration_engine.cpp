@@ -71,6 +71,7 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
             binary_fn.set_weight_map(_regularization_weight_map.volume(level));
     #endif
 }
+
 void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
 {
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
@@ -211,15 +212,31 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             }
         }
     }
+
+    if (_fixed_landmarks.size() > 0 && level >= _settings.landmarks_stop_level) {
+        ASSERT(_fixed_landmarks.size() == _moving_landmarks.size());
+
+        auto& fixed = _fixed_pyramids[0].volume(level);
+
+        unary_fn.add_function(
+            std::make_unique<LandmarksFunction>(
+                _fixed_landmarks,
+                _moving_landmarks,
+                fixed.origin(),
+                fixed.spacing(),
+                fixed.size()
+            ),
+            _settings.landmarks_weight
+        );
+    }
  
     if (_constraints_mask_pyramid.volume(level).valid()) {
         unary_fn.add_function(
             std::make_unique<SoftConstraintsFunction>(
                 _constraints_mask_pyramid.volume(level),
-                _constraints_pyramid.volume(level),
-                _settings.constraints_weight
+                _constraints_pyramid.volume(level)
             ),
-            1.0f
+            _settings.constraints_weight
         );
     }
 }
@@ -273,6 +290,15 @@ void RegistrationEngine::set_regularization_weight_map(const stk::Volume& map)
     _regularization_weight_map.build_from_base(map, filters::downsample_volume_gaussian);
 }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
+void RegistrationEngine::set_landmarks(
+        const std::vector<float3>& fixed_landmarks,
+        const std::vector<float3>& moving_landmarks)
+{
+    ASSERT(fixed_landmarks.size() == moving_landmarks.size());
+    _fixed_landmarks = fixed_landmarks;
+    _moving_landmarks = moving_landmarks;
+}
 
 void RegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
 {

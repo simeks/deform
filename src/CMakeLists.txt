@@ -1,4 +1,4 @@
-set(DEFORM_LIB_SRCS 
+set(DEFORM_LIB_SRCS
     "deform_lib/filters/gaussian_filter.cpp"
     "deform_lib/filters/gaussian_filter.h"
     "deform_lib/filters/resample.cpp"
@@ -14,6 +14,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/registration/block_change_flags.h"
     "deform_lib/registration/blocked_graph_cut_optimizer.h"
     "deform_lib/registration/blocked_graph_cut_optimizer.inl"
+    "deform_lib/registration/landmarks.cpp"
+    "deform_lib/registration/landmarks.h"
     "deform_lib/registration/registration_engine.cpp"
     "deform_lib/registration/registration_engine.h"
     "deform_lib/registration/settings.cpp"
@@ -37,13 +39,13 @@ set(DEFORM_LIB_SRCS
     "deform_lib/regularize.cpp"
 )
 
-set(DEFORM_SRCS 
+set(DEFORM_SRCS
     "deform/jacobian.cpp"
     "deform/main.cpp"
     "deform/transform.cpp"
 )
 
-set(DEFORM_UTIL_SRCS 
+set(DEFORM_UTIL_SRCS
     "deform_util/main.cpp"
     "deform_util/cost.cpp"
 )
@@ -62,5 +64,6 @@ if(DF_BUILD_PYTHON_WRAPPER)
     pybind11_add_module(_pydeform "python_wrapper/_pydeform.cpp")
     target_include_directories(_pydeform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(_pydeform PUBLIC stk yaml-cpp gco deform_lib)
-endif()
 
+    set(DF_PYTHON_PATH "$ENV{PYTHONPATH}${SEP}${CMAKE_CURRENT_BINARY_DIR}" PARENT_SCOPE)
+endif()

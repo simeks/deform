@@ -9,7 +9,7 @@ ctx = mp.get_context('spawn')
 
 
 def _registration_worker(q, args, kwargs):
-    """ To be ran in a subprocess.
+    R""" To be ran in a subprocess.
 
     Parameters
     ----------
@@ -26,7 +26,7 @@ def _registration_worker(q, args, kwargs):
 
 
 def register(*args, **kwargs):
-    """ Interruptible version of :func:`pydeform.register`.
+    R""" Interruptible version of :func:`pydeform.register`.
 
     .. note::
         This function calls the registration routine in a subprocess

@@ -3,6 +3,7 @@
 #include <deform_lib/defer.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/jacobian.h>
+#include <deform_lib/registration/landmarks.h>
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/settings.h>
@@ -76,6 +77,9 @@ int run_registration(int argc, char* argv[])
     args.add_group("Optional");
     args.add_option("init_deform",  "-d0", "Path to the initial deformation field");
     args.add_group();
+    args.add_option("fixed_points", "-fp, --fixed-points", "Path to the fixed landmark points");
+    args.add_option("moving_points", "-mp, --moving-points", "Path to the moving landmark points");
+    args.add_group();
     args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
     args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
     args.add_group();
@@ -147,11 +151,34 @@ int run_registration(int argc, char* argv[])
         return 1;
     }
 
+    std::string fixed_landmarks_file = args.get<std::string>("fixed_points", "");
+    std::string moving_landmarks_file = args.get<std::string>("moving_points", "");
+
+    LOG(Info) << "Fixed landmarks: '" << fixed_landmarks_file << "'";
+    LOG(Info) << "Moving landmarks: '" << moving_landmarks_file << "'";
+
+    std::optional<std::vector<float3>> fixed_landmarks;
+    std::optional<std::vector<float3>> moving_landmarks;
+    try{
+        if (!fixed_landmarks_file.empty()) {
+            fixed_landmarks = parse_landmarks_file(fixed_landmarks_file.c_str());
+        }
+        if (!moving_landmarks_file.empty()) {
+            moving_landmarks = parse_landmarks_file(moving_landmarks_file.c_str());
+        }
+    }
+    catch (ValidationError& e) {
+        LOG(Error) << e.what();
+        return 1;
+    }
+
     stk::Volume def;
     try {
         def = registration(settings,
                            fixed_volumes,
                            moving_volumes,
+                           fixed_landmarks,
+                           moving_landmarks,
                            initial_deformation,
                            constraint_mask,
                            constraint_values,

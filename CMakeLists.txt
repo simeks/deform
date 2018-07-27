@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
 
+# path separator
+if(WIN32)
+  set(SEP "\\;")
+else()
+  set(SEP ":")
+endif()
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 option(DF_BUILD_TESTS "Build unit tests" ON)
@@ -106,4 +113,3 @@ endif()
 if (DF_BUILD_TESTS)
     add_subdirectory(test)
 endif()
-

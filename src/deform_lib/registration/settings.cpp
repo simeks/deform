@@ -231,7 +231,8 @@ void print_registration_settings(const Settings& settings)
     LOG(Info) << "block_energy_epsilon = " << settings.block_energy_epsilon;
     LOG(Info) << "step_size = " << settings.step_size;
     LOG(Info) << "regularization_weight = " << settings.regularization_weight;
-    
+    LOG(Info) << "landmarks_weight = " << settings.landmarks_weight;
+    LOG(Info) << "landmarks_stop_level = " << settings.landmarks_stop_level;
     LOG(Info) << "constraints_weight = " << settings.constraints_weight;
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
@@ -289,6 +290,14 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
 
         if (root["constraints_weight"]) {
             settings.constraints_weight = root["constraints_weight"].as<float>();
+        }
+
+        if (root["landmarks_weight"]) {
+            settings.landmarks_weight = root["landmarks_weight"].as<float>();
+        }
+
+        if (root["landmarks_stop_level"]) {
+            settings.landmarks_stop_level = root["landmarks_stop_level"].as<int>();
         }
 
         auto is = root["image_slots"];

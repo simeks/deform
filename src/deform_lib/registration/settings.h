@@ -6,6 +6,12 @@
 
 #include <stk/math/int3.h>
 
+class ValidationError : public std::invalid_argument
+{
+public:
+    using std::invalid_argument::invalid_argument;
+};
+
 struct Settings
 {
     // Settings for a specific image slot, each image pair (i.e. fixed and moving) is considered
@@ -71,6 +77,11 @@ struct Settings
     // High weight means harder constraints, a high value (>1000.0f) will act as hard constraints
     float constraints_weight;
 
+    // Only applicable to landmark registration
+    float landmarks_weight;
+    // Last level for which landmarks are used
+    int landmarks_stop_level;
+
     Settings() :
         pyramid_stop_level(0),
         num_pyramid_levels(6),
@@ -78,7 +89,9 @@ struct Settings
         block_energy_epsilon(0.01f),
         step_size(0.5f),
         regularization_weight(0.05f),
-        constraints_weight(1000.0f)
+        constraints_weight(1000.0f),
+        landmarks_weight(1.0f),
+        landmarks_stop_level(0)
     {}
 };
 

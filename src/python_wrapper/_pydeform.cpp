@@ -145,6 +145,35 @@ stk::Volume image_to_volume(
     return volume;
 }
 
+/*!
+ * \brief Validate and convert the landmarks.
+ *
+ * Convert the landmarks to a C++ vector.
+ *
+ * @note A copy of the landmarks data is created.
+ * @note The numpy array must be C-contiguous.
+ *
+ * @param landmarks Array `n \times 3` representing
+ *                  the landmarks.
+ * @return A vector of landmarks.
+ */
+std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
+{
+    if (landmarks_array.ndim() != 2 || landmarks_array.shape(1) != 3) {
+        throw std::invalid_argument("The landmarks must be a `n × 3` array.");
+    }
+
+    std::vector<float3> landmarks;
+    for (ptrdiff_t i = 0; i < landmarks_array.shape(0); ++i) {
+        landmarks.push_back({
+                *landmarks_array.data(i, 0),
+                *landmarks_array.data(i, 1),
+                *landmarks_array.data(i, 2),
+                });
+    }
+
+    return landmarks;
+}
 
 /*!
  * \brief Wrap the registration routine, converting 
@@ -168,6 +197,10 @@ stk::Volume image_to_volume(
  *                      fixed images.
  * @param moving_origin Analogous to `fixed_origin`.
  * @param moving_spacing Analogous to `fixed_spacing`.
+ * @param fixed_landmarks A `n \times 3` numpy array, with
+ *                        one row for each landmark point.
+ * @param moving_landmarks A `n \times 3` numpy array, with
+ *                        one row for each landmark point.
  * @param initial_displacement Must be a numpy array. If `None`,
  *                             a zero displacement is used instead.
  * @param constraint_mask Must be a numpy array. If `None`, no
@@ -200,6 +233,8 @@ py::array registration_wrapper(
         const std::vector<double>& moving_origin,
         const std::vector<double>& fixed_spacing,
         const std::vector<double>& moving_spacing,
+        const py::object& fixed_landmarks,
+        const py::object& moving_landmarks,
         const py::object& initial_displacement,
         const py::object& constraint_mask,
         const py::object& constraint_values,
@@ -238,6 +273,16 @@ py::array registration_wrapper(
 
     // Convert optional arguments. Try to cast to the correct numeric
     // type if possible. 
+    std::optional<std::vector<float3>> fixed_landmarks_;
+    if (!fixed_landmarks.is_none()) {
+        fixed_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(fixed_landmarks));
+    }
+
+    std::optional<std::vector<float3>> moving_landmarks_;
+    if (!moving_landmarks.is_none()) {
+        moving_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(moving_landmarks));
+    }
+
     std::optional<stk::Volume> initial_displacement_;
     if (!initial_displacement.is_none()) {
         initial_displacement_ = image_to_volume(py::cast<py::array_t<float>>(initial_displacement),
@@ -272,6 +317,8 @@ py::array registration_wrapper(
     stk::Volume displacement = registration(settings_,
                                             fixed_volumes,
                                             moving_volumes,
+                                            fixed_landmarks_,
+                                            moving_landmarks_,
                                             initial_displacement_,
                                             constraint_mask_,
                                             constraint_values_,
@@ -308,6 +355,14 @@ fixed_spacing: Tuple[Int]
 
 moving_spacing: Tuple[Int]
     Spacing of the moving images.
+
+fixed_landmarks: np.ndarray
+    Array of shape :math:`n \times 3`, with one row
+    for each landmark point.
+
+moving_landmarks: np.ndarray
+    Array of shape :math:`n \times 3`, with one row
+    for each landmark point.
 
 initial_displacement: np.ndarray
     Initial guess of the displacement field.
@@ -506,6 +561,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("moving_origin") = py::make_tuple(0.0, 0.0, 0.0),
           py::arg("fixed_spacing") = py::make_tuple(1.0, 1.0, 1.0),
           py::arg("moving_spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("fixed_landmarks") = py::none(),
+          py::arg("moving_landmarks") = py::none(),
           py::arg("initial_displacement") = py::none(),
           py::arg("constraint_mask") = py::none(),
           py::arg("constraint_values") = py::none(),

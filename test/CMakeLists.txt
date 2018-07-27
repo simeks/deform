@@ -2,6 +2,7 @@ set(DEFORM_TEST_SRCS
     "test_arg_parser.cpp"
     "test_main.cpp"
     "test_settings.cpp"
+    "test_landmarks.cpp"
 )
 
 add_executable(deform_test ${DEFORM_TEST_SRCS})
