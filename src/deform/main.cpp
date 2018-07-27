@@ -77,8 +77,8 @@ int run_registration(int argc, char* argv[])
     args.add_group("Optional");
     args.add_option("init_deform",  "-d0", "Path to the initial deformation field");
     args.add_group();
-    args.add_option("fixed_landmarks", "-lf, --fixed-landmarks", "Path to the fixed landmarks");
-    args.add_option("moving_landmarks", "-lm, --moving-landmarks", "Path to the moving landmarks");
+    args.add_option("fixed_points", "-fp, --fixed-points", "Path to the fixed landmark points");
+    args.add_option("moving_points", "-mp, --moving-points", "Path to the moving landmark points");
     args.add_group();
     args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
     args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
@@ -151,8 +151,8 @@ int run_registration(int argc, char* argv[])
         return 1;
     }
 
-    std::string fixed_landmarks_file = args.get<std::string>("fixed_landmarks", "");
-    std::string moving_landmarks_file = args.get<std::string>("moving_landmarks", "");
+    std::string fixed_landmarks_file = args.get<std::string>("fixed_points", "");
+    std::string moving_landmarks_file = args.get<std::string>("moving_points", "");
 
     LOG(Info) << "Fixed landmarks: '" << fixed_landmarks_file << "'";
     LOG(Info) << "Moving landmarks: '" << moving_landmarks_file << "'";

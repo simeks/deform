@@ -315,7 +315,12 @@ bool ArgParser::match_option(const Option& opt, const std::string& arg, std::str
                 size_t end_index = id_str.size();
                 int id = 0;
                 if (id_str.size()) {
-                    id = std::stoi(id_str, &end_index);
+                    try {
+                        id = std::stoi(id_str, &end_index);
+                    } catch (std::invalid_argument&) {
+                        // Another option may share a prefix
+                        return false;
+                    }
                 }
 
                 // Make sure the integer ends the string, so we don't get weird
