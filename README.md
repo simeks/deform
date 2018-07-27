@@ -14,8 +14,8 @@ To perform a registration
 | --------------------------- | ------------------------------------------- |
 | `-f<i> <file>`              | Filename of the i:th fixed image (i < 8)*.  |
 | `-m<i> <file>`              | Filename of the i:th moving image (i < 8)*. |
-| `-lf <file>`                | Filename for the fixed landmarks.           |
-| `-lm <file>`                | Filename for the moving landmarks.          |
+| `-fp <file>`                | Filename for the fixed landmarks.           |
+| `-mp <file>`                | Filename for the moving landmarks.          |
 | `-d0 <file>`                | Filename for initial deformation field.     |
 | `-constraint_mask <file>`   | Filename for constraint mask.               |
 | `-constraint_values <file>` | Filename for constraint values.             |
