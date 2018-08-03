@@ -1,3 +1,4 @@
+#include "blocked_graph_cut_optimizer.h"
 #include "block_change_flags.h"
 #include "../config.h"
 #include "../graph_cut/graph_cut.h"
@@ -34,8 +35,8 @@ template<
     >
 void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
     TUnaryTerm& unary_fn, 
-    TBinaryTerm& binary_fn, 
-    float step_size, 
+    TBinaryTerm& binary_fn,
+    float3 step_size,
     stk::VolumeFloat3& def)
 {
     dim3 dims = def.size();
@@ -140,9 +141,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                     for (int n = 0; n < n_count; ++n) {
                         // delta in [mm]
                         float3 delta {
-                            step_size * _neighbors[n].x,
-                            step_size * _neighbors[n].y,
-                            step_size * _neighbors[n].z
+                            step_size.x * _neighbors[n].x,
+                            step_size.y * _neighbors[n].y,
+                            step_size.z * _neighbors[n].z
                         };
 
                         block_changed |= do_block(
@@ -163,6 +164,8 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                 }
             }
         }
+
+        unary_fn.post_iteration_hook(num_iterations, def);
 
         done = num_blocks_changed == 0;
         

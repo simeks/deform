@@ -19,6 +19,17 @@
 
 namespace
 {
+    template<typename T>
+    static T str_to_num(const std::string& f, const std::string& k, const std::string& v) {
+        try {
+            return static_cast<T>(std::stod(v));
+        }
+        catch (std::invalid_argument&) {
+            throw std::invalid_argument(f + ": unrecognised value "
+                                        "'" + v + "' for parameter '" + k + "'");
+        }
+    }
+
     void constrain_deformation_field(stk::VolumeFloat3& def, 
         const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
     {
@@ -38,9 +49,15 @@ namespace
     template<typename T>
     std::unique_ptr<SubFunction> ssd_function_factory(
         const stk::Volume& fixed, 
-        const stk::Volume& moving
+        const stk::Volume& moving,
+        const std::map<std::string, std::string>& parameters
     )
     {
+        for (const auto& [k, v] : parameters) {
+            throw std::invalid_argument("SSDFunction: unrecognised parameter "
+                                            "'" + k + "' with value '" + v + "'");
+        }
+
         return std::make_unique<SquaredDistanceFunction<T>>(
             fixed, moving
         );
@@ -49,11 +66,52 @@ namespace
     template<typename T>
     std::unique_ptr<SubFunction> ncc_function_factory(
         const stk::Volume& fixed, 
-        const stk::Volume& moving
+        const stk::Volume& moving,
+        const std::map<std::string, std::string>& parameters
     )
     {
+        int radius = 2;
+
+        for (const auto& [k, v] : parameters) {
+            if (k == "radius") {
+                radius = str_to_num<int>("NCCFunction", k, v);
+            }
+            else {
+                throw std::invalid_argument("NCCFunction: unrecognised parameter "
+                                            "'" + k + "' with value '" + v + "'");
+            }
+        }
+
         return std::make_unique<NCCFunction<T>>(
-            fixed, moving
+            fixed, moving, radius
+        );
+    }
+
+    template<typename T>
+    std::unique_ptr<SubFunction> mi_function_factory(
+        const stk::Volume& fixed,
+        const stk::Volume& moving,
+        const std::map<std::string, std::string>& parameters
+    )
+    {
+        int bins = 256;
+        double sigma = 4.5;
+
+        for (const auto& [k, v] : parameters) {
+            if (k == "bins") {
+                bins = str_to_num<int>("MIFunction", k, v);
+            }
+            else if (k == "sigma") {
+                sigma = str_to_num<double>("MIFunction", k, v);
+            }
+            else {
+                throw std::invalid_argument("MIFunction: unrecognised parameter "
+                                            "'" + k + "' with value '" + v + "'");
+            }
+        }
+
+        return std::make_unique<MIFunction<T>>(
+            fixed, moving, bins, sigma
         );
     }
 }
@@ -75,7 +133,9 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
 void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
 {
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
-        const stk::Volume&, const stk::Volume&
+        const stk::Volume&,
+        const stk::Volume&,
+        const std::map<std::string, std::string>&
     );
 
     // nullptr => not supported
@@ -165,6 +225,49 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         nullptr, // Type_Double3
         nullptr // Type_Double4
     };
+    FactoryFn mi_factory[] = {
+        nullptr, // Type_Unknown
+
+        mi_function_factory<char>, // Type_Char
+        nullptr, // Type_Char2
+        nullptr, // Type_Char3
+        nullptr, // Type_Char4
+
+        mi_function_factory<uint8_t>, // Type_UChar
+        nullptr, // Type_UChar2
+        nullptr, // Type_UChar3
+        nullptr, // Type_UChar4
+
+        mi_function_factory<short>, // Type_Short
+        nullptr, // Type_Short2
+        nullptr, // Type_Short3
+        nullptr, // Type_Short4
+
+        mi_function_factory<uint16_t>, // Type_UShort
+        nullptr, // Type_UShort2
+        nullptr, // Type_UShort3
+        nullptr, // Type_UShort4
+
+        mi_function_factory<int>, // Type_Int
+        nullptr, // Type_Int2
+        nullptr, // Type_Int3
+        nullptr, // Type_Int4
+
+        mi_function_factory<uint32_t>, // Type_UInt
+        nullptr, // Type_UInt2
+        nullptr, // Type_UInt3
+        nullptr, // Type_UInt4
+
+        mi_function_factory<float>, // Type_Float
+        nullptr, // Type_Float2
+        nullptr, // Type_Float3
+        nullptr, // Type_Float4
+
+        mi_function_factory<double>, // Type_Double
+        nullptr, // Type_Double2
+        nullptr, // Type_Double3
+        nullptr // Type_Double4
+    };
 
     unary_fn.set_regularization_weight(_settings.regularization_weight);
 
@@ -190,7 +293,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
                 FactoryFn factory = ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -202,11 +305,23 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
                             << "for metric 'ncc' "
+                            << "(slot: " << i << ")";
+                }
+            }
+            else if (Settings::ImageSlot::CostFunction_MI == fn.function)
+            {
+                FactoryFn factory = mi_factory[fixed.voxel_type()];
+                if (factory) {
+                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                }
+                else {
+                    FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
+                            << "for metric 'mi' "
                             << "(slot: " << i << ")";
                 }
             }
@@ -354,8 +469,15 @@ stk::Volume RegistrationEngine::execute()
                 _settings.block_size,
                 _settings.block_energy_epsilon
             );
+
+            // Set the step size, convert it from voxels if necessary
+            // Assumes that all the moving images have the same size
+            float3 step_size = {_settings.step_size, _settings.step_size, _settings.step_size};
+            if (Settings::UnitOfMeasure::Voxels == _settings.step_size_unit) {
+                step_size = step_size * _moving_pyramids[0].volume(l).spacing();
+            }
             
-            optimizer.execute(unary_fn, binary_fn, _settings.step_size, def);
+            optimizer.execute(unary_fn, binary_fn, step_size, def);
         }
         else {
             LOG(Info) << "Skipping level " << l;

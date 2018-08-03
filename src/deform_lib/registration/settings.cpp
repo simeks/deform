@@ -76,6 +76,35 @@ namespace YAML {
     };
 
     template<>
+    struct convert<Settings::UnitOfMeasure>
+    {
+        static bool decode(const Node& node, Settings::UnitOfMeasure& out) {
+            if(!node.IsScalar()) {
+                throw YAML::RepresentationException(node.Mark(), "expected unit of measure");
+            }
+
+            std::string unit;
+            try {
+                unit = node.as<std::string>();
+            }
+            catch (YAML::TypedBadConversion<std::string> &) {
+                throw YAML::RepresentationException(node.Mark(), "expected unit of measure");
+            }
+
+            if (unit == "voxel" || unit == "voxels") {
+                out = Settings::UnitOfMeasure::Voxels;
+                return true;
+            }
+            else if (unit == "millimeter" || unit == "millimeters" || unit == "mm") {
+                out = Settings::UnitOfMeasure::Millimeters;
+                return true;
+            }
+ 
+            throw YAML::RepresentationException(node.Mark(), "unrecognised unit of measure " + unit);
+        }
+    };
+
+    template<>
     struct convert<Settings::ImageSlot::ResampleMethod>
     {
         static bool decode(const Node& node, Settings::ImageSlot::ResampleMethod& out) {
@@ -128,6 +157,10 @@ namespace YAML {
                 out = Settings::ImageSlot::CostFunction_NCC;
                 return true;
             }
+            else if (fn == "mutual_information" || fn == "mi") {
+                out = Settings::ImageSlot::CostFunction_MI;
+                return true;
+            }
             
             throw YAML::RepresentationException(node.Mark(), "unrecognised cost function " + fn);
         }
@@ -149,6 +182,15 @@ namespace YAML {
             }
             else {
                 out.weight = 1.0f;
+            }
+
+            // Function parameters
+            for(auto it = node.begin(); it != node.end(); ++it) {
+                auto k = it->first.as<std::string>();
+                if (k == "function" || k == "weight") {
+                    continue;
+                }
+                out.parameters.emplace(k, it->second.as<std::string>());
             }
 
             return true;
@@ -208,17 +250,29 @@ const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
         return "ssd";
     case Settings::ImageSlot::CostFunction_NCC:
         return "ncc";
+    case Settings::ImageSlot::CostFunction_MI:
+        return "mi";
     default:
     case Settings::ImageSlot::CostFunction_None:
         return "none";
     }
 }
-const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
+const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
 {
     switch (fn) {
     case Settings::ImageSlot::Resample_Gaussian:
         return "gaussian";
     };
+    return "none";
+}
+const char* unit_of_measure_to_str(const Settings::UnitOfMeasure u)
+{
+    switch (u) {
+    case Settings::UnitOfMeasure::Voxels:
+        return "voxels";
+    case Settings::UnitOfMeasure::Millimeters:
+        return "millimeters";
+    }
     return "none";
 }
 
@@ -230,6 +284,7 @@ void print_registration_settings(const Settings& settings)
     LOG(Info) << "block_size = " << settings.block_size; 
     LOG(Info) << "block_energy_epsilon = " << settings.block_energy_epsilon;
     LOG(Info) << "step_size = " << settings.step_size;
+    LOG(Info) << "step_size_unit = " << unit_of_measure_to_str(settings.step_size_unit);
     LOG(Info) << "regularization_weight = " << settings.regularization_weight;
     LOG(Info) << "landmarks_weight = " << settings.landmarks_weight;
     LOG(Info) << "landmarks_stop_level = " << settings.landmarks_stop_level;
@@ -249,8 +304,11 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
         LOG(Info) << "  cost_functions = {";
         for (size_t k = 0; k < slot.cost_functions.size(); ++k) {
-            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": "
-                                << slot.cost_functions[k].weight;
+            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": ";
+            LOG(Info) << "      weight: " << slot.cost_functions[k].weight;
+            for (const auto& [k, v] : slot.cost_functions[k].parameters) {
+                LOG(Info) << "      " << k << ": " << v;
+            }
         }
         LOG(Info) << "  }";
         LOG(Info) << "}";
@@ -274,6 +332,10 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
 
         if (root["step_size"]) {
             settings.step_size = root["step_size"].as<float>();
+        }
+
+        if (root["step_size_unit"]) {
+            settings.step_size_unit = root["step_size_unit"].as<Settings::UnitOfMeasure>();
         }
 
         if (root["regularization_weight"]) {

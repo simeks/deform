@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <vector>
 
 #include "../config.h"
@@ -25,7 +26,8 @@ struct Settings
         {
             CostFunction_None = 0,
             CostFunction_SSD,
-            CostFunction_NCC
+            CostFunction_NCC,
+            CostFunction_MI,
         };
 
         enum ResampleMethod
@@ -37,6 +39,7 @@ struct Settings
         struct WeightedFunction {
             float weight = 1.0;
             CostFunction function = CostFunction_None;
+            std::map<std::string, std::string> parameters;
         };
 
         // Cost functions to apply on this image pair
@@ -49,7 +52,7 @@ struct Settings
         bool normalize;
 
         ImageSlot() :
-            cost_functions{{1.0, CostFunction_SSD}},
+            cost_functions{{1.0, CostFunction_SSD, {}}},
             resample_method{Resample_Gaussian},
             normalize{true} {}
     };
@@ -64,12 +67,21 @@ struct Settings
 
     // Optimizer specific settings (Blocked graph cut):
 
+    // Available units of measure
+    enum UnitOfMeasure
+    {
+        Voxels = 0,
+        Millimeters,
+    };
+
     // Block size, (0,0,0) is the same as using only a single large block
     int3 block_size;
     // Epsilon used for termination
     double block_energy_epsilon;
-    // Step size in [mm]
+    // Step size
     float step_size;
+    // Unit of measure for the step size
+    UnitOfMeasure step_size_unit;
     // Only considered if no weight map is given
     float regularization_weight;
 
@@ -88,6 +100,7 @@ struct Settings
         block_size(int3{12, 12, 12}),
         block_energy_epsilon(0.01f),
         step_size(0.5f),
+        step_size_unit(UnitOfMeasure::Millimeters),
         regularization_weight(0.05f),
         constraints_weight(1000.0f),
         landmarks_weight(1.0f),
