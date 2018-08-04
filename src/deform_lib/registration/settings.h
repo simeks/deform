@@ -98,7 +98,7 @@ struct Settings
         pyramid_stop_level(0),
         num_pyramid_levels(6),
         block_size(int3{12, 12, 12}),
-        block_energy_epsilon(0.01f),
+        block_energy_epsilon(1e-7f),
         step_size(0.5f),
         step_size_unit(UnitOfMeasure::Millimeters),
         regularization_weight(0.05f),

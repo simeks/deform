@@ -33,7 +33,7 @@ constraints_weight: 1000.0
 landmarks_weight: 1.0
 landmarks_stop_level: 0
 block_size: [12, 12, 12]
-block_energy_epsilon: 0.0001
+block_energy_epsilon: 1e-7
 step_size: 0.5
 regularization_weight: 0.1
 
@@ -69,7 +69,7 @@ to `landmarks_stop_level` a value greater than zero.
 
 `block_size` size of the block (in voxels) for the block-wise solver. A block size of (0,0,0) will result in a single block for the whole volume.
 
-`block_energy_epsilon`, epsilon applied when determining if a solution is good enough. Higher epsilon will result in lower run time but also lower quality.
+`block_energy_epsilon`, minimum percentage decrease of the block energy required to accept a solution. Higher epsilon will result in lower run time but also lower quality.
 
 `step_size`, this is the step size in [mm] that the solver will use.
 

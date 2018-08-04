@@ -324,7 +324,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     bool changed_flag = false;
 
-    if (current_emin + _block_energy_epsilon < current_energy) // Accept solution
+    if (1.0 - current_emin / current_energy > _block_energy_epsilon) // Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
             for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
