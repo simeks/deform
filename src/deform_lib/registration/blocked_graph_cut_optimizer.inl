@@ -79,6 +79,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     bool done = false;
     while (!done) {
+
+        unary_fn.pre_iteration_hook(num_iterations, def);
+
         done = true;
 
         size_t num_blocks_changed = 0;
@@ -164,8 +167,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                 }
             }
         }
-
-        unary_fn.post_iteration_hook(num_iterations, def);
 
         done = num_blocks_changed == 0;
         

@@ -98,11 +98,11 @@ struct SubFunction
     virtual float cost(const int3& p, const float3& def) = 0;
 
     /*!
-     * \brief A callback that is executed after each iteration of the solver.
+     * \brief A callback that is executed before each iteration of the solver.
      * \param iteration Number of the iteration just completed.
      * \param def Deformation field at the end of the iteration.
      */
-    virtual void post_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
     {
         (void) iteration;
         (void) def;
@@ -371,7 +371,7 @@ struct MIFunction : public SubFunction
      * entropy of the moving image and the joint entropy after each
      * iteration.
      */
-    virtual void post_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
     {
         (void) iteration;
         auto tmp = transform_volume(_moving, def, transform::Interp_NN);
@@ -433,9 +433,9 @@ struct UnaryFunction
         return (1.0f-w)*sum;
     }
 
-    void post_iteration_hook(const int iteration, const stk::VolumeFloat3& def) {
+    void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def) {
         for (auto& fn : functions) {
-            fn.function->post_iteration_hook(iteration, def);
+            fn.function->pre_iteration_hook(iteration, def);
         }
     }
 
