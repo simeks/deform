@@ -35,7 +35,6 @@ landmarks_stop_level: 0
 block_size: [12, 12, 12]
 block_energy_epsilon: 1e-7
 step_size: 0.5
-step_size_unit: mm
 regularization_weight: 0.1
 
 image_slots:
@@ -77,8 +76,10 @@ to `landmarks_stop_level` a value greater than zero.
 
 `block_energy_epsilon`, minimum percentage decrease of the block energy required to accept a solution. Higher epsilon will result in lower run time but also lower quality.
 
-`step_size`, this is the step size that the solver will use. Its unit of
-measure is given by the parameter `step_size_unit`, that can be `mm` or `voxel` (default: `mm`).
+`step_size`, this is the step size in `mm` that the solver will use. Can be a
+single `float` value, in that case the same step size will be used in all
+directions, or a sequence `[sx, sy, sz]` of three `float` specifying the size
+for each direction.
 
 `regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
 

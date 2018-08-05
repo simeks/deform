@@ -76,31 +76,25 @@ namespace YAML {
     };
 
     template<>
-    struct convert<Settings::UnitOfMeasure>
+    struct convert<float3>
     {
-        static bool decode(const Node& node, Settings::UnitOfMeasure& out) {
-            if(!node.IsScalar()) {
-                throw YAML::RepresentationException(node.Mark(), "expected unit of measure");
+        static bool decode(const Node& node, float3& out) {
+            if(!node.IsSequence() || node.size() != 3) {
+                throw YAML::RepresentationException(node.Mark(), "expected vector of 3 floats");
             }
 
-            std::string unit;
             try {
-                unit = node.as<std::string>();
+                out = {
+                    node[0].as<float>(),
+                    node[1].as<float>(),
+                    node[2].as<float>()
+                };
             }
-            catch (YAML::TypedBadConversion<std::string> &) {
-                throw YAML::RepresentationException(node.Mark(), "expected unit of measure");
+            catch (YAML::TypedBadConversion<float>&) {
+                throw YAML::RepresentationException(node.Mark(), "expected vector of 3 floats");
             }
 
-            if (unit == "voxel" || unit == "voxels") {
-                out = Settings::UnitOfMeasure::Voxels;
-                return true;
-            }
-            else if (unit == "millimeter" || unit == "millimeters" || unit == "mm") {
-                out = Settings::UnitOfMeasure::Millimeters;
-                return true;
-            }
- 
-            throw YAML::RepresentationException(node.Mark(), "unrecognised unit of measure " + unit);
+            return true;
         }
     };
 
@@ -265,16 +259,6 @@ const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
     };
     return "none";
 }
-const char* unit_of_measure_to_str(const Settings::UnitOfMeasure u)
-{
-    switch (u) {
-    case Settings::UnitOfMeasure::Voxels:
-        return "voxels";
-    case Settings::UnitOfMeasure::Millimeters:
-        return "millimeters";
-    }
-    return "none";
-}
 
 void print_registration_settings(const Settings& settings)
 {
@@ -284,7 +268,6 @@ void print_registration_settings(const Settings& settings)
     LOG(Info) << "block_size = " << settings.block_size; 
     LOG(Info) << "block_energy_epsilon = " << settings.block_energy_epsilon;
     LOG(Info) << "step_size = " << settings.step_size;
-    LOG(Info) << "step_size_unit = " << unit_of_measure_to_str(settings.step_size_unit);
     LOG(Info) << "regularization_weight = " << settings.regularization_weight;
     LOG(Info) << "landmarks_weight = " << settings.landmarks_weight;
     LOG(Info) << "landmarks_stop_level = " << settings.landmarks_stop_level;
@@ -331,11 +314,21 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
         }
 
         if (root["step_size"]) {
-            settings.step_size = root["step_size"].as<float>();
-        }
-
-        if (root["step_size_unit"]) {
-            settings.step_size_unit = root["step_size_unit"].as<Settings::UnitOfMeasure>();
+            try {
+                settings.step_size = root["step_size"].as<float3>();
+            }
+            catch (YAML::RepresentationException&) {
+                try {
+                    float f = root["step_size"].as<float>();
+                    settings.step_size = {f, f, f};
+                }
+                catch (YAML::RepresentationException&) {
+                    throw YAML::RepresentationException(
+                            root["step_size"].Mark(),
+                            "expected float or sequence of three floats"
+                            );
+                }
+            }
         }
 
         if (root["regularization_weight"]) {

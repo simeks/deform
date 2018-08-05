@@ -470,14 +470,7 @@ stk::Volume RegistrationEngine::execute()
                 _settings.block_energy_epsilon
             );
 
-            // Set the step size, convert it from voxels if necessary
-            // Assumes that all the moving images have the same size
-            float3 step_size = {_settings.step_size, _settings.step_size, _settings.step_size};
-            if (Settings::UnitOfMeasure::Voxels == _settings.step_size_unit) {
-                step_size = step_size * _moving_pyramids[0].volume(l).spacing();
-            }
-            
-            optimizer.execute(unary_fn, binary_fn, step_size, def);
+            optimizer.execute(unary_fn, binary_fn, _settings.step_size, def);
         }
         else {
             LOG(Info) << "Skipping level " << l;

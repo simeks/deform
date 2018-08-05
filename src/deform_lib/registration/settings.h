@@ -67,21 +67,12 @@ struct Settings
 
     // Optimizer specific settings (Blocked graph cut):
 
-    // Available units of measure
-    enum UnitOfMeasure
-    {
-        Voxels = 0,
-        Millimeters,
-    };
-
     // Block size, (0,0,0) is the same as using only a single large block
     int3 block_size;
     // Epsilon used for termination
     double block_energy_epsilon;
-    // Step size
-    float step_size;
-    // Unit of measure for the step size
-    UnitOfMeasure step_size_unit;
+    // Step size in [mm]
+    float3 step_size;
     // Only considered if no weight map is given
     float regularization_weight;
 
@@ -99,8 +90,7 @@ struct Settings
         num_pyramid_levels(6),
         block_size(int3{12, 12, 12}),
         block_energy_epsilon(1e-7f),
-        step_size(0.5f),
-        step_size_unit(UnitOfMeasure::Millimeters),
+        step_size({0.5f, 0.5f, 0.5f}),
         regularization_weight(0.05f),
         constraints_weight(1000.0f),
         landmarks_weight(1.0f),
