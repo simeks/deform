@@ -381,8 +381,8 @@ struct MIFunction : public SubFunction
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
-    int _bins;
-    double _sigma;
+    const int _bins;
+    const double _sigma;
 
 private:
     JointEntropyTerm<T> joint_entropy;
