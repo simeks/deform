@@ -58,9 +58,9 @@ public:
 
         // Histogram count
         std::fill(_data.begin(), _data.end(), 0.0);
-        for (size_t z = 0; z < size.z; ++z) {
-            for (size_t y = 0; y < size.y; ++y) {
-                for (size_t x = 0; x < size.x; ++x) {
+        for (uint32_t z = 0; z < size.z; ++z) {
+            for (uint32_t y = 0; y < size.y; ++y) {
+                for (uint32_t x = 0; x < size.x; ++x) {
                     int i = static_cast<int>(_inv_bin_width * (volume(x, y, z) - _min));
                     ++at(i);
                 }
@@ -68,7 +68,7 @@ public:
         }
 
         // To probability (term inside the log)
-        const int N = size.x * size.y * size.z;
+        const uint32_t N = size.x * size.y * size.z;
         for (auto& x : _data) {
             x /= N;
         }
@@ -136,7 +136,7 @@ private:
 
         // Compute a 1D filter kernel of adaptive size
         std::vector<double> kernel = gaussian_kernel(_sigma);
-        int r = kernel.size() / 2;
+        int r = static_cast<int>(kernel.size() / 2);
 
         // Apply the filter
         std::vector<double> tmp(_bins);
@@ -208,9 +208,9 @@ public:
 
         // Joint histogram count
         std::fill(_data.begin(), _data.end(), 0.0);
-        for (size_t z = 0; z < size.z; ++z) {
-            for (size_t y = 0; y < size.y; ++y) {
-                for (size_t x = 0; x < size.x; ++x) {
+        for (uint32_t z = 0; z < size.z; ++z) {
+            for (uint32_t y = 0; y < size.y; ++y) {
+                for (uint32_t x = 0; x < size.x; ++x) {
                     // [1] -> [world] -> [2]
                     float3 p1 {float(x), float(y), float(z)};
                     float3 pw = volume1.origin() + p1 * volume1.spacing();
@@ -228,7 +228,7 @@ public:
         }
 
         // To probability (term inside the log)
-        const int N = size.x * size.y * size.z;
+        const uint32_t N = size.x * size.y * size.z;
         for (auto& x : _data) {
             x /= N;
         }
@@ -263,8 +263,8 @@ public:
     }
 
 private:
-    int _bins;     /*!< Number of bins. */
-    double _sigma; /*!< Kernel standard deviation. */
+    const int _bins;     /*!< Number of bins. */
+    const double _sigma; /*!< Kernel standard deviation. */
     std::vector<double> _data; /*!< Binned data. */
     T _min1, _max1, _min2, _max2; /*!< Extrema for the two intensities. */
     T _inv_bin_width_1, _inv_bin_width_2; /*!< Inverse of the bin widths for each direction. */
@@ -299,10 +299,10 @@ private:
 
         // Compute a 1D filter kernel of adaptive size
         std::vector<double> kernel = gaussian_kernel(_sigma);
-        int r = kernel.size() / 2;
+        int r = static_cast<int>(kernel.size() / 2);
 
         // Apply the filter along the x direction
-        double tmp[_bins][_bins];
+        std::vector<double> tmp(_bins * _bins);
         #pragma omp parallel for
         for (int i = 0; i < _bins; ++i) {
             for (int j = 0; j < _bins; ++j) {
@@ -310,7 +310,7 @@ private:
                 for (int t = -r; t < r + 1; ++t) {
                     val += kernel[t+r] * at(i, j+t);
                 }
-                tmp[j][i] = val;
+                tmp.data()[_bins * j + i] = val;
             }
         }
 
@@ -320,7 +320,7 @@ private:
             for (int j = 0; j < _bins; ++j) {
                 double val = 0.0;
                 for (int t = -r; t < r + 1; ++t) {
-                    val += kernel[t+r] * tmp[j][bounded(i+t)];
+                    val += kernel[t+r] * tmp.data()[_bins * j + bounded(i+t)];
                 }
                 at(i, j) = val;
             }
