@@ -7,7 +7,7 @@
  */
 std::vector<double> gaussian_kernel(const double sigma)
 {
-    int r = std::ceil(2 * sigma); // filter radius
+    int r = (int)std::ceil(2 * sigma); // filter radius
     std::vector<double> kernel (2 * r + 1);
 
     const double k = -1.0 / (2.0 * sigma * sigma);
