@@ -28,9 +28,9 @@ public:
     EntropyTerm(const stk::VolumeHelper<T>& volume,
                 const int bins,
                 const double sigma) :
-        bins(bins),
-        sigma(sigma),
-        data(bins)
+        _bins(bins),
+        _sigma(sigma),
+        _data(bins)
     {
         update(volume);
     }
@@ -51,17 +51,17 @@ public:
      */
     void update(const stk::VolumeHelper<T>& volume)
     {
-        stk::find_min_max(volume, min, max);
-        T range = max - min;
-        inv_bin_width = static_cast<T>(bins) / range;
+        stk::find_min_max(volume, _min, _max);
+        T range = _max - _min;
+        _inv_bin_width = static_cast<T>(_bins) / range;
         dim3 size = volume.size();
 
         // Histogram count
-        std::fill(data.begin(), data.end(), 0.0);
+        std::fill(_data.begin(), _data.end(), 0.0);
         for (size_t z = 0; z < size.z; ++z) {
             for (size_t y = 0; y < size.y; ++y) {
                 for (size_t x = 0; x < size.x; ++x) {
-                    int i = static_cast<int>(inv_bin_width * (volume(x, y, z) - min));
+                    int i = static_cast<int>(_inv_bin_width * (volume(x, y, z) - _min));
                     ++at(i);
                 }
             }
@@ -69,23 +69,23 @@ public:
 
         // To probability (term inside the log)
         const int N = size.x * size.y * size.z;
-        for (auto& x : data) {
+        for (auto& x : _data) {
             x /= N;
         }
 
         // Approximate PDF of the term inside the log
-        gaussian(sigma);
+        gaussian();
 
         // Log
-        for (auto& x : data) {
+        for (auto& x : _data) {
             x = std::log(x < 1e-8 ? 1e-8 : x);
         }
 
         // Approximate PDF of the term outside the log
-        gaussian(sigma);
+        gaussian();
 
         // To probability (term outside the log)
-        for (auto& x : data) {
+        for (auto& x : _data) {
             x /= N;
         }
     }
@@ -96,16 +96,16 @@ public:
      * \return Entropy term.
      */
     double operator()(const T x) const {
-        const int i = bounded(static_cast<int>(inv_bin_width * (x - min)));
-        return data.data()[i];
+        const int i = bounded(static_cast<int>(_inv_bin_width * (x - _min)));
+        return _data.data()[i];
     }
 
 private:
-    const int bins;           /*!< Number of bins. */
-    const double sigma;       /*!< Kernel standard deviation. */
-    std::vector<double> data; /*!< Binned data. */
-    T min, max;               /*!< Intensity extrema. */
-    T inv_bin_width;          /*!< Inverse of the bin width. */
+    const int _bins;           /*!< Number of bins. */
+    const double _sigma;       /*!< Kernel standard deviation. */
+    std::vector<double> _data; /*!< Binned data. */
+    T _min, _max;               /*!< Intensity extrema. */
+    T _inv_bin_width;          /*!< Inverse of the bin width. */
 
     /*!
      * \brief Bound a bin index within a valid range.
@@ -113,7 +113,7 @@ private:
      * \return Closest value to `i` in `{0, ..., bins}`.
      */
     int bounded(const int i) const {
-        return std::min<int>(std::max<int>(0, i), bins - 1);
+        return std::min<int>(std::max<int>(0, i), _bins - 1);
     };
 
     /*!
@@ -122,35 +122,34 @@ private:
      * \return A reference to the bin.
      */
     double& at(const int i) {
-        return data.data()[bounded(i)];
+        return _data.data()[bounded(i)];
     }
 
     /*!
      * \brief Gaussian convolution.
-     * \param sigma Kernel badwidth.
      */
-    void gaussian(const double sigma)
+    void gaussian(void)
     {
-        if (sigma <= 0.0) {
+        if (_sigma <= 0.0) {
             return;
         }
 
         // Compute a 1D filter kernel of adaptive size
-        std::vector<double> kernel = gaussian_kernel(sigma);
+        std::vector<double> kernel = gaussian_kernel(_sigma);
         int r = kernel.size() / 2;
 
         // Apply the filter
-        std::vector<double> tmp(bins);
+        std::vector<double> tmp(_bins);
         #pragma omp parallel for
-        for (int i = 0; i < bins; ++i) {
+        for (int i = 0; i < _bins; ++i) {
             double val = 0.0;
             for (int t = -r; t < r + 1; ++t) {
-                val += kernel[t+r] * data.data()[bounded(i+t)];
+                val += kernel[t+r] * _data.data()[bounded(i+t)];
             }
             tmp[i] = val;
         }
 
-        data = std::move(tmp);
+        _data = std::move(tmp);
     }
 };
 
@@ -174,9 +173,9 @@ public:
                      const stk::VolumeHelper<T>& volume2,
                      const int bins,
                      const double sigma) :
-        bins(bins),
-        sigma(sigma),
-        data(bins * bins)
+        _bins(bins),
+        _sigma(sigma),
+        _data(bins * bins)
     {
         update(volume1, volume2);
     }
@@ -199,16 +198,16 @@ public:
      */
     void update(const stk::VolumeHelper<T>& volume1, const stk::VolumeHelper<T>& volume2)
     {
-        stk::find_min_max(volume1, min1, max1);
-        stk::find_min_max(volume2, min2, max2);
-        T range1 = max1 - min1;
-        T range2 = max2 - min2;
-        inv_bin_width_1 = static_cast<T>(bins) / range1;
-        inv_bin_width_2 = static_cast<T>(bins) / range2;
+        stk::find_min_max(volume1, _min1, _max1);
+        stk::find_min_max(volume2, _min2, _max2);
+        T range1 = _max1 - _min1;
+        T range2 = _max2 - _min2;
+        _inv_bin_width_1 = static_cast<T>(_bins) / range1;
+        _inv_bin_width_2 = static_cast<T>(_bins) / range2;
         dim3 size = volume1.size();
 
         // Joint histogram count
-        std::fill(data.begin(), data.end(), 0.0);
+        std::fill(_data.begin(), _data.end(), 0.0);
         for (size_t z = 0; z < size.z; ++z) {
             for (size_t y = 0; y < size.y; ++y) {
                 for (size_t x = 0; x < size.x; ++x) {
@@ -220,8 +219,8 @@ public:
                     T v1 = volume1(x, y, z);
                     T v2 = volume2.linear_at(p2, stk::Border_Replicate);
 
-                    int i1 = static_cast<int>(inv_bin_width_1 * (v1 - min1));
-                    int i2 = static_cast<int>(inv_bin_width_2 * (v2 - min2));
+                    int i1 = static_cast<int>(_inv_bin_width_1 * (v1 - _min1));
+                    int i2 = static_cast<int>(_inv_bin_width_2 * (v2 - _min2));
 
                     ++at(i1, i2);
                 }
@@ -230,23 +229,23 @@ public:
 
         // To probability (term inside the log)
         const int N = size.x * size.y * size.z;
-        for (auto& x : data) {
+        for (auto& x : _data) {
             x /= N;
         }
 
         // Approximate PDF of the term inside the log
-        gaussian(sigma);
+        gaussian();
 
         // Log
-        for (auto& x : data) {
+        for (auto& x : _data) {
             x = std::log(x < 1e-8 ? 1e-8 : x);
         }
 
         // Approximate PDF of the term outside the log
-        gaussian(sigma);
+        gaussian();
 
         // To probability (term outside the log)
-        for (auto& x : data) {
+        for (auto& x : _data) {
             x /= N;
         }
     }
@@ -258,17 +257,17 @@ public:
      * \return Joint entropy term.
      */
     double operator()(const T x, const T y) const {
-        const int i = bounded(static_cast<int>(inv_bin_width_1 * (x - min1)));
-        const int j = bounded(static_cast<int>(inv_bin_width_2 * (y - min2)));
-        return data.data()[bins * j + i];
+        const int i = bounded(static_cast<int>(_inv_bin_width_1 * (x - _min1)));
+        const int j = bounded(static_cast<int>(_inv_bin_width_2 * (y - _min2)));
+        return _data.data()[_bins * j + i];
     }
 
 private:
-    int bins;     /*!< Number of bins. */
-    double sigma; /*!< Kernel standard deviation. */
-    std::vector<double> data; /*!< Binned data. */
-    T min1, max1, min2, max2; /*!< Extrema for the two intensities. */
-    T inv_bin_width_1, inv_bin_width_2; /*!< Inverse of the bin widths for each direction. */
+    int _bins;     /*!< Number of bins. */
+    double _sigma; /*!< Kernel standard deviation. */
+    std::vector<double> _data; /*!< Binned data. */
+    T _min1, _max1, _min2, _max2; /*!< Extrema for the two intensities. */
+    T _inv_bin_width_1, _inv_bin_width_2; /*!< Inverse of the bin widths for each direction. */
 
     /*!
      * \brief Bound a bin index within a valid range.
@@ -276,7 +275,7 @@ private:
      * \return Closest value to `i` in `{0, ..., bins}`.
      */
     int bounded(const int i) const {
-        return std::min<int>(std::max<int>(0, i), bins - 1);
+        return std::min<int>(std::max<int>(0, i), _bins - 1);
     };
 
     /*!
@@ -286,28 +285,27 @@ private:
      * \return A reference to the bin.
      */
     double& at(const int i, const int j) {
-        return data.data()[bins * bounded(j) + bounded(i)];
+        return _data.data()[_bins * bounded(j) + bounded(i)];
     }
 
     /*!
      * \brief Gaussian convolution with decomposed filters.
-     * \param sigma Standard deviation.
      */
-    void gaussian(const double sigma)
+    void gaussian(void)
     {
-        if (sigma <= 0.0) {
+        if (_sigma <= 0.0) {
             return;
         }
 
         // Compute a 1D filter kernel of adaptive size
-        std::vector<double> kernel = gaussian_kernel(sigma);
+        std::vector<double> kernel = gaussian_kernel(_sigma);
         int r = kernel.size() / 2;
 
         // Apply the filter along the x direction
-        double tmp[bins][bins];
+        double tmp[_bins][_bins];
         #pragma omp parallel for
-        for (int i = 0; i < bins; ++i) {
-            for (int j = 0; j < bins; ++j) {
+        for (int i = 0; i < _bins; ++i) {
+            for (int j = 0; j < _bins; ++j) {
                 double val = 0.0;
                 for (int t = -r; t < r + 1; ++t) {
                     val += kernel[t+r] * at(i, j+t);
@@ -318,8 +316,8 @@ private:
 
         // Apply the filter along the y direction
         #pragma omp parallel for
-        for (int i = 0; i < bins; ++i) {
-            for (int j = 0; j < bins; ++j) {
+        for (int i = 0; i < _bins; ++i) {
+            for (int j = 0; j < _bins; ++j) {
                 double val = 0.0;
                 for (int t = -r; t < r + 1; ++t) {
                     val += kernel[t+r] * tmp[j][bounded(i+t)];

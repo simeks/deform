@@ -274,14 +274,14 @@ struct LandmarksFunction : public SubFunction
                       const float3& fixed_origin,
                       const float3& fixed_spacing,
                       const dim3& fixed_size) :
-        landmarks {fixed_landmarks},
-        fixed_origin {fixed_origin},
-        fixed_spacing {fixed_spacing},
-        fixed_size {fixed_size}
+        _landmarks {fixed_landmarks},
+        _fixed_origin {fixed_origin},
+        _fixed_spacing {fixed_spacing},
+        _fixed_size {fixed_size}
     {
         ASSERT(fixed_landmarks.size() == moving_landmarks.size());
         for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
-            displacements.push_back(moving_landmarks[i] - fixed_landmarks[i]);
+            _displacements.push_back(moving_landmarks[i] - fixed_landmarks[i]);
         }
     }
 
@@ -297,21 +297,21 @@ struct LandmarksFunction : public SubFunction
             static_cast<float>(p.z)
         };
 
-        const float3 world_p = fixed_origin + fixed_p * fixed_spacing;
+        const float3 world_p = _fixed_origin + fixed_p * _fixed_spacing;
 
-        for (size_t i = 0; i < landmarks.size(); ++i) {
-            cost += stk::norm2(def - displacements[i]) /
-                    (stk::norm2(landmarks[i] - world_p) + epsilon);
+        for (size_t i = 0; i < _landmarks.size(); ++i) {
+            cost += stk::norm2(def - _displacements[i]) /
+                    (stk::norm2(_landmarks[i] - world_p) + epsilon);
         }
 
         return cost;
     }
 
-    const std::vector<float3> landmarks;
-    std::vector<float3> displacements;
-    const float3 fixed_origin;
-    const float3 fixed_spacing;
-    const dim3 fixed_size;
+    const std::vector<float3> _landmarks;
+    std::vector<float3> _displacements;
+    const float3 _fixed_origin;
+    const float3 _fixed_spacing;
+    const dim3 _fixed_size;
 };
 
 
@@ -326,8 +326,8 @@ struct MIFunction : public SubFunction
         _moving(moving),
         _bins(bins),
         _sigma(sigma),
-        joint_entropy(fixed, moving, bins, sigma),
-        entropy(moving, bins, sigma)
+        _joint_entropy(fixed, moving, bins, sigma),
+        _entropy(moving, bins, sigma)
     {
     }
 
@@ -358,7 +358,7 @@ struct MIFunction : public SubFunction
         T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // NOTE: the sign is inverted (minimising negated MI)
-        return entropy(i2) - joint_entropy(i1, i2);
+        return static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
     }
 
     /*!
@@ -375,8 +375,8 @@ struct MIFunction : public SubFunction
     {
         (void) iteration;
         auto tmp = transform_volume(_moving, def, transform::Interp_NN);
-        joint_entropy.update(_fixed, tmp);
-        entropy.update(tmp);
+        _joint_entropy.update(_fixed, tmp);
+        _entropy.update(tmp);
     }
 
     stk::VolumeHelper<T> _fixed;
@@ -385,8 +385,8 @@ struct MIFunction : public SubFunction
     const double _sigma;
 
 private:
-    JointEntropyTerm<T> joint_entropy;
-    EntropyTerm<T> entropy;
+    JointEntropyTerm<T> _joint_entropy;
+    EntropyTerm<T> _entropy;
 };
 
 
