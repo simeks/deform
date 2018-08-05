@@ -221,7 +221,7 @@ struct NCCFunction : public SubFunction
                 for (int dx = -_radius; dx <= _radius; ++dx) {
                     // TODO: Does not account for anisotropic volumes
                     int r2 = dx*dx + dy*dy + dz*dz;
-                    if (r2 > 4)
+                    if (r2 > _radius * _radius)
                         continue;
 
                     int3 fp{p.x + dx, p.y + dy, p.z + dz};
