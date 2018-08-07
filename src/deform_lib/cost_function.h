@@ -322,12 +322,14 @@ struct MIFunction : public SubFunction
                const stk::VolumeHelper<T>& moving,
                const int bins,
                const double sigma,
-               const int update_interval) :
+               const int update_interval,
+               const transform::Interp interpolator) :
         _fixed(fixed),
         _moving(moving),
         _bins(bins),
         _sigma(sigma),
         _update_interval(update_interval),
+        _interpolator(interpolator),
         _voxel_count(fixed.size().x * fixed.size().y * fixed.size().z),
         _joint_entropy(fixed, moving, bins, sigma),
         _entropy(moving, bins, sigma)
@@ -379,7 +381,7 @@ struct MIFunction : public SubFunction
         if (iteration % _update_interval) {
             return;
         }
-        auto tmp = transform_volume(_moving, def, transform::Interp_NN);
+        auto tmp = transform_volume(_moving, def, _interpolator);
         _joint_entropy.update(_fixed, tmp);
         _entropy.update(tmp);
     }
@@ -389,6 +391,7 @@ struct MIFunction : public SubFunction
     const int _bins;
     const double _sigma;
     const int _update_interval;
+    const transform::Interp _interpolator;
 
 private:
     const int _voxel_count;
