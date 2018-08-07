@@ -326,6 +326,7 @@ struct MIFunction : public SubFunction
         _moving(moving),
         _bins(bins),
         _sigma(sigma),
+        _voxel_count(fixed.size().x * fixed.size().y * fixed.size().z),
         _joint_entropy(fixed, moving, bins, sigma),
         _entropy(moving, bins, sigma)
     {
@@ -358,7 +359,7 @@ struct MIFunction : public SubFunction
         T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // NOTE: the sign is inverted (minimising negated MI)
-        return static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
+        return _voxel_count * static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
     }
 
     /*!
@@ -385,6 +386,7 @@ struct MIFunction : public SubFunction
     const double _sigma;
 
 private:
+    const int _voxel_count;
     JointEntropyTerm<T> _joint_entropy;
     EntropyTerm<T> _entropy;
 };
