@@ -52,6 +52,7 @@ image_slots:
         weight: 0.6
         sigma: 4.5
         bins: 256
+        update_interval: 1
 
   # sfcm
   - resampler: gaussian
@@ -92,6 +93,7 @@ The parameters available for each function are:
 + `mi`:
   + `bins` (int): number of histogram bins when approximating probability densities (default: `255`)
   + `sigma` (float): standard deviation of the Gaussian kernel used to approximate probability densities (default: `4.5`)
+  + `update_interval` (int): interval (in iterations) between updates of the entropy estimates (default: `1`)
 
 ## References
 + <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih: *Visual correspondence using energy minimization and mutual information.* Proceedings of the Ninth IEEE International Conference on Computer Vision, 1033-1040, 2003.

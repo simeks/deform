@@ -321,11 +321,13 @@ struct MIFunction : public SubFunction
     MIFunction(const stk::VolumeHelper<T>& fixed,
                const stk::VolumeHelper<T>& moving,
                const int bins,
-               const double sigma) :
+               const double sigma,
+               const int update_interval) :
         _fixed(fixed),
         _moving(moving),
         _bins(bins),
         _sigma(sigma),
+        _update_interval(update_interval),
         _voxel_count(fixed.size().x * fixed.size().y * fixed.size().z),
         _joint_entropy(fixed, moving, bins, sigma),
         _entropy(moving, bins, sigma)
@@ -374,7 +376,9 @@ struct MIFunction : public SubFunction
      */
     virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
     {
-        (void) iteration;
+        if (iteration % _update_interval) {
+            return;
+        }
         auto tmp = transform_volume(_moving, def, transform::Interp_NN);
         _joint_entropy.update(_fixed, tmp);
         _entropy.update(tmp);
@@ -384,6 +388,7 @@ struct MIFunction : public SubFunction
     stk::VolumeHelper<T> _moving;
     const int _bins;
     const double _sigma;
+    const int _update_interval;
 
 private:
     const int _voxel_count;

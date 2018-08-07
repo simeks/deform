@@ -96,6 +96,7 @@ namespace
     {
         int bins = 256;
         double sigma = 4.5;
+        int update_interval = 1;
 
         for (const auto& [k, v] : parameters) {
             if (k == "bins") {
@@ -104,6 +105,9 @@ namespace
             else if (k == "sigma") {
                 sigma = str_to_num<double>("MIFunction", k, v);
             }
+            else if (k == "update_interval") {
+                update_interval = str_to_num<int>("MIFunction", k, v);
+            }
             else {
                 throw std::invalid_argument("MIFunction: unrecognised parameter "
                                             "'" + k + "' with value '" + v + "'");
@@ -111,7 +115,7 @@ namespace
         }
 
         return std::make_unique<MIFunction<T>>(
-            fixed, moving, bins, sigma
+            fixed, moving, bins, sigma, update_interval
         );
     }
 }
