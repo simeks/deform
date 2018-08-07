@@ -12,8 +12,8 @@ To perform a registration
 
 | Argument                    |                                             |
 | --------------------------- | ------------------------------------------- |
-| `-f<i> <file>`              | Filename of the i:th fixed image (i &lt; 8)*.  |
-| `-m<i> <file>`              | Filename of the i:th moving image (i &lt; 8)*. |
+| `-f<i> <file>`              | Filename of the i:th fixed image (i < 8)*.  |
+| `-m<i> <file>`              | Filename of the i:th moving image (i < 8)*. |
 | `-fp <file>`                | Filename for the fixed landmarks.           |
 | `-mp <file>`                | Filename for the moving landmarks.          |
 | `-d0 <file>`                | Filename for initial deformation field.     |
@@ -53,6 +53,7 @@ image_slots:
         sigma: 4.5
         bins: 256
         update_interval: 1
+        interpolator: nn
 
   # sfcm
   - resampler: gaussian
@@ -89,11 +90,12 @@ for each direction.
 The parameters available for each function are:
 + `ssd`: no parameters available
 + `ncc`:
-  + `radius` (int): radius of the cross-correlation kernel (default: `2`)
+  + `radius` (`int`): radius of the cross-correlation kernel (default: `2`)
 + `mi`:
-  + `bins` (int): number of histogram bins when approximating probability densities (default: `255`)
-  + `sigma` (float): standard deviation of the Gaussian kernel used to approximate probability densities (default: `4.5`)
-  + `update_interval` (int): interval (in iterations) between updates of the entropy estimates (default: `1`)
+  + `bins` (`int`): number of histogram bins when approximating probability densities (default: `255`)
+  + `sigma` (`float`): standard deviation of the Gaussian kernel used to approximate probability densities (default: `4.5`)
+  + `update_interval` (`int`): interval (in iterations) between updates of the entropy estimates (default: `1`)
+  + `interpolator` (`transform::Interp`): interpolator used in the update the entropy estimates (default: `transform::Interp_NN`)
 
 ## References
 + <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih: *Visual correspondence using energy minimization and mutual information.* Proceedings of the Ninth IEEE International Conference on Computer Vision, 1033-1040, 2003.
