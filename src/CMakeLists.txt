@@ -1,6 +1,9 @@
 set(DEFORM_LIB_SRCS
     "deform_lib/filters/gpu/gaussian_filter.cu"
     "deform_lib/filters/gpu/gaussian_filter.h"
+    "deform_lib/filters/gpu/resample.cu"
+    "deform_lib/filters/gpu/resample.h"
+
     "deform_lib/filters/gaussian_filter.cpp"
     "deform_lib/filters/gaussian_filter.h"
     "deform_lib/filters/resample.cpp"
@@ -55,7 +58,7 @@ set(DEFORM_UTIL_SRCS
 if (DF_USE_CUDA)
     CUDA_ADD_LIBRARY(deform_lib STATIC ${DEFORM_LIB_SRCS})
 else ()
-add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
+    add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 endif ()
 
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
