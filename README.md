@@ -95,7 +95,7 @@ The parameters available for each function are:
   + `bins` (`int`): number of histogram bins when approximating probability densities (default: `255`)
   + `sigma` (`float`): standard deviation of the Gaussian kernel used to approximate probability densities (default: `4.5`)
   + `update_interval` (`int`): interval (in iterations) between updates of the entropy estimates (default: `1`)
-  + `interpolator` (`transform::Interp`): interpolator used in the update the entropy estimates (default: `transform::Interp_NN`)
+  + `interpolator` (`'linear'` or `'nn'`): interpolator used in the update the entropy estimates (default: `'nn'`)
 
 ## References
 + <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih: *Visual correspondence using energy minimization and mutual information.* Proceedings of the Ninth IEEE International Conference on Computer Vision, 1033-1040, 2003.
