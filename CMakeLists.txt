@@ -86,6 +86,7 @@ endif()
 
 if (DF_USE_CUDA)
     add_definitions(-DDF_USE_CUDA)
+    add_definitions(-DSTK_USE_CUDA)
     find_package(CUDA REQUIRED)
 endif()
 
