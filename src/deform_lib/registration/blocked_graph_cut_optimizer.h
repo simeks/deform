@@ -22,7 +22,7 @@ public:
     void execute(
         TUnaryTerm& unary_fn, 
         TBinaryTerm& binary_fn,
-        float step_size, 
+        float3 step_size,
         stk::VolumeFloat3& def);
 
 private:

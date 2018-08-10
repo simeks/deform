@@ -36,6 +36,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/cost_function.h"
     "deform_lib/jacobian.cpp"
     "deform_lib/jacobian.h"
+    "deform_lib/mutual_information.cpp"
+    "deform_lib/mutual_information.h"
     "deform_lib/regularize.cpp"
 )
 

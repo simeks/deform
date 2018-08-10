@@ -76,6 +76,29 @@ namespace YAML {
     };
 
     template<>
+    struct convert<float3>
+    {
+        static bool decode(const Node& node, float3& out) {
+            if(!node.IsSequence() || node.size() != 3) {
+                throw YAML::RepresentationException(node.Mark(), "expected vector of 3 floats");
+            }
+
+            try {
+                out = {
+                    node[0].as<float>(),
+                    node[1].as<float>(),
+                    node[2].as<float>()
+                };
+            }
+            catch (YAML::TypedBadConversion<float>&) {
+                throw YAML::RepresentationException(node.Mark(), "expected vector of 3 floats");
+            }
+
+            return true;
+        }
+    };
+
+    template<>
     struct convert<Settings::ImageSlot::ResampleMethod>
     {
         static bool decode(const Node& node, Settings::ImageSlot::ResampleMethod& out) {
@@ -128,6 +151,10 @@ namespace YAML {
                 out = Settings::ImageSlot::CostFunction_NCC;
                 return true;
             }
+            else if (fn == "mutual_information" || fn == "mi") {
+                out = Settings::ImageSlot::CostFunction_MI;
+                return true;
+            }
             
             throw YAML::RepresentationException(node.Mark(), "unrecognised cost function " + fn);
         }
@@ -149,6 +176,15 @@ namespace YAML {
             }
             else {
                 out.weight = 1.0f;
+            }
+
+            // Function parameters
+            for(auto it = node.begin(); it != node.end(); ++it) {
+                auto k = it->first.as<std::string>();
+                if (k == "function" || k == "weight") {
+                    continue;
+                }
+                out.parameters.emplace(k, it->second.as<std::string>());
             }
 
             return true;
@@ -208,12 +244,14 @@ const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
         return "ssd";
     case Settings::ImageSlot::CostFunction_NCC:
         return "ncc";
+    case Settings::ImageSlot::CostFunction_MI:
+        return "mi";
     default:
     case Settings::ImageSlot::CostFunction_None:
         return "none";
     }
 }
-const char* resample_method_to_str(Settings::ImageSlot::ResampleMethod fn)
+const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
 {
     switch (fn) {
     case Settings::ImageSlot::Resample_Gaussian:
@@ -249,8 +287,11 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
         LOG(Info) << "  cost_functions = {";
         for (size_t k = 0; k < slot.cost_functions.size(); ++k) {
-            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": "
-                                << slot.cost_functions[k].weight;
+            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": ";
+            LOG(Info) << "      weight: " << slot.cost_functions[k].weight;
+            for (const auto& [k, v] : slot.cost_functions[k].parameters) {
+                LOG(Info) << "      " << k << ": " << v;
+            }
         }
         LOG(Info) << "  }";
         LOG(Info) << "}";
@@ -273,7 +314,21 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
         }
 
         if (root["step_size"]) {
-            settings.step_size = root["step_size"].as<float>();
+            try {
+                settings.step_size = root["step_size"].as<float3>();
+            }
+            catch (YAML::RepresentationException&) {
+                try {
+                    float f = root["step_size"].as<float>();
+                    settings.step_size = {f, f, f};
+                }
+                catch (YAML::RepresentationException&) {
+                    throw YAML::RepresentationException(
+                            root["step_size"].Mark(),
+                            "expected float or sequence of three floats"
+                            );
+                }
+            }
         }
 
         if (root["regularization_weight"]) {
