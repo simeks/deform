@@ -378,7 +378,7 @@ struct MIFunction : public SubFunction
      */
     virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
     {
-        if (iteration % _update_interval) {
+        if (0 == iteration || iteration % _update_interval) {
             return;
         }
         auto tmp = transform_volume(_moving, def, _interpolator);
