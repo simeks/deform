@@ -207,7 +207,7 @@ stk::Volume registration(
     stk::Volume def = engine.execute();
     auto t_end = high_resolution_clock::now();
     int elapsed = int(round(duration_cast<duration<double>>(t_end - t_start).count()));
-    LOG(Info) << "Registration completed in " << elapsed / 60 << ":" << std::setw(2) << std::setfill('0') << elapsed % 60;
+    LOG(Info) << "Registration completed in " << elapsed / 60 << ":" << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
 
     return def;
 }

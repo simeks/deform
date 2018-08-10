@@ -5,6 +5,8 @@
 #include <cstring>
 #include <fstream>
 
+using namespace Catch;
+
 namespace {
 const char* sample_settings = R"(
 pyramid_levels: 4
@@ -212,6 +214,27 @@ TEST_CASE("parse_registration_settings")
 
         REQUIRE(!parse_registration_settings(settings_str, settings));
     }
+    SECTION("test_vectorial_step_size")
+    {
+        Settings settings;
+        std::string settings_str =
+                "step_size: [1.1, 2.2, 3.3]\n";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+        REQUIRE(settings.step_size.x == Approx(1.1f));
+        REQUIRE(settings.step_size.y == Approx(2.2f));
+        REQUIRE(settings.step_size.z == Approx(3.3f));
+    }
+    SECTION("test_vectorial_step_size_broken")
+    {
+        Settings settings;
+
+        std::string settings_str = "step_size: foo\n";
+        CHECK(!parse_registration_settings(settings_str, settings));
+
+        settings_str = "step_size: [1.0, 2.0]\n";
+        CHECK(!parse_registration_settings(settings_str, settings));
+    }
 }
 
 TEST_CASE("parse_registration_file", "")
@@ -235,7 +258,9 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(settings.block_size.z == 38);
         
         REQUIRE(settings.block_energy_epsilon == Approx(0.00000000009));
-        REQUIRE(settings.step_size == Approx(10.5f));
+        REQUIRE(settings.step_size.x == Approx(10.5f));
+        REQUIRE(settings.step_size.y == Approx(10.5f));
+        REQUIRE(settings.step_size.z == Approx(10.5f));
         REQUIRE(settings.regularization_weight == Approx(0.95f));
         REQUIRE(settings.constraints_weight == Approx(1234.1234f));
 

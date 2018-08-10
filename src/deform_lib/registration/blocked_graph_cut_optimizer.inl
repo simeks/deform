@@ -34,8 +34,8 @@ template<
     >
 void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
     TUnaryTerm& unary_fn, 
-    TBinaryTerm& binary_fn, 
-    float step_size, 
+    TBinaryTerm& binary_fn,
+    float3 step_size,
     stk::VolumeFloat3& def)
 {
     dim3 dims = def.size();
@@ -78,6 +78,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     bool done = false;
     while (!done) {
+
+        unary_fn.pre_iteration_hook(num_iterations, def);
+
         done = true;
 
         size_t num_blocks_changed = 0;
@@ -140,9 +143,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
                     for (int n = 0; n < n_count; ++n) {
                         // delta in [mm]
                         float3 delta {
-                            step_size * _neighbors[n].x,
-                            step_size * _neighbors[n].y,
-                            step_size * _neighbors[n].z
+                            step_size.x * _neighbors[n].x,
+                            step_size.y * _neighbors[n].y,
+                            step_size.z * _neighbors[n].z
                         };
 
                         block_changed |= do_block(
@@ -321,7 +324,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     bool changed_flag = false;
 
-    if (current_emin + _block_energy_epsilon < current_energy) // Accept solution
+    if (1.0 - current_emin / current_energy > _block_energy_epsilon) // Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
             for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {

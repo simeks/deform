@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <vector>
 
 #include "../config.h"
@@ -25,7 +26,8 @@ struct Settings
         {
             CostFunction_None = 0,
             CostFunction_SSD,
-            CostFunction_NCC
+            CostFunction_NCC,
+            CostFunction_MI,
         };
 
         enum ResampleMethod
@@ -37,6 +39,7 @@ struct Settings
         struct WeightedFunction {
             float weight = 1.0;
             CostFunction function = CostFunction_None;
+            std::map<std::string, std::string> parameters;
         };
 
         // Cost functions to apply on this image pair
@@ -49,7 +52,7 @@ struct Settings
         bool normalize;
 
         ImageSlot() :
-            cost_functions{{1.0, CostFunction_SSD}},
+            cost_functions{{1.0, CostFunction_SSD, {}}},
             resample_method{Resample_Gaussian},
             normalize{true} {}
     };
@@ -69,7 +72,7 @@ struct Settings
     // Epsilon used for termination
     double block_energy_epsilon;
     // Step size in [mm]
-    float step_size;
+    float3 step_size;
     // Only considered if no weight map is given
     float regularization_weight;
 
@@ -86,8 +89,8 @@ struct Settings
         pyramid_stop_level(0),
         num_pyramid_levels(6),
         block_size(int3{12, 12, 12}),
-        block_energy_epsilon(0.01f),
-        step_size(0.5f),
+        block_energy_epsilon(1e-7f),
+        step_size({0.5f, 0.5f, 0.5f}),
         regularization_weight(0.05f),
         constraints_weight(1000.0f),
         landmarks_weight(1.0f),

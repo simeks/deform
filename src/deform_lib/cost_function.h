@@ -1,6 +1,8 @@
 #pragma once
 
 #include "config.h"
+#include "registration/transform.h"
+#include "mutual_information.h"
 
 #include <stk/common/assert.h>
 #include <stk/image/volume.h>
@@ -87,7 +89,24 @@ struct Regularizer
 
 struct SubFunction
 {
+    /*!
+     * \brief Cost term for a single voxel.
+     * \param p Indices of the voxel in the reference image.
+     * \param def Tentative displacement for the voxel.
+     * \return The cost associated to displacing `p` by `def`.
+     */
     virtual float cost(const int3& p, const float3& def) = 0;
+
+    /*!
+     * \brief A callback that is executed before each iteration of the solver.
+     * \param iteration Number of the iteration just completed.
+     * \param def Deformation field at the end of the iteration.
+     */
+    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    {
+        (void) iteration;
+        (void) def;
+    }
 };
 
 
@@ -163,9 +182,11 @@ template<typename T>
 struct NCCFunction : public SubFunction
 {
     NCCFunction(const stk::VolumeHelper<T>& fixed,
-                const stk::VolumeHelper<T>& moving) :
+                const stk::VolumeHelper<T>& moving,
+                const int radius) :
         _fixed(fixed),
-        _moving(moving)
+        _moving(moving),
+        _radius(radius)
     {}
 
 
@@ -195,12 +216,12 @@ struct NCCFunction : public SubFunction
         double sm = 0.0;
         size_t n = 0;
 
-        for (int dz = -2; dz <= 2; ++dz) {
-            for (int dy = -2; dy <= 2; ++dy) {
-                for (int dx = -2; dx <= 2; ++dx) {
+        for (int dz = -_radius; dz <= _radius; ++dz) {
+            for (int dy = -_radius; dy <= _radius; ++dy) {
+                for (int dx = -_radius; dx <= _radius; ++dx) {
                     // TODO: Does not account for anisotropic volumes
                     int r2 = dx*dx + dy*dy + dz*dz;
-                    if (r2 > 4)
+                    if (r2 > _radius * _radius)
                         continue;
 
                     int3 fp{p.x + dx, p.y + dy, p.z + dz};
@@ -242,6 +263,7 @@ struct NCCFunction : public SubFunction
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
+    const int _radius;
 };
 
 
@@ -252,14 +274,14 @@ struct LandmarksFunction : public SubFunction
                       const float3& fixed_origin,
                       const float3& fixed_spacing,
                       const dim3& fixed_size) :
-        landmarks {fixed_landmarks},
-        fixed_origin {fixed_origin},
-        fixed_spacing {fixed_spacing},
-        fixed_size {fixed_size}
+        _landmarks {fixed_landmarks},
+        _fixed_origin {fixed_origin},
+        _fixed_spacing {fixed_spacing},
+        _fixed_size {fixed_size}
     {
         ASSERT(fixed_landmarks.size() == moving_landmarks.size());
         for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
-            displacements.push_back(moving_landmarks[i] - fixed_landmarks[i]);
+            _displacements.push_back(moving_landmarks[i] - fixed_landmarks[i]);
         }
     }
 
@@ -275,21 +297,106 @@ struct LandmarksFunction : public SubFunction
             static_cast<float>(p.z)
         };
 
-        const float3 world_p = fixed_origin + fixed_p * fixed_spacing;
+        const float3 world_p = _fixed_origin + fixed_p * _fixed_spacing;
 
-        for (size_t i = 0; i < landmarks.size(); ++i) {
-            cost += stk::norm2(def - displacements[i]) /
-                    (stk::norm2(landmarks[i] - world_p) + epsilon);
+        for (size_t i = 0; i < _landmarks.size(); ++i) {
+            cost += stk::norm2(def - _displacements[i]) /
+                    (stk::norm2(_landmarks[i] - world_p) + epsilon);
         }
 
         return cost;
     }
 
-    const std::vector<float3> landmarks;
-    std::vector<float3> displacements;
-    const float3 fixed_origin;
-    const float3 fixed_spacing;
-    const dim3 fixed_size;
+    const std::vector<float3> _landmarks;
+    std::vector<float3> _displacements;
+    const float3 _fixed_origin;
+    const float3 _fixed_spacing;
+    const dim3 _fixed_size;
+};
+
+
+template<typename T>
+struct MIFunction : public SubFunction
+{
+    MIFunction(const stk::VolumeHelper<T>& fixed,
+               const stk::VolumeHelper<T>& moving,
+               const int bins,
+               const double sigma,
+               const int update_interval,
+               const transform::Interp interpolator) :
+        _fixed(fixed),
+        _moving(moving),
+        _bins(bins),
+        _sigma(sigma),
+        _update_interval(update_interval),
+        _interpolator(interpolator),
+        _voxel_count(fixed.size().x * fixed.size().y * fixed.size().z),
+        _joint_entropy(fixed, moving, bins, sigma),
+        _entropy(moving, bins, sigma)
+    {
+    }
+
+    /*!
+     * \brief Contribution of a single voxel to the mutual information.
+     *
+     * Mutual information is broken to a voxel-wise sum thanks to an
+     * approximation of the entropy function based on Taylor polynomia
+     * and Parzen KDE. The formula was introduced in:
+     *   Kim, Junhwan et al. (2003): Visual correspondence using energy
+     *   minimization and mutual information, Proceedings of the Ninth
+     *   IEEE International Conference on Computer Vision, 1033–1040.
+     *
+     * Here, both the joint entropy and the entropy of the moving image
+     * are approximated. The entropy of the fixed image is ignored
+     * since it is constant with respect to the displacement, hence it
+     * has no effect on the optimisation process.
+     */
+    float cost(const int3& p, const float3& def)
+    {
+        const float3 fixed_p{float(p.x), float(p.y), float(p.z)};
+
+        // [fixed] -> [world] -> [moving]
+        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
+        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
+
+        T i1 = _fixed(p);
+        T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
+
+        // NOTE: the sign is inverted (minimising negated MI)
+        return _voxel_count * static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
+    }
+
+    /*!
+     * \brief Update the entropy term estimations.
+     *
+     * The entropy terms are approximated with a first order truncated
+     * Taylor polynomial, which is a function of the displacement. The
+     * approximation gets worse as the displacement gets larger. To
+     * compensate for this, resample the moving volume and update the
+     * entropy of the moving image and the joint entropy after each
+     * iteration.
+     */
+    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    {
+        if (0 == iteration || 0 == _update_interval || iteration % _update_interval) {
+            return;
+        }
+        auto tmp = transform_volume(_moving, def, _interpolator);
+        _joint_entropy.update(_fixed, tmp);
+        _entropy.update(tmp);
+    }
+
+    stk::VolumeHelper<T> _fixed;
+    stk::VolumeHelper<T> _moving;
+    const int _bins;
+    const double _sigma;
+    const int _update_interval;
+    const transform::Interp _interpolator;
+
+private:
+    const int _voxel_count;
+    JointEntropyTerm<T> _joint_entropy;
+    EntropyTerm<T> _entropy;
 };
 
 
@@ -334,6 +441,12 @@ struct UnaryFunction
 #endif
 
         return (1.0f-w)*sum;
+    }
+
+    void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def) {
+        for (auto& fn : functions) {
+            fn.function->pre_iteration_hook(iteration, def);
+        }
     }
 
     float _regularization_weight;
