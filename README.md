@@ -94,7 +94,7 @@ The parameters available for each function are:
 + `mi`:
   + `bins` (`int`): number of histogram bins when approximating probability densities (default: `255`)
   + `sigma` (`float`): standard deviation of the Gaussian kernel used to approximate probability densities (default: `4.5`)
-  + `update_interval` (`int`): interval (in iterations) between updates of the entropy estimates (default: `1`)
+  + `update_interval` (`int`): interval (in iterations) between updates of the entropy estimates (default: `1`). If `0`, updates are disabled.
   + `interpolator` (`'linear'` or `'nearest'`): interpolator used in the update the entropy estimates (default: `'nearest'`)
 
 ## References
