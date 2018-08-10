@@ -113,6 +113,7 @@ namespace gpu
     {
         ASSERT(volume.valid());
         ASSERT(volume.voxel_type() == stk::Type_Float); // Only float32 supported for now
+        ASSERT(volume.usage() == stk::gpu::Usage_PitchedPointer);
 
         stk::GpuVolume tmp = volume.clone_as(stk::gpu::Usage_PitchedPointer);
         stk::GpuVolume out = volume.clone_as(stk::gpu::Usage_PitchedPointer);
