@@ -68,10 +68,10 @@ TEST_CASE("gpu_downsample_gaussian", "")
     }
 
     // Use CPU-version as ground truth
-    stk::VolumeFloat out = filters::downsample_volume_gaussian(src, 0.5f);
+    stk::VolumeFloat out = filters::downsample_volume_by_2(src);
 
     stk::GpuVolume gpu_src(src);
-    stk::VolumeFloat gpu_out = filters::gpu::downsample_volume_gaussian(gpu_src, 0.5f).download();
+    stk::VolumeFloat gpu_out = filters::gpu::downsample_volume_by_2(gpu_src).download();
 
     CHECK(gpu_out.spacing().x == Approx(out.spacing().x));
     CHECK(gpu_out.spacing().y == Approx(out.spacing().y));
@@ -106,12 +106,14 @@ TEST_CASE("gpu_downsample_vectorfield", "")
         }
         src4(x,y,z) = {src(x,y,z).x, src(x,y,z).y, src(x,y,z).z, 0.0f};
     }
+    stk::write_volume("downsample_def_src.vtk", src);
 
     // Use CPU-version as ground truth
-    stk::VolumeFloat3 out = filters::downsample_vectorfield(src, 0.5f);
+    stk::VolumeFloat3 out = filters::downsample_vectorfield_by_2(src);
+    stk::write_volume("downsample_def_old.vtk", out);
 
     stk::GpuVolume gpu_src(src4);
-    stk::VolumeFloat4 gpu_out = filters::gpu::downsample_vectorfield(gpu_src, 0.5f).download();
+    stk::VolumeFloat4 gpu_out = filters::gpu::downsample_vectorfield_by_2(gpu_src).download();
 
     CHECK(gpu_out.spacing().x == Approx(out.spacing().x));
     CHECK(gpu_out.spacing().y == Approx(out.spacing().y));

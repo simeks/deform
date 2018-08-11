@@ -15,11 +15,11 @@ namespace filters
 {
 namespace gpu
 {
-    /// Applies a gaussian prefilter and downsamples the volume by the given scale factor.
-    stk::GpuVolume downsample_volume_gaussian(const stk::GpuVolume& vol, float scale);
+    /// Applies a gaussian prefilter and downsamples the volume by 2.
+    stk::GpuVolume downsample_volume_by_2(const stk::GpuVolume& vol);
 
     /// Downsamples a 3d vectorfield and keeps the residual
-    stk::GpuVolume downsample_vectorfield(const stk::GpuVolume& vol, float scale
+    stk::GpuVolume downsample_vectorfield_by_2(const stk::GpuVolume& vol
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
         , stk::GpuVolume& residual
 #endif
