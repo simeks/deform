@@ -2,6 +2,7 @@
 
 #include <stk/common/error.h>
 #include <stk/image/volume.h>
+#include <stk/math/float3.h>
 
 #include <algorithm>
 #include <math.h>
@@ -109,6 +110,8 @@ stk::Volume filters::gaussian_filter_3d(const stk::Volume& volume, float sigma)
         return ::gaussian_filter_3d<float>(volume, sigma);
     case stk::Type_Double:
         return ::gaussian_filter_3d<double>(volume, sigma);
+    case stk::Type_Float3:
+        return ::gaussian_filter_3d<float3>(volume, sigma);
     default:
         FATAL() << "Unsupported voxel format";
     };
