@@ -141,7 +141,7 @@ int run_cost(int argc, char* argv[])
         }
         
         // It's the only available fn for now
-        auto downsample_fn = filters::downsample_volume_gaussian;
+        auto downsample_fn = filters::downsample_volume_by_2;
 
         engine.set_image_pair(i, fixed, moving, downsample_fn);
 

@@ -22,10 +22,10 @@ namespace stk
 class VolumePyramid
 {
 public:
-    typedef stk::Volume (*DownsampleFn)(const stk::Volume&, float scale);
+    typedef stk::Volume (*DownsampleFn)(const stk::Volume&);
 
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-    typedef stk::Volume (*DownsampleWithResidualFn)(const stk::Volume&, float scale, stk::Volume& residual);
+    typedef stk::Volume (*DownsampleWithResidualFn)(const stk::Volume&, stk::Volume& residual);
 #endif
 
     VolumePyramid();

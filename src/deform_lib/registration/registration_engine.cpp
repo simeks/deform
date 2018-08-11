@@ -396,16 +396,16 @@ void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
     ASSERT(_settings.num_pyramid_levels);
 
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-    _deformation_pyramid.build_from_base_with_residual(def, filters::downsample_vectorfield);
+    _deformation_pyramid.build_from_base_with_residual(def, filters::downsample_vectorfield_by_2);
 #else
-    _deformation_pyramid.build_from_base(def, filters::downsample_vectorfield);
+    _deformation_pyramid.build_from_base(def, filters::downsample_vectorfield_by_2);
 #endif
 }
 void RegistrationEngine::set_image_pair(
     int i, 
     const stk::Volume& fixed, 
     const stk::Volume& moving,
-    stk::Volume (*downsample_fn)(const stk::Volume&, float))
+    stk::Volume (*downsample_fn)(const stk::Volume&))
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
     
@@ -418,7 +418,7 @@ void RegistrationEngine::set_image_pair(
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 void RegistrationEngine::set_regularization_weight_map(const stk::Volume& map)
 {
-    _regularization_weight_map.build_from_base(map, filters::downsample_volume_gaussian);
+    _regularization_weight_map.build_from_base(map, filters::downsample_volume_by_2);
 }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 

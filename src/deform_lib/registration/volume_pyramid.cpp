@@ -34,7 +34,7 @@ void VolumePyramid::build_from_base(const stk::Volume& base,
 
     _volumes[0] = base;
     for (int i = 0; i < _levels-1; ++i) {
-        _volumes[i+1] = downsample_fn(_volumes[i], 0.5f);
+        _volumes[i+1] = downsample_fn(_volumes[i]);
     }
 }
 void VolumePyramid::set_volume(int level, const stk::Volume& vol)
@@ -64,7 +64,7 @@ void VolumePyramid::build_from_base_with_residual(const stk::Volume& base,
 
     _volumes[0] = base;
     for (int i = 0; i < _levels-1; ++i) {
-        _volumes[i+1] = downsample_fn(_volumes[i], 0.5f, _residuals[i]);
+        _volumes[i+1] = downsample_fn(_volumes[i], _residuals[i]);
     }
 }
 const stk::Volume& VolumePyramid::residual(int level) const

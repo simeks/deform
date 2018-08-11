@@ -11,20 +11,17 @@
 namespace
 {
     template<typename TVoxelType>
-    stk::VolumeHelper<TVoxelType> downsample_volume(const stk::VolumeHelper<TVoxelType>& src, float scale)
+    stk::VolumeHelper<TVoxelType> downsample_volume_by_2(const stk::VolumeHelper<TVoxelType>& src)
     {
-        ASSERT(scale > 0.0f && scale < 1.0f);
-        float inv_scale = 1.0f / scale;
-        
         dim3 old_dims = src.size();
         dim3 new_dims {
-            uint32_t(ceil(old_dims.x * scale)),
-            uint32_t(ceil(old_dims.y * scale)),
-            uint32_t(ceil(old_dims.z * scale)),
+            uint32_t(ceil(old_dims.x * 0.5f)),
+            uint32_t(ceil(old_dims.y * 0.5f)),
+            uint32_t(ceil(old_dims.z * 0.5f)),
         };
 
         stk::VolumeHelper<TVoxelType> dest(new_dims);
-        dest.set_origin(src.origin());
+        dest.copy_meta_from(src);
         
         float3 old_spacing = src.spacing();
         float3 new_spacing {
@@ -38,7 +35,7 @@ namespace
         for (int z = 0; z < int(new_dims.z); ++z) {
             for (int y = 0; y < int(new_dims.y); ++y) {
                 for (int x = 0; x < int(new_dims.x); ++x) {
-                    dest(x, y, z) = src(int(x*inv_scale), int(y*inv_scale), int(z*inv_scale));
+                    dest(x, y, z) = src(2*x, 2*y, 2*z);
                 }
             }
         }
@@ -47,9 +44,8 @@ namespace
 }
 
 
-stk::Volume filters::downsample_volume_gaussian(const stk::Volume& vol, float scale)
+stk::Volume filters::downsample_volume_by_2(const stk::Volume& vol)
 {
-    ASSERT(scale > 0.0f && scale < 1.0f);
     FATAL_IF(vol.voxel_type() != stk::Type_Float &&
              vol.voxel_type() != stk::Type_Double)
         << "Unsupported voxel format";
@@ -60,9 +56,9 @@ stk::Volume filters::downsample_volume_gaussian(const stk::Volume& vol, float sc
 
     switch (vol.voxel_type()) {
     case stk::Type_Float:
-        return ::downsample_volume<float>(filtered, scale);
+        return ::downsample_volume_by_2<float>(filtered);
     case stk::Type_Double:
-        return ::downsample_volume<double>(filtered, scale);
+        return ::downsample_volume_by_2<double>(filtered);
     default:
         FATAL() << "Unsupported voxel format";
     };
@@ -70,89 +66,43 @@ stk::Volume filters::downsample_volume_gaussian(const stk::Volume& vol, float sc
     return stk::Volume();
 }
 
-
-stk::Volume filters::downsample_vectorfield(const stk::Volume& vol, float scale
+stk::Volume filters::downsample_vectorfield_by_2(const stk::Volume& field
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
     , stk::Volume& residual
 #endif
 )
 {
-    ASSERT(scale > 0.0f && scale < 1.0f);
-    FATAL_IF(vol.voxel_type() != stk::Type_Float3)
+    FATAL_IF(field.voxel_type() != stk::Type_Float3)
         << "Unsupported voxel format";
 
-    if (vol.voxel_type() == stk::Type_Float3) {
-        stk::VolumeHelper<float3> field(vol);
-        float inv_scale = 1.0f / scale;
+    float3 spacing = field.spacing();
+    float unit_sigma = std::min(spacing.x, std::min(spacing.y, spacing.z));
+    stk::Volume filtered = filters::gaussian_filter_3d(field, unit_sigma);
 
-        dim3 old_dims = field.size();
-        dim3 new_dims {
-            uint32_t(ceil(old_dims.x * scale)),
-            uint32_t(ceil(old_dims.y * scale)),
-            uint32_t(ceil(old_dims.z * scale))
-        };
+    stk::Volume result = ::downsample_volume_by_2<float3>(filtered);
 
-        stk::VolumeHelper<float3> result(new_dims);
-        result.set_origin(field.origin());
-
-        float3 old_spacing = field.spacing();
-        float3 new_spacing {
-            old_spacing.x * (old_dims.x / float(new_dims.x)),
-            old_spacing.y * (old_dims.y / float(new_dims.y)),
-            old_spacing.z * (old_dims.z / float(new_dims.z))
-        };
-        result.set_spacing(new_spacing);
-
+    #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS    
+        stk::VolumeHelper<float3> tmp(field.size());
+    
         #pragma omp parallel for
-        for (int z = 0; z < int(new_dims.z); ++z) {
-            for (int y = 0; y < int(new_dims.y); ++y) {
-                for (int x = 0; x < int(new_dims.x); ++x) {
-                    int px = int(x * inv_scale);
-                    int py = int(y * inv_scale);
-                    int pz = int(z * inv_scale);
-
-                    float3 v = field(px, py, pz);
-
-                    v = v + field.at(px+1, py, pz, stk::Border_Replicate);
-                    v = v + field.at(px, py+1, pz, stk::Border_Replicate);
-                    v = v + field.at(px, py, pz+1, stk::Border_Replicate);
-                    v = v + field.at(px+1, py+1, pz, stk::Border_Replicate);
-                    v = v + field.at(px+1, py, pz+1, stk::Border_Replicate);
-                    v = v + field.at(px, py+1, pz+1, stk::Border_Replicate);
-                    v = v + field.at(px+1, py+1, pz+1, stk::Border_Replicate);
-                    
-                    float s = 1.0f / 8.0f;
-                    result(x, y, z) = float3{s*v.x, s*v.y, s*v.z};
+        for (int z = 0; z < int(old_dims.z); ++z) {
+            for (int y = 0; y < int(old_dims.y); ++y) {
+                for (int x = 0; x < int(old_dims.x); ++x) {
+                    tmp(x, y, z) = field(x, y, z) - 
+                        result.linear_at(scale*x, scale*y, scale*z, stk::Border_Replicate);
                 }
             }
         }
-
-        #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS    
-            stk::VolumeHelper<float3> tmp(field.size());
-        
-            #pragma omp parallel for
-            for (int z = 0; z < int(old_dims.z); ++z) {
-                for (int y = 0; y < int(old_dims.y); ++y) {
-                    for (int x = 0; x < int(old_dims.x); ++x) {
-                        tmp(x, y, z) = field(x, y, z) - 
-                            result.linear_at(scale*x, scale*y, scale*z, stk::Border_Replicate);
-                    }
-                }
-            }
-            residual = tmp;
-        #endif
-        
-        return result;
-    }
-    return stk::Volume();
+        residual = tmp;
+    #endif
+    return result;
 }
-stk::Volume filters::upsample_vectorfield(
-    const stk::Volume& vol, 
-    const dim3& new_dims
+
+stk::Volume filters::upsample_vectorfield(const stk::Volume& vol, const dim3& new_dims
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-    , const stk::Volume& residual
+    , stk::Volume& residual
 #endif
-    )
+)
 {
     FATAL_IF(vol.voxel_type() != stk::Type_Float3)
         << "Unsupported voxel format";
@@ -168,7 +118,7 @@ stk::Volume filters::upsample_vectorfield(
         };
 
         stk::VolumeFloat3 out(new_dims);
-        out.set_origin(field.origin());
+        out.copy_meta_from(field);
 
         float3 old_spacing = field.spacing();
         float3 new_spacing{
