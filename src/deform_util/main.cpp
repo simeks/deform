@@ -10,6 +10,7 @@ void print_command_help(const char* exec)
     std::cout << "COMMANDS:" << std::endl << std::endl;
 
     const char* commands[] = {
+        "benchmark", "Runs benchmark",
         "cost", "Computes cost for a given input and parameter set",
         nullptr, nullptr
     };
@@ -24,9 +25,13 @@ void print_command_help(const char* exec)
 }
 
 int run_cost(int argc, char* argv[]);
+int run_benchmark(int argc, char* argv[]);
 
 int main(int argc, char* argv[])
 {
+    if (argc >= 2 && strcmp(argv[1], "benchmark") == 0)
+        return run_benchmark(argc, argv);
+    
     if (argc >= 2 && strcmp(argv[1], "cost") == 0)
         return run_cost(argc, argv);
     

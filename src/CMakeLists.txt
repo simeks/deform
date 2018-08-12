@@ -54,6 +54,7 @@ set(DEFORM_SRCS
 
 set(DEFORM_UTIL_SRCS
     "deform_util/main.cpp"
+    "deform_util/benchmark.cpp"
     "deform_util/cost.cpp"
 )
 
