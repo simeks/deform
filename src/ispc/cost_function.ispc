@@ -1,3 +1,4 @@
+#define CVF const varying float
 #define AT(data, s, _x, _y, _z) (data)[(_z)*(s.y)*(s.x) + (_y)*(s.x) + (_x)]
 
 
@@ -27,9 +28,9 @@ static inline float linear_at(
         )
 {
     // Equivalent to a constant border of zero
-    const float x_ = clamp(x, (const varying float) 0.0f, (const varying float) s.x - 1.0f);
-    const float y_ = clamp(y, (const varying float) 0.0f, (const varying float) s.y - 1.0f);
-    const float z_ = clamp(z, (const varying float) 0.0f, (const varying float) s.z - 1.0f);
+    const float x_ = clamp(x, (CVF) 0.0f, (CVF) s.x - 1.0f);
+    const float y_ = clamp(y, (CVF) 0.0f, (CVF) s.y - 1.0f);
+    const float z_ = clamp(z, (CVF) 0.0f, (CVF) s.z - 1.0f);
 
     const float xt = x_ - floor(x_);
     const float yt = y_ - floor(y_);
@@ -149,5 +150,6 @@ export uniform float ncc(
 }
 
 
+#undef CVF
 #undef AT
 
