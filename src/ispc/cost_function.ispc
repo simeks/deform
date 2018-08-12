@@ -111,7 +111,7 @@ export uniform float ncc(
     float _sf = 0.0f;
     float _sm = 0.0f;
 
-    foreach_tiled (dz = -r ... r, dy = -r ... r, dx = -r ... r) {
+    foreach_tiled (dz = -r ... r+1, dy = -r ... r+1, dx = -r ... r+1) {
 
         int fx = fixed_p.x + dx;
         int fy = fixed_p.y + dy;
