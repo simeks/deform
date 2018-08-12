@@ -5,7 +5,10 @@ set(ISPC_SRCS
 set(ISPC_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ispc_lib.o")
 set(ISPC_OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ispc_lib.h")
 
-set(ISPC_OPTIONS "--pic")
+if(NOT WIN32)
+    set(ISPC_OPTIONS "--pic")
+endif()
+
 if (DF_ENABLE_FAST_MATH)
     set(ISPC_OPTIONS ${ISPC_OPTIONS} " --opt=fast-math")
 endif()
