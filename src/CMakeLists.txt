@@ -87,8 +87,11 @@ if (DF_ENABLE_NVTOOLSEXT)
     target_include_directories(deform_lib PUBLIC ${NvToolsExt_INCLUDE_DIRS})
 endif()
 
+add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
+add_subdirectory(ispc)
+
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
-target_link_libraries(deform_lib stk yaml-cpp gco)
+target_link_libraries(deform_lib stk yaml-cpp gco ispc_lib)
 
 if(WIN32)
   target_link_libraries(deform_lib wsock32 ws2_32)

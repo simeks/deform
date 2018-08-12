@@ -159,6 +159,10 @@ namespace YAML {
                 out = Settings::ImageSlot::CostFunction_NCC;
                 return true;
             }
+            else if (fn == "ncc_ispc") {
+                out = Settings::ImageSlot::CostFunction_NCC_ispc;
+                return true;
+            }
             else if (fn == "mutual_information" || fn == "mi") {
                 out = Settings::ImageSlot::CostFunction_MI;
                 return true;
@@ -252,6 +256,8 @@ const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
         return "ssd";
     case Settings::ImageSlot::CostFunction_NCC:
         return "ncc";
+    case Settings::ImageSlot::CostFunction_NCC_ispc:
+        return "ncc_ispc";
     case Settings::ImageSlot::CostFunction_MI:
         return "mi";
     default:
