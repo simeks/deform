@@ -164,9 +164,9 @@ struct SquaredDistanceFunction : public SubFunction
         T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // [Filip]: Addition for partial-body registrations
-        if (moving_p.x<0 || moving_p.x>_moving.size().x || 
-            moving_p.y<0 || moving_p.y>_moving.size().y || 
-            moving_p.z<0 || moving_p.z>_moving.size().z) {
+        if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
+            moving_p.y < 0 || moving_p.y >= _moving.size().y ||
+            moving_p.z < 0 || moving_p.z >= _moving.size().z) {
             return 0;
         }
 
@@ -205,9 +205,9 @@ struct NCCFunction : public SubFunction
         float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
 
         // [Filip]: Addition for partial-body registrations
-        if (moving_p.x<0 || moving_p.x>_moving.size().x || 
-            moving_p.y<0 || moving_p.y>_moving.size().y || 
-            moving_p.z<0 || moving_p.z>_moving.size().z) {
+        if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
+            moving_p.y < 0 || moving_p.y >= _moving.size().y ||
+            moving_p.z < 0 || moving_p.z >= _moving.size().z) {
             return 0;
         }
 
@@ -323,9 +323,9 @@ struct NCCFunction_ispc : public SubFunction
 
         // [Filip]: Addition for partial-body registrations
         // NOTE: _moving.size() includes padding
-        if (moving_p.x < 0 || moving_p.x > _moving.size().x - 1 ||
-            moving_p.y < 0 || moving_p.y > _moving.size().y - 1 ||
-            moving_p.z < 0 || moving_p.z > _moving.size().z - 1) {
+        if (moving_p.x < 0 || moving_p.x >= _moving.size().x - 2 ||
+            moving_p.y < 0 || moving_p.y >= _moving.size().y - 2 ||
+            moving_p.z < 0 || moving_p.z >= _moving.size().z - 2) {
             return 0;
         }
 
