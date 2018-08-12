@@ -38,53 +38,10 @@ __global__ void shrink_volume_by_2_kernel(
     out(x, y, z) = in(int(2*x), int(2*y), int(2*z));
 }
 
-__global__ void downsample_vectorfield_kernel(
-    const cuda::VolumePtr<float4> field,
-    dim3 old_dims,
-    dim3 new_dims,
-    float inv_scale,
-    cuda::VolumePtr<float4> out
-)
-{
-    int x = blockIdx.x*blockDim.x + threadIdx.x;
-    int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int z = blockIdx.z*blockDim.z + threadIdx.z;
-
-    if (x >= new_dims.x ||
-        y >= new_dims.y ||
-        z >= new_dims.z)
-    {
-        return;
-    }
-
-    int px = int(x * inv_scale);
-    int py = int(y * inv_scale);
-    int pz = int(z * inv_scale);
-
-    float4 v = field(px, py, pz);
-
-    int px1 = min(px+1, old_dims.x-1);
-    int py1 = min(py+1, old_dims.y-1);
-    int pz1 = min(pz+1, old_dims.z-1);
-
-    v = v + field(px1, py, pz);
-    v = v + field(px, py1, pz);
-    v = v + field(px, py, pz1);
-    v = v + field(px1, py1, pz);
-    v = v + field(px1, py, pz1);
-    v = v + field(px, py1, pz1);
-    v = v + field(px1, py1, pz1);
-    
-    float s = 1.0f / 8.0f;
-    out(x, y, z) = float4{s*v.x, s*v.y, s*v.z, 0.0f};
-}
-
-
-
 __global__ void upsample_vectorfield_kernel(
     cudaTextureObject_t src,
     dim3 new_dims,
-    float4 inv_scale,
+    float3 inv_scale,
     cuda::VolumePtr<float4> out
 )
 {
@@ -99,7 +56,7 @@ __global__ void upsample_vectorfield_kernel(
         return;
     }
 
-    out(x, y, z) = tex3D<float4>(src, x * inv_scale.x, y * inv_scale.y, z * inv_scale.z);
+    out(x, y, z) = tex3D<float4>(src, x * inv_scale.x + 0.5f, y * inv_scale.y + 0.5f, z * inv_scale.z + 0.5f);
 }
 
 namespace {
@@ -209,8 +166,7 @@ namespace gpu {
             float(old_dims.z) / new_dims.z
         };
         
-        // TODO: Any extra cost of BindAsSurface (for returned volume)
-        stk::GpuVolume out(vol.size(), vol.voxel_type());
+        stk::GpuVolume out(new_dims, stk::Type_Float4, stk::gpu::Usage_PitchedPointer);
         out.copy_meta_from(vol);
 
         float3 old_spacing = vol.spacing();
@@ -221,33 +177,36 @@ namespace gpu {
         };
         out.set_spacing(new_spacing);
 
-        // cudaResourceDesc res_desc;
-        // memset(&res_desc, 0, sizeof(res_desc));
-        // res_desc.resType = cudaResourceTypePitch2D;
-        // res_desc.array = vol.pitched_ptr();
-        
-        // cudaTextureDesc tex_desc{0};
-        // tex_desc.addressMode[0] = cudaAddressModeClamp;
-        // tex_desc.addressMode[1] = cudaAddressModeClamp;
-        // tex_desc.addressMode[2] = cudaAddressModeClamp;
-        // tex_desc.filterMode = cudaFilterModeLinear;
+        cudaTextureDesc tex_desc;
+        memset(&tex_desc, 0, sizeof(tex_desc));
+        tex_desc.addressMode[0] = cudaAddressModeClamp;
+        tex_desc.addressMode[1] = cudaAddressModeClamp;
+        tex_desc.addressMode[2] = cudaAddressModeClamp;
+        tex_desc.filterMode = cudaFilterModeLinear;
 
-        // cudaTextureObject_t src_obj{0};
-        // cudaCreateTextureObject(&src_obj, &res_desc, &tex_desc, nullptr);
 
-        // dim3 block_size{8,8,1};
-        // dim3 grid_size {
-        //     (new_dims.x + block_size.x - 1) / block_size.x,
-        //     (new_dims.y + block_size.y - 1) / block_size.y,
-        //     (new_dims.z + block_size.z - 1) / block_size.z
-        // };
+        // TODO: This will cause a copy of the input data, performance impact should be investigated
+        // Probably hard to avoid unless we write our own interpolation routine inside the kernel.
+        cuda::TextureObject src_obj(
+            vol.as_usage(stk::gpu::Usage_Texture), 
+            tex_desc
+        );
 
-        // upsample_vectorfield_kernel<<<grid_size, block_size>>>(
-        //     src_obj,
-        //     new_dims,
-        //     inv_scale,
-        //     out
-        // );
+        dim3 block_size{8,8,1};
+        dim3 grid_size {
+            (new_dims.x + block_size.x - 1) / block_size.x,
+            (new_dims.y + block_size.y - 1) / block_size.y,
+            (new_dims.z + block_size.z - 1) / block_size.z
+        };
+
+        upsample_vectorfield_kernel<<<grid_size, block_size>>>(
+            src_obj,
+            new_dims,
+            inv_scale,
+            out
+        );
+
+        CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
 
         return out;
     }

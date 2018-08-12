@@ -10,7 +10,6 @@
 
 #include <stk/image/gpu_volume.h>
 #include <stk/image/volume.h>
-#include <stk/io/io.h>
 
 TEST_CASE("gpu_gaussian_filter", "")
 {
@@ -106,11 +105,9 @@ TEST_CASE("gpu_downsample_vectorfield", "")
         }
         src4(x,y,z) = {src(x,y,z).x, src(x,y,z).y, src(x,y,z).z, 0.0f};
     }
-    stk::write_volume("downsample_def_src.vtk", src);
 
     // Use CPU-version as ground truth
     stk::VolumeFloat3 out = filters::downsample_vectorfield_by_2(src);
-    stk::write_volume("downsample_def_old.vtk", out);
 
     stk::GpuVolume gpu_src(src4);
     stk::VolumeFloat4 gpu_out = filters::gpu::downsample_vectorfield_by_2(gpu_src).download();
@@ -150,32 +147,29 @@ TEST_CASE("gpu_upsample_vectorfield", "")
         }
         src4(x,y,z) = {src(x,y,z).x, src(x,y,z).y, src(x,y,z).z, 0.0f};
     }
-    stk::write_volume("upsample_vf_src.vtk", src);
 
     // Use CPU-version as ground truth
     stk::VolumeFloat3 out = filters::upsample_vectorfield(src, {16,16,16});
-    stk::write_volume("upsample_vf_out.vtk", out);
 
-    // stk::GpuVolume gpu_src(src4);
-    // stk::VolumeFloat4 gpu_out = filters::gpu::downsample_vectorfield(gpu_src, 0.5f).download();
-    // stk::write_volume("upsample_vf_gpu_out.vtk", gpu_out);
+    stk::GpuVolume gpu_src(src4);
+    stk::VolumeFloat4 gpu_out = filters::gpu::upsample_vectorfield(gpu_src, {16,16,16}).download();
 
-    // CHECK(gpu_out.spacing().x == Approx(out.spacing().x));
-    // CHECK(gpu_out.spacing().y == Approx(out.spacing().y));
-    // CHECK(gpu_out.spacing().z == Approx(out.spacing().z));
+    CHECK(gpu_out.spacing().x == Approx(out.spacing().x));
+    CHECK(gpu_out.spacing().y == Approx(out.spacing().y));
+    CHECK(gpu_out.spacing().z == Approx(out.spacing().z));
 
-    // CHECK(gpu_out.origin().x == Approx(out.origin().x));
-    // CHECK(gpu_out.origin().y == Approx(out.origin().y));
-    // CHECK(gpu_out.origin().z == Approx(out.origin().z));
+    CHECK(gpu_out.origin().x == Approx(out.origin().x));
+    CHECK(gpu_out.origin().y == Approx(out.origin().y));
+    CHECK(gpu_out.origin().z == Approx(out.origin().z));
 
-    // for (int z = 0; z < (int)out.size().z; ++z) 
-    // for (int y = 0; y < (int)out.size().y; ++y) 
-    // for (int x = 0; x < (int)out.size().x; ++x) {
-    //     REQUIRE(gpu_out(x,y,z).x == Approx(out(x,y,z).x));
-    //     REQUIRE(gpu_out(x,y,z).y == Approx(out(x,y,z).y));
-    //     REQUIRE(gpu_out(x,y,z).z == Approx(out(x,y,z).z));
-    //     REQUIRE(gpu_out(x,y,z).w == Approx(0.0f));
-    // }
+    for (int z = 0; z < (int)out.size().z; ++z) 
+    for (int y = 0; y < (int)out.size().y; ++y) 
+    for (int x = 0; x < (int)out.size().x; ++x) {
+        REQUIRE(gpu_out(x,y,z).x == Approx(out(x,y,z).x));
+        REQUIRE(gpu_out(x,y,z).y == Approx(out(x,y,z).y));
+        REQUIRE(gpu_out(x,y,z).z == Approx(out(x,y,z).z));
+        REQUIRE(gpu_out(x,y,z).w == Approx(0.0f));
+    }
 }
 
 
