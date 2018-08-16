@@ -73,7 +73,7 @@ int run_registration(int argc, char* argv[])
     args.add_option("param_file",   "-p",           "Path to the parameter file");
     args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image", true);
     args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image", true);
-    args.add_option("output",       "-o, --output", "Path to the initial deformation field");
+    args.add_option("output",       "-o, --output", "Path to the resulting deformation field");
     args.add_group("Optional");
     args.add_option("init_deform",  "-d0", "Path to the initial deformation field");
     args.add_group();
@@ -124,13 +124,16 @@ int run_registration(int argc, char* argv[])
         LOG(Info) << "Moving image [" << i << "]: '" << moving_file << "'";
     }
 
+    std::string out_file = args.get<std::string>("output", "result_def.vtk");
+    LOG(Info) << "Output displacement file: '" << out_file << "'";
+
     std::string init_deform_file = args.get<std::string>("init_deform", "");
     LOG(Info) << "Initial deformation '" << init_deform_file << "'";
 
     std::optional<stk::Volume> initial_deformation;
     if (!init_deform_file.empty()) {
         initial_deformation = stk::read_volume(init_deform_file.c_str());
-        LOG(Info) << "Initial deformation '" << init_deform_file << "'";
+        LOG(Info) << "Initial deformation: '" << init_deform_file << "'";
     }
 
     std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
@@ -189,7 +192,6 @@ int run_registration(int argc, char* argv[])
         return 1;
     }
 
-    std::string out_file = args.get<std::string>("output", "result_def.vtk");
     LOG(Info) << "Writing deformation field to '" << out_file << "'";
     stk::write_volume(out_file.c_str(), def);
 
