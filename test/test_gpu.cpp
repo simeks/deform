@@ -8,6 +8,9 @@
 #include <deform_lib/filters/gaussian_filter.h>
 #include <deform_lib/filters/gpu/gaussian_filter.h>
 
+#include <deform_lib/registration/transform.h>
+#include <deform_lib/registration/gpu/transform.h>
+
 #include <stk/image/gpu_volume.h>
 #include <stk/image/volume.h>
 
@@ -171,6 +174,64 @@ TEST_CASE("gpu_upsample_vectorfield", "")
         REQUIRE(gpu_out(x,y,z).w == Approx(0.0f));
     }
 }
+
+
+TEST_CASE("gpu_transform", "")
+{
+    stk::VolumeFloat src({8,8,8});
+    stk::VolumeFloat3 def3({8,8,8}); // CUDA do not support float3 so we add an empty channel
+    stk::VolumeFloat4 def4({8,8,8}); // CUDA do not support float3 so we add an empty channel
+
+    for (int z = 0; z < (int)src.size().z; ++z) 
+    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int x = 0; x < (int)src.size().x; ++x) {
+        int r = (x-3)*(x-3) + (y-3)*(y-3) + (z-3)*(z-3);
+        if (r < 6) {
+            src(x,y,z) = float(r);
+        }
+        else {
+            src(x,y,z) = 1.0f;
+        }
+
+        def3(x,y,z) = {1.0f, 2.0f, 3.0f};
+        def4(x,y,z) = {1.0f, 2.0f, 3.0f, 0.0f};
+    }
+
+    // Use CPU-version as ground truth
+    stk::VolumeFloat out_lin = transform_volume(src, def3, transform::Interp_Linear);
+    stk::VolumeFloat out_nn = transform_volume(src, def3, transform::Interp_NN);
+
+    stk::GpuVolume gpu_src(src);
+    stk::GpuVolume gpu_def(def4);
+    stk::VolumeFloat gpu_out_lin = gpu::transform_volume(gpu_src, gpu_def, transform::Interp_Linear)
+        .download();
+    stk::VolumeFloat gpu_out_nn = gpu::transform_volume(gpu_src, gpu_def, transform::Interp_NN)
+        .download();
+
+    CHECK(gpu_out_lin.spacing().x == Approx(out_lin.spacing().x));
+    CHECK(gpu_out_lin.spacing().y == Approx(out_lin.spacing().y));
+    CHECK(gpu_out_lin.spacing().z == Approx(out_lin.spacing().z));
+
+    CHECK(gpu_out_lin.origin().x == Approx(out_lin.origin().x));
+    CHECK(gpu_out_lin.origin().y == Approx(out_lin.origin().y));
+    CHECK(gpu_out_lin.origin().z == Approx(out_lin.origin().z));
+
+    CHECK(gpu_out_nn.spacing().x == Approx(out_nn.spacing().x));
+    CHECK(gpu_out_nn.spacing().y == Approx(out_nn.spacing().y));
+    CHECK(gpu_out_nn.spacing().z == Approx(out_nn.spacing().z));
+
+    CHECK(gpu_out_nn.origin().x == Approx(out_nn.origin().x));
+    CHECK(gpu_out_nn.origin().y == Approx(out_nn.origin().y));
+    CHECK(gpu_out_nn.origin().z == Approx(out_nn.origin().z));
+
+    for (int z = 0; z < (int)out_nn.size().z; ++z) 
+    for (int y = 0; y < (int)out_nn.size().y; ++y) 
+    for (int x = 0; x < (int)out_nn.size().x; ++x) {
+        REQUIRE(gpu_out_lin(x,y,z) == Approx(out_lin(x,y,z)));
+        REQUIRE(gpu_out_nn(x,y,z) == Approx(out_nn(x,y,z)));
+    }
+}
+
 
 
 #endif // DF_USE_CUDA

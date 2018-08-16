@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../transform.h"
+
 #if DF_USE_CUDA
 namespace stk {
     class GpuVolume;
