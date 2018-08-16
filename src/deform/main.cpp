@@ -40,7 +40,7 @@ namespace
         const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
         const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
 
-        const char* initial_deformation;
+        const char* initial_displacement;
 
         int num_threads;
 
@@ -56,11 +56,11 @@ namespace
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "registration"
                   << "Performs image registration" << std::endl;
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "transform"
-                  << "Transforms a volume with a given deformation field" << std::endl;
+                  << "Transforms a volume with a given displacement field" << std::endl;
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "regularize"
-                  << "Regularizes a deformation field" << std::endl;
+                  << "Regularizes a displacement field" << std::endl;
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "jacobian"
-                  << "Computes the jacobian determinants of a deformation field" << std::endl;
+                  << "Computes the jacobian determinants of a displacement field" << std::endl;
     }
 }
 
@@ -73,9 +73,9 @@ int run_registration(int argc, char* argv[])
     args.add_option("param_file",   "-p",           "Path to the parameter file");
     args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image", true);
     args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image", true);
-    args.add_option("output",       "-o, --output", "Path to the resulting deformation field");
+    args.add_option("output",       "-o, --output", "Path to the resulting displacement field");
     args.add_group("Optional");
-    args.add_option("init_deform",  "-d0", "Path to the initial deformation field");
+    args.add_option("init_deform",  "-d0", "Path to the initial displacement field");
     args.add_group();
     args.add_option("fixed_points", "-fp, --fixed-points", "Path to the fixed landmark points");
     args.add_option("moving_points", "-mp, --moving-points", "Path to the moving landmark points");
@@ -128,12 +128,12 @@ int run_registration(int argc, char* argv[])
     LOG(Info) << "Output displacement file: '" << out_file << "'";
 
     std::string init_deform_file = args.get<std::string>("init_deform", "");
-    LOG(Info) << "Initial deformation '" << init_deform_file << "'";
+    LOG(Info) << "Initial displacement '" << init_deform_file << "'";
 
-    std::optional<stk::Volume> initial_deformation;
+    std::optional<stk::Volume> initial_displacement;
     if (!init_deform_file.empty()) {
-        initial_deformation = stk::read_volume(init_deform_file.c_str());
-        LOG(Info) << "Initial deformation: '" << init_deform_file << "'";
+        initial_displacement = stk::read_volume(init_deform_file.c_str());
+        LOG(Info) << "Initial displacement: '" << init_deform_file << "'";
     }
 
     std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
@@ -182,7 +182,7 @@ int run_registration(int argc, char* argv[])
                            moving_volumes,
                            fixed_landmarks,
                            moving_landmarks,
-                           initial_deformation,
+                           initial_displacement,
                            constraint_mask,
                            constraint_values,
                            args.get<int>("num_threads", 0));
@@ -192,7 +192,7 @@ int run_registration(int argc, char* argv[])
         return 1;
     }
 
-    LOG(Info) << "Writing deformation field to '" << out_file << "'";
+    LOG(Info) << "Writing displacement field to '" << out_file << "'";
     stk::write_volume(out_file.c_str(), def);
 
     if (args.is_set("do_jacobian")) {
