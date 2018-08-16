@@ -105,11 +105,11 @@ export uniform float ncc(
         const uniform int3& ms
         )
 {
-    float _sff = 0.0f;
-    float _smm = 0.0f;
-    float _sfm = 0.0f;
-    float _sf = 0.0f;
-    float _sm = 0.0f;
+    double _sff = 0.0d;
+    double _smm = 0.0d;
+    double _sfm = 0.0d;
+    double _sf = 0.0d;
+    double _sm = 0.0d;
 
     foreach_tiled (dz = -r ... r+1, dy = -r ... r+1, dx = -r ... r+1) {
 
@@ -121,8 +121,8 @@ export uniform float ncc(
         float my = moving_p.y + dy;
         float mz = moving_p.z + dz;
 
-        float fixed_v = AT(fixed, fs, fx, fy, fz);
-        float moving_v = linear_at(moving, ms, mx, my, mz);
+        double fixed_v = AT(fixed, fs, fx, fy, fz);
+        double moving_v = linear_at(moving, ms, mx, my, mz);
 
         _sff += fixed_v * fixed_v;
         _smm += moving_v * moving_v;
@@ -132,11 +132,11 @@ export uniform float ncc(
 
     }
 
-    uniform float sff = reduce_add(_sff);
-    uniform float smm = reduce_add(_smm);
-    uniform float sfm = reduce_add(_sfm);
-    uniform const float sf = reduce_add(_sf);
-    uniform const float sm = reduce_add(_sm);
+    uniform double sff = reduce_add(_sff);
+    uniform double smm = reduce_add(_smm);
+    uniform double sfm = reduce_add(_sfm);
+    uniform const double sf = reduce_add(_sf);
+    uniform const double sm = reduce_add(_sm);
     uniform const int n = (2*r + 1) * (2*r + 1) * (2*r + 1);
 
     // Subtract mean
@@ -144,9 +144,9 @@ export uniform float ncc(
     smm -= (sm * sm / n);
     sfm -= (sf * sm / n);
     
-    uniform float d = sqrt(sff*smm);
+    uniform double d = sqrt(sff*smm);
 
-    return d > 1e-14 ? 0.5f * (1.0f - sfm / d) : 0.0f;
+    return (float) (d > 1d-14 ? 0.5d * (1.0d - sfm / d) : 0.0d);
 }
 
 
