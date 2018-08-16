@@ -128,7 +128,7 @@ int run_registration(int argc, char* argv[])
     LOG(Info) << "Output displacement file: '" << out_file << "'";
 
     std::string init_deform_file = args.get<std::string>("init_deform", "");
-    LOG(Info) << "Initial displacement '" << init_deform_file << "'";
+    LOG(Info) << "Initial displacement: '" << init_deform_file << "'";
 
     std::optional<stk::Volume> initial_displacement;
     if (!init_deform_file.empty()) {
