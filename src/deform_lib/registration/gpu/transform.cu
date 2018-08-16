@@ -136,7 +136,7 @@ stk::GpuVolume gpu::transform_volume(
     tex_desc.addressMode[0] = cudaAddressModeBorder;
     tex_desc.addressMode[1] = cudaAddressModeBorder;
     tex_desc.addressMode[2] = cudaAddressModeBorder;
-    tex_desc.filterMode = transform::Interp_Linear ? cudaFilterModeLinear : cudaFilterModePoint;
+    tex_desc.filterMode = i == transform::Interp_Linear ? cudaFilterModeLinear : cudaFilterModePoint;
 
     dim3 dims = def.size();
 
