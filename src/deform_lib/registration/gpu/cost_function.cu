@@ -9,6 +9,45 @@
 
 namespace cuda = stk::cuda;
 
+__global__ void regularizer_kernel(
+    cuda::VolumePtr<float4> df,
+    cuda::VolumePtr<float4> initial_df,
+    dim3 dims,
+    float3 spacing,
+    cuda::VolumePtr<float4> out // Regularization cost in x+,y+,z+
+)
+{
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    int z = blockIdx.z*blockDim.z + threadIdx.z;
+
+    if (x >= dims.x ||
+        y >= dims.y ||
+        z >= dims.z)
+    {
+        return;
+    }
+
+    float4 diff_x = (df(x,y,z) - initial_df(x,y,z)) - 
+                    (df(x+1,y,z) - initial_df(x+1,y,z));
+    float4 diff_y = (df(x,y,z) - initial_df(x,y,z)) - 
+                    (df(x,y+1,z) - initial_df(x,y+1,z));
+    float4 diff_z = (df(x,y,z) - initial_df(x,y,z)) - 
+                    (df(x,y,z+1) - initial_df(x,y,z+1));
+    
+    float dist2_x = diff_x.x*diff_x.x + diff_x.y*diff_x.y + diff_x.z*diff_x.z;
+    float dist2_y = diff_y.x*diff_y.x + diff_y.y*diff_y.y + diff_y.z*diff_y.z;
+    float dist2_z = diff_z.x*diff_z.x + diff_z.y*diff_z.y + diff_z.z*diff_z.z;
+    
+    float4 o;
+    o.x = dist2_x / (spacing.x*spacing.x);
+    o.y = dist2_y / (spacing.y*spacing.y);
+    o.z = dist2_z / (spacing.z*spacing.z);
+    o.w = 0;
+
+    out(x,y,z) = o;
+}
+
 template<typename T>
 __global__ void ssd_kernel(
     cudaTextureObject_t fixed,
@@ -139,6 +178,42 @@ __global__ void ncc_kernel(
     }
 }
 
+
+void gpu::run_regularizer_kernel(
+    const stk::GpuVolume& df,
+    const stk::GpuVolume& initial_df,
+    stk::GpuVolume& cost
+)
+{
+    ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(initial_df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(cost.usage() == stk::gpu::Usage_PitchedPointer);
+
+    FATAL_IF(df.voxel_type() != stk::Type_Float4 || 
+             initial_df.voxel_type() != stk::Type_Float4 ||
+             cost.voxel_type() != stk::Type_Float4)
+        << "Unsupported format";
+
+    dim3 dims = cost.size();
+
+    dim3 block_size{32,32,1};
+    dim3 grid_size {
+        (dims.x + block_size.x - 1) / block_size.x,
+        (dims.y + block_size.y - 1) / block_size.y,
+        (dims.z + block_size.z - 1) / block_size.z
+    };
+
+    regularizer_kernel<<<grid_size, block_size>>>(
+        df,
+        initial_df,
+        dims,
+        df.spacing(),
+        cost
+    );
+
+    CUDA_CHECK_ERRORS(cudaPeekAtLastError());
+    CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
+}
 
 void gpu::run_ssd_kernel(
     const stk::GpuVolume& fixed,

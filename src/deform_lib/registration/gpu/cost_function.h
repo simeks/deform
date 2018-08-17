@@ -5,6 +5,14 @@ namespace stk {
 }
 
 namespace gpu {
+    // df           : Displacement field
+    // initial_df   : Initial displacement field of current level
+    // cost         : Destination for cost (float4, with cost in x+, y+, z+)
+    void run_regularizer_kernel(
+        const stk::GpuVolume& df,
+        const stk::GpuVolume& initial_df,
+        stk::GpuVolume& cost
+    );
     void run_ssd_kernel(
         const stk::GpuVolume& fixed,
         const stk::GpuVolume& moving,
