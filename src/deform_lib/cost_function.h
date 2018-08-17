@@ -170,7 +170,7 @@ struct SquaredDistanceFunction : public SubFunction
 
 
         // TODO: Float cast
-        float f = fabs(float(_fixed(p) - moving_v));
+        float f = float(_fixed(p) - moving_v);
         return f*f;
     }
 

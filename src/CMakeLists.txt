@@ -15,6 +15,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/graph_cut/graph_cut.h"
     "deform_lib/graph_cut/graph_cut.inl"
 
+    "deform_lib/registration/gpu/cost_function.cu"
+    "deform_lib/registration/gpu/cost_function.h"
     "deform_lib/registration/gpu/transform.cu"
     "deform_lib/registration/gpu/transform.h"
     "deform_lib/registration/block_change_flags.cpp"

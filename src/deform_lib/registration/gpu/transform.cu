@@ -153,6 +153,9 @@ stk::GpuVolume gpu::transform_volume(
     run_kernel(src.voxel_type(), grid_size, block_size, 
         cuda::TextureObject(src_tex, tex_desc), def, dims, out);
 
+    CUDA_CHECK_ERRORS(cudaPeekAtLastError());
+    CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
+    
     // PERF?
     return out.as_usage(src.usage());
 }
