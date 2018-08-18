@@ -121,7 +121,8 @@ static void run_kernel(
 stk::GpuVolume gpu::transform_volume(
     const stk::GpuVolume& src, 
     const stk::GpuVolume& def, 
-    transform::Interp i
+    transform::Interp i,
+    const dim3& block_size
 )
 {
     ASSERT(def.usage() == stk::gpu::Usage_PitchedPointer);
@@ -143,7 +144,6 @@ stk::GpuVolume gpu::transform_volume(
     stk::GpuVolume out(dims, src.voxel_type());
     out.copy_meta_from(def);
 
-    dim3 block_size{32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,

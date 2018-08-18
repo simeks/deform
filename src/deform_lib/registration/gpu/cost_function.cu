@@ -182,7 +182,8 @@ __global__ void ncc_kernel(
 void gpu::run_regularizer_kernel(
     const stk::GpuVolume& df,
     const stk::GpuVolume& initial_df,
-    stk::GpuVolume& cost
+    stk::GpuVolume& cost,
+    const dim3& block_size
 )
 {
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
@@ -196,7 +197,6 @@ void gpu::run_regularizer_kernel(
 
     dim3 dims = cost.size();
 
-    dim3 block_size{32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,
@@ -219,7 +219,8 @@ void gpu::run_ssd_kernel(
     const stk::GpuVolume& fixed,
     const stk::GpuVolume& moving,
     const stk::GpuVolume& df,
-    stk::GpuVolume& cost_acc
+    stk::GpuVolume& cost_acc,
+    const dim3& block_size
 )
 {
     ASSERT(fixed.usage() == stk::gpu::Usage_Texture);
@@ -238,7 +239,6 @@ void gpu::run_ssd_kernel(
 
     dim3 dims = cost_acc.size();
 
-    dim3 block_size{32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,
@@ -267,7 +267,8 @@ void gpu::run_ncc_kernel(
     const stk::GpuVolume& moving,
     const stk::GpuVolume& df,
     int radius,
-    stk::GpuVolume& cost_acc
+    stk::GpuVolume& cost_acc,
+    const dim3& block_size
 )
 {
     ASSERT(fixed.usage() == stk::gpu::Usage_Texture);
@@ -286,7 +287,6 @@ void gpu::run_ncc_kernel(
 
     dim3 dims = cost_acc.size();
 
-    dim3 block_size{32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,
