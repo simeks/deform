@@ -28,21 +28,27 @@ __global__ void regularizer_kernel(
         return;
     }
 
+    float4 o;
+
+    if (x + 1 < dims.x) {
     float4 diff_x = (df(x,y,z) - initial_df(x,y,z)) - 
                     (df(x+1,y,z) - initial_df(x+1,y,z));
+        float dist2_x = diff_x.x*diff_x.x + diff_x.y*diff_x.y + diff_x.z*diff_x.z;
+        o.x = dist2_x / (spacing.x*spacing.x);
+    }
+    if (y + 1 < dims.y) {
     float4 diff_y = (df(x,y,z) - initial_df(x,y,z)) - 
                     (df(x,y+1,z) - initial_df(x,y+1,z));
+        float dist2_y = diff_y.x*diff_y.x + diff_y.y*diff_y.y + diff_y.z*diff_y.z;
+        o.y = dist2_y / (spacing.y*spacing.y);
+    }
+    if (z + 1 < dims.z) {
     float4 diff_z = (df(x,y,z) - initial_df(x,y,z)) - 
                     (df(x,y,z+1) - initial_df(x,y,z+1));
-    
-    float dist2_x = diff_x.x*diff_x.x + diff_x.y*diff_x.y + diff_x.z*diff_x.z;
-    float dist2_y = diff_y.x*diff_y.x + diff_y.y*diff_y.y + diff_y.z*diff_y.z;
     float dist2_z = diff_z.x*diff_z.x + diff_z.y*diff_z.y + diff_z.z*diff_z.z;
+        o.z = dist2_z / (spacing.z*spacing.z);
+    }
     
-    float4 o;
-    o.x = dist2_x / (spacing.x*spacing.x);
-    o.y = dist2_y / (spacing.y*spacing.y);
-    o.z = dist2_z / (spacing.z*spacing.z);
     o.w = 0;
 
     out(x,y,z) = o;
