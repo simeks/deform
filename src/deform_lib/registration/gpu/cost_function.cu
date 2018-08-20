@@ -28,24 +28,24 @@ __global__ void regularizer_kernel(
         return;
     }
 
-    float4 o;
+    float4 o = {0, 0, 0, 0};
 
     if (x + 1 < dims.x) {
-    float4 diff_x = (df(x,y,z) - initial_df(x,y,z)) - 
-                    (df(x+1,y,z) - initial_df(x+1,y,z));
+        float4 diff_x = (df(x,y,z) - initial_df(x,y,z)) - 
+                        (df(x+1,y,z) - initial_df(x+1,y,z));
         float dist2_x = diff_x.x*diff_x.x + diff_x.y*diff_x.y + diff_x.z*diff_x.z;
         o.x = dist2_x / (spacing.x*spacing.x);
     }
     if (y + 1 < dims.y) {
-    float4 diff_y = (df(x,y,z) - initial_df(x,y,z)) - 
-                    (df(x,y+1,z) - initial_df(x,y+1,z));
+        float4 diff_y = (df(x,y,z) - initial_df(x,y,z)) - 
+                        (df(x,y+1,z) - initial_df(x,y+1,z));
         float dist2_y = diff_y.x*diff_y.x + diff_y.y*diff_y.y + diff_y.z*diff_y.z;
         o.y = dist2_y / (spacing.y*spacing.y);
     }
     if (z + 1 < dims.z) {
-    float4 diff_z = (df(x,y,z) - initial_df(x,y,z)) - 
-                    (df(x,y,z+1) - initial_df(x,y,z+1));
-    float dist2_z = diff_z.x*diff_z.x + diff_z.y*diff_z.y + diff_z.z*diff_z.z;
+        float4 diff_z = (df(x,y,z) - initial_df(x,y,z)) - 
+                        (df(x,y,z+1) - initial_df(x,y,z+1));
+        float dist2_z = diff_z.x*diff_z.x + diff_z.y*diff_z.y + diff_z.z*diff_z.z;
         o.z = dist2_z / (spacing.z*spacing.z);
     }
     
@@ -93,7 +93,7 @@ __global__ void ssd_kernel(
     float f = tex3D<T>(fixed, x + 0.5f, y + 0.5f, z + 0.5f) 
             - tex3D<T>(moving, moving_p.x + 0.5f, moving_p.y + 0.5f, moving_p.z + 0.5f);
     
-    cost_acc(x,y,z) = f*f;
+    cost_acc(x,y,z) = cost_acc(x,y,z) + f*f;
 }
 
 template<typename T>
@@ -180,7 +180,7 @@ __global__ void ncc_kernel(
     float d = sqrt(sff*smm);
 
     if(d > 1e-14) {
-        cost_acc(x,y,z) = 0.5f*(1.0f-float(sfm / d));
+        cost_acc(x,y,z) = cost_acc(x,y,z) + 0.5f*(1.0f-float(sfm / d));
     }
 }
 
