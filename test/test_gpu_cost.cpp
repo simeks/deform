@@ -9,7 +9,17 @@
 #include <stk/image/volume.h>
 
 #include <random>
-#include <random>
+
+
+/*
+    Using textures in CUDA has quite a big impact on precision as
+    the coordinates are computed with only 8 bit fractional precision [1].
+    Therefore these tests should have quite a large epsilon.
+
+    TODO: Investigate performance impact of doing interpolation by ourself
+
+    [1] Texture Fetching, CUDA C Programming Guide, https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
+*/
 
 namespace {
     int _data_seed = 87575;
