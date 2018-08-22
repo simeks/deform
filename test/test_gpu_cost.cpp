@@ -167,7 +167,7 @@ TEST_CASE("gpu_cost_regularizer", "")
         float3 r{0};
 
         if (x + 1 < int(dims.x)) {
-            r.x = cpu_fn(
+            r.x = (float)cpu_fn(
                 int3{x,y,z}, 
                 df(x,y,z),
                 df(x+1,y,z),
@@ -176,7 +176,7 @@ TEST_CASE("gpu_cost_regularizer", "")
         }
 
         if (y + 1 < int(dims.y)) {
-            r.y = cpu_fn(
+            r.y = (float)cpu_fn(
                 int3{x,y,z}, 
                 df(x,y,z),
                 df(x,y+1,z),
@@ -185,7 +185,7 @@ TEST_CASE("gpu_cost_regularizer", "")
         }
         
         if (z + 1 < int(dims.z)) {
-            r.z = cpu_fn(
+            r.z = (float)cpu_fn(
                 int3{x,y,z}, 
                 df(x,y,z),
                 df(x,y,z+1),

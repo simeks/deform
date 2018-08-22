@@ -2,7 +2,7 @@
 
 #include <stk/common/assert.h>
 #include <stk/cuda/cuda.h>
-#include <stk/cuda/ptr.h>
+#include <stk/cuda/volume.h>
 #include <stk/image/gpu_volume.h>
 #include <stk/math/float4.h>
 
@@ -133,11 +133,11 @@ namespace {
             
         gaussian_filter_x_kernel<T><<<grid_size, block_size>>>(
             volume_size,
-            tmp.pitched_ptr(),
+            tmp,
             filter_size.x,
             factor,
             spacing.x,
-            out.pitched_ptr()
+            out
         );
         
         CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
@@ -145,11 +145,11 @@ namespace {
 
         gaussian_filter_y_kernel<T><<<grid_size, block_size>>>(
             volume_size,
-            tmp.pitched_ptr(),
+            tmp,
             filter_size.y,
             factor,
             spacing.y,
-            out.pitched_ptr()
+            out
         );
 
         CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
@@ -157,11 +157,11 @@ namespace {
 
         gaussian_filter_z_kernel<T><<<grid_size, block_size>>>(
             volume_size,
-            tmp.pitched_ptr(),
+            tmp,
             filter_size.z,
             factor,
             spacing.z,
-            out.pitched_ptr()
+            out
         );
 
         CUDA_CHECK_ERRORS(cudaDeviceSynchronize());

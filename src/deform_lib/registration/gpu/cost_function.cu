@@ -2,7 +2,7 @@
 
 #include <stk/common/assert.h>
 #include <stk/cuda/cuda.h>
-#include <stk/cuda/ptr.h>
+#include <stk/cuda/volume.h>
 #include <stk/image/gpu_volume.h>
 #include <stk/math/float3.h>
 #include <stk/math/float4.h>

@@ -2,7 +2,7 @@
 
 #include <stk/common/assert.h>
 #include <stk/cuda/cuda.h>
-#include <stk/cuda/ptr.h>
+#include <stk/cuda/volume.h>
 #include <stk/image/gpu_volume.h>
 #include <stk/math/float3.h>
 #include <stk/math/float4.h>
@@ -95,16 +95,16 @@ stk::GpuVolume shrink_volume_by_2(const stk::GpuVolume& src)
 
     if (src.voxel_type() == stk::Type_Float) {
         shrink_volume_by_2_kernel<float><<<grid_size, block_size>>>(
-            src.pitched_ptr(),
+            src,
             new_dims,
-            dest.pitched_ptr()
+            dest
         );
     }
     else if (src.voxel_type() == stk::Type_Float4) {
         shrink_volume_by_2_kernel<float4><<<grid_size, block_size>>>(
-            src.pitched_ptr(),
+            src,
             new_dims,
-            dest.pitched_ptr()
+            dest
         );
     }
     else {
