@@ -92,8 +92,8 @@ TEST_CASE("gpu_cost_ssd", "")
     }
     }
 
-    stk::GpuVolume gpu_fixed(fixed, stk::gpu::Usage_Texture);
-    stk::GpuVolume gpu_moving(moving, stk::gpu::Usage_Texture);
+    stk::GpuVolume gpu_fixed(fixed);
+    stk::GpuVolume gpu_moving(moving);
     stk::GpuVolume gpu_df(convert_vectorfield(df));
     stk::GpuVolume gpu_cost(dims, stk::Type_Float);
 
@@ -104,7 +104,7 @@ TEST_CASE("gpu_cost_ssd", "")
     for (int z = 0; z < (int)dims.z; ++z) {
     for (int y = 0; y < (int)dims.y; ++y) {
     for (int x = 0; x < (int)dims.x; ++x) {
-        REQUIRE(cost_on_cpu(x,y,z) == Approx(cpu_cost(x,y,z)));
+        REQUIRE(cost_on_cpu(x,y,z) == Approx(cpu_cost(x,y,z)).epsilon(0.001));
     }
     }
     }
@@ -131,8 +131,8 @@ TEST_CASE("gpu_cost_ncc", "")
     }
     }
 
-    stk::GpuVolume gpu_fixed(fixed, stk::gpu::Usage_Texture);
-    stk::GpuVolume gpu_moving(moving, stk::gpu::Usage_Texture);
+    stk::GpuVolume gpu_fixed(fixed);
+    stk::GpuVolume gpu_moving(moving);
     stk::GpuVolume gpu_df(convert_vectorfield(df));
     stk::GpuVolume gpu_cost(dims, stk::Type_Float);
 
@@ -143,14 +143,14 @@ TEST_CASE("gpu_cost_ncc", "")
     for (int z = 0; z < (int)dims.z; ++z) {
     for (int y = 0; y < (int)dims.y; ++y) {
     for (int x = 0; x < (int)dims.x; ++x) {
-        REQUIRE(cost_on_cpu(x,y,z) == Approx(cpu_cost(x,y,z)));
+        REQUIRE(cost_on_cpu(x,y,z) == Approx(cpu_cost(x,y,z)).epsilon(0.001));
     }
     }
     }
 }
 TEST_CASE("gpu_cost_regularizer", "")
 {
-    dim3 dims{256,256,256};
+    dim3 dims{32,32,32};
 
     stk::VolumeFloat3 df(dims);
     stk::VolumeFloat3 zero_df(dims, float3{0,0,0});

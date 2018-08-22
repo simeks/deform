@@ -56,8 +56,8 @@ __global__ void regularizer_kernel(
 
 template<typename T>
 __global__ void ssd_kernel(
-    cudaTextureObject_t fixed,
-    cudaTextureObject_t moving,
+    cuda::VolumePtr<T> fixed,
+    cuda::VolumePtr<T> moving,
     cuda::VolumePtr<float4> df,
     dim3 fixed_dims,
     dim3 moving_dims,
@@ -90,16 +90,15 @@ __global__ void ssd_kernel(
         return;
     }
 
-    float f = tex3D<T>(fixed, x + 0.5f, y + 0.5f, z + 0.5f) 
-            - tex3D<T>(moving, moving_p.x + 0.5f, moving_p.y + 0.5f, moving_p.z + 0.5f);
+    float f = fixed(x,y,z) - cuda::linear_at_border<T>(moving, moving_dims, moving_p.x, moving_p.y, moving_p.z);
     
     cost_acc(x,y,z) = cost_acc(x,y,z) + f*f;
 }
 
 template<typename T>
 __global__ void ncc_kernel(
-    cudaTextureObject_t fixed,
-    cudaTextureObject_t moving,
+    cuda::VolumePtr<T> fixed,
+    cuda::VolumePtr<T> moving,
     cuda::VolumePtr<float4> df,
     int radius,
     dim3 fixed_dims,
@@ -150,13 +149,16 @@ __global__ void ncc_kernel(
 
                 float3 fp{float(x + dx), float(y + dy), float(z + dz)};
                 
-                // if (!stk::is_inside(_fixed.size(), fp))
-                //     continue;
+                if (0 > fp.x || fp.x >= fixed_dims.x ||
+                    0 > fp.y || fp.y >= fixed_dims.y ||
+                    0 > fp.z || fp.z >= fixed_dims.z)
+                    continue;
 
                 float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
-                T fixed_v = tex3D<T>(fixed, fp.x+0.5f, fp.y+0.5f, fp.z+0.5f);
-                T moving_v = tex3D<T>(moving, mp.x+0.5f, mp.y+0.5f, mp.z+0.5f);
+                // fp should be integers as window indices are integers
+                T fixed_v = fixed(int(fp.x), int(fp.y), int(fp.z));
+                T moving_v = cuda::linear_at_border<T>(moving, moving_dims, mp.x, mp.y, mp.z);
 
                 sff += fixed_v * fixed_v;
                 smm += moving_v * moving_v;
@@ -229,22 +231,14 @@ void gpu::run_ssd_kernel(
     const dim3& block_size
 )
 {
-    ASSERT(fixed.usage() == stk::gpu::Usage_Texture);
-    ASSERT(moving.usage() == stk::gpu::Usage_Texture);
+    ASSERT(fixed.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
 
     FATAL_IF(fixed.voxel_type() != stk::Type_Float || moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
 
-    cudaTextureDesc tex_desc;
-    memset(&tex_desc, 0, sizeof(tex_desc));
-    tex_desc.addressMode[0] = cudaAddressModeBorder;
-    tex_desc.addressMode[1] = cudaAddressModeBorder;
-    tex_desc.addressMode[2] = cudaAddressModeBorder;
-    tex_desc.filterMode = cudaFilterModeLinear;
-
     dim3 dims = cost_acc.size();
-
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,
@@ -252,8 +246,8 @@ void gpu::run_ssd_kernel(
     };
 
     ssd_kernel<float><<<grid_size, block_size>>>(
-        cuda::TextureObject(fixed, tex_desc),
-        cuda::TextureObject(moving, tex_desc),
+        fixed,
+        moving,
         df,
         dims,
         moving.size(),
@@ -277,22 +271,14 @@ void gpu::run_ncc_kernel(
     const dim3& block_size
 )
 {
-    ASSERT(fixed.usage() == stk::gpu::Usage_Texture);
-    ASSERT(moving.usage() == stk::gpu::Usage_Texture);
+    ASSERT(fixed.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
 
     FATAL_IF(fixed.voxel_type() != stk::Type_Float || moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
 
-    cudaTextureDesc tex_desc;
-    memset(&tex_desc, 0, sizeof(tex_desc));
-    tex_desc.addressMode[0] = cudaAddressModeBorder;
-    tex_desc.addressMode[1] = cudaAddressModeBorder;
-    tex_desc.addressMode[2] = cudaAddressModeBorder;
-    tex_desc.filterMode = cudaFilterModeLinear;
-
     dim3 dims = cost_acc.size();
-
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,
@@ -300,8 +286,8 @@ void gpu::run_ncc_kernel(
     };
 
     ncc_kernel<float><<<grid_size, block_size>>>(
-        cuda::TextureObject(fixed, tex_desc),
-        cuda::TextureObject(moving, tex_desc),
+        fixed,
+        moving,
         df,
         radius,
         dims,

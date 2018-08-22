@@ -12,7 +12,9 @@ namespace cuda = stk::cuda;
 template<typename T>
 __global__ void transform_kernel_linear(
     cuda::VolumePtr<T> src,
-    cuda::VolumePtr<float4> def,
+    dim3 src_dims,
+    cuda::VolumePtr<float4> df,
+    dim3 df_dims,
     cuda::VolumePtr<T> out
 )
 {
@@ -20,23 +22,25 @@ __global__ void transform_kernel_linear(
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= out.size.x ||
-        y >= out.size.y ||
-        z >= out.size.z)
+    if (x >= df_dims.x ||
+        y >= df_dims.y ||
+        z >= df_dims.z)
     {
         return;
     }
 
     // TODO: What about spacing/origin
 
-    float4 d = def(x,y,z);
-    out(x,y,z) = cuda::linear_at_border(src, x+d.x, y+d.y, z+d.z);
+    float4 d = df(x,y,z);
+    out(x,y,z) = cuda::linear_at_border(src, src_dims, x+d.x, y+d.y, z+d.z);
 }
 
 template<typename T>
 __global__ void transform_kernel_nn(
     cuda::VolumePtr<T> src,
-    cuda::VolumePtr<float4> def,
+    dim3 src_dims,
+    cuda::VolumePtr<float4> df,
+    dim3 df_dims,
     cuda::VolumePtr<T> out
 )
 {
@@ -44,22 +48,22 @@ __global__ void transform_kernel_nn(
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= out.size.x ||
-        y >= out.size.y ||
-        z >= out.size.z)
+    if (x >= df_dims.x ||
+        y >= df_dims.y ||
+        z >= df_dims.z)
     {
         return;
     }
 
-    float4 d = def(x,y,z);
+    float4 d = df(x,y,z);
     
     int xt = roundf(x+d.x);
     int yt = roundf(y+d.y);
     int zt = roundf(z+d.z);
 
-    if (xt >= 0 && xt < src.size.x &&
-        yt >= 0 && yt < src.size.y &&
-        zt >= 0 && zt < src.size.z) {
+    if (xt >= 0 && xt < src_dims.x &&
+        yt >= 0 && yt < src_dims.y &&
+        zt >= 0 && zt < src_dims.z) {
         
         out(x,y,z) = src(xt, yt, zt);
     }
@@ -73,79 +77,79 @@ static void run_nn_kernel(
     const dim3& grid_size,
     const dim3& block_size,
     const stk::GpuVolume& src,
-    const stk::GpuVolume& def,
+    const stk::GpuVolume& df,
     stk::GpuVolume& out
 )
 {
     switch (type) {
     case stk::Type_Char:
-        transform_kernel_nn<char><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<char><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Char2:
-        transform_kernel_nn<char2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<char2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Char4:
-        transform_kernel_nn<char4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<char4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
 
     case stk::Type_UChar:
-        transform_kernel_nn<uint8_t><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uint8_t><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_UChar2:
-        transform_kernel_nn<uchar2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uchar2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_UChar4:
-        transform_kernel_nn<uchar4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uchar4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
 
     case stk::Type_Short:
-        transform_kernel_nn<short><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<short><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Short2:
-        transform_kernel_nn<short2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<short2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Short4:
-        transform_kernel_nn<short4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<short4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
 
     case stk::Type_UShort:
-        transform_kernel_nn<uint16_t><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uint16_t><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_UShort2:
-        transform_kernel_nn<ushort2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<ushort2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_UShort4:
-        transform_kernel_nn<ushort4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<ushort4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
 
     case stk::Type_Int:
-        transform_kernel_nn<int><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<int><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Int2:
-        transform_kernel_nn<int2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<int2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Int4:
-        transform_kernel_nn<int4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<int4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
 
     case stk::Type_UInt:
-        transform_kernel_nn<uint32_t><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uint32_t><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_UInt2:
-        transform_kernel_nn<uint2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uint2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_UInt4:
-        transform_kernel_nn<uint4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<uint4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
 
     case stk::Type_Float:
-        transform_kernel_nn<float><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<float><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Float2:
-        transform_kernel_nn<float2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<float2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Float4:
-        transform_kernel_nn<float4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_nn<float4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     default:
         FATAL() << "Unsupported format";
@@ -157,19 +161,19 @@ static void run_linear_kernel(
     const dim3& grid_size,
     const dim3& block_size,
     const stk::GpuVolume& src,
-    const stk::GpuVolume& def,
+    const stk::GpuVolume& df,
     stk::GpuVolume& out
 )
 {
     switch (type) {
     case stk::Type_Float:
-        transform_kernel_linear<float><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_linear<float><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Float2:
-        transform_kernel_linear<float2><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_linear<float2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     case stk::Type_Float4:
-        transform_kernel_linear<float4><<<grid_size, block_size>>>(src, def, out);
+        transform_kernel_linear<float4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
         break;
     default:
         FATAL() << "Interpolation mode only supports float types";

@@ -39,7 +39,8 @@ __global__ void shrink_volume_by_2_kernel(
 }
 
 __global__ void upsample_vectorfield_kernel(
-    cudaTextureObject_t src,
+    cuda::VolumePtr<float4> src,
+    dim3 src_dims,
     dim3 new_dims,
     float3 inv_scale,
     cuda::VolumePtr<float4> out
@@ -56,7 +57,7 @@ __global__ void upsample_vectorfield_kernel(
         return;
     }
 
-    out(x, y, z) = tex3D<float4>(src, x * inv_scale.x + 0.5f, y * inv_scale.y + 0.5f, z * inv_scale.z + 0.5f);
+    out(x, y, z) = cuda::linear_at_clamp<float4>(src, src_dims, x * inv_scale.x, y * inv_scale.y, z * inv_scale.z);
 }
 
 namespace {
@@ -177,21 +178,6 @@ namespace gpu {
         };
         out.set_spacing(new_spacing);
 
-        cudaTextureDesc tex_desc;
-        memset(&tex_desc, 0, sizeof(tex_desc));
-        tex_desc.addressMode[0] = cudaAddressModeClamp;
-        tex_desc.addressMode[1] = cudaAddressModeClamp;
-        tex_desc.addressMode[2] = cudaAddressModeClamp;
-        tex_desc.filterMode = cudaFilterModeLinear;
-
-
-        // TODO: This will cause a copy of the input data, performance impact should be investigated
-        // Probably hard to avoid unless we write our own interpolation routine inside the kernel.
-        cuda::TextureObject src_obj(
-            vol.as_usage(stk::gpu::Usage_Texture), 
-            tex_desc
-        );
-
         dim3 block_size{8,8,1};
         dim3 grid_size {
             (new_dims.x + block_size.x - 1) / block_size.x,
@@ -200,7 +186,8 @@ namespace gpu {
         };
 
         upsample_vectorfield_kernel<<<grid_size, block_size>>>(
-            src_obj,
+            vol,
+            vol.size(),
             new_dims,
             inv_scale,
             out
