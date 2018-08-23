@@ -53,9 +53,10 @@ namespace
         const std::map<std::string, std::string>& parameters
     )
     {
-        for (const auto& [k, v] : parameters) {
+        if (!parameters.empty()) {
             throw std::invalid_argument("SSDFunction: unrecognised parameter "
-                                            "'" + k + "' with value '" + v + "'");
+                                        "'" + parameters.begin()->first + "' with value '" 
+                                        + parameters.begin()->second + "'");
         }
 
         return std::make_unique<SquaredDistanceFunction<T>>(

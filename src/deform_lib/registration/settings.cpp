@@ -286,10 +286,10 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);        
         LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
         LOG(Info) << "  cost_functions = {";
-        for (size_t k = 0; k < slot.cost_functions.size(); ++k) {
-            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": ";
-            LOG(Info) << "      weight: " << slot.cost_functions[k].weight;
-            for (const auto& [k, v] : slot.cost_functions[k].parameters) {
+        for (size_t j = 0; j < slot.cost_functions.size(); ++j) {
+            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": ";
+            LOG(Info) << "      weight: " << slot.cost_functions[j].weight;
+            for (const auto& [k, v] : slot.cost_functions[j].parameters) {
                 LOG(Info) << "      " << k << ": " << v;
             }
         }
