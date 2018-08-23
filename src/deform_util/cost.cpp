@@ -162,6 +162,15 @@ int run_cost(int argc, char* argv[])
 
         LOG(Info) << "Initial deformation '" << init_deform_file << "'";
     }
+    else {
+        // Set empty displacement field. Ugly hack because engine won't initialize 
+        //  deformation pyramid until the execution.
+
+        stk::VolumeFloat3 initial(fixed_ref.size(), float3{0, 0, 0});
+        initial.set_origin(fixed_ref.origin());
+        initial.set_spacing(fixed_ref.spacing());
+        engine.set_initial_deformation(initial);
+    }
 
     int level = args.get<int>("level", 0);
     LOG(Info) << "Level: " << level;
@@ -181,6 +190,7 @@ int run_cost(int argc, char* argv[])
     stk::VolumeDouble3 binary_cost(def.size(), double3{0.0, 0.0, 0.0});
     binary_cost.set_origin(def.origin());
     binary_cost.set_spacing(def.spacing());
+
 
     dim3 dims = def.size();
     for (int z = 0; z < (int)dims.z; ++z) {
