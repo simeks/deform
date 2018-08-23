@@ -179,6 +179,8 @@ TEST_CASE("gpu_upsample_vectorfield", "")
 TEST_CASE("gpu_transform", "")
 {
     stk::VolumeFloat src({8,8,8});
+    src.set_origin(float3{1, 2, 3});
+    src.set_spacing(float3{1.1f, 1.2f, 1.3f});
     stk::VolumeFloat3 def3({8,8,8}); // CUDA do not support float3 so we add an empty channel
     stk::VolumeFloat4 def4({8,8,8}); // CUDA do not support float3 so we add an empty channel
 

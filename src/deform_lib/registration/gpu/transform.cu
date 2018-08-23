@@ -15,6 +15,10 @@ __global__ void transform_kernel_linear(
     dim3 src_dims,
     cuda::VolumePtr<float4> df,
     dim3 df_dims,
+    float3 fixed_origin,
+    float3 fixed_spacing,
+    float3 moving_origin,
+    float3 inv_moving_spacing,
     cuda::VolumePtr<T> out
 )
 {
@@ -29,10 +33,14 @@ __global__ void transform_kernel_linear(
         return;
     }
 
-    // TODO: What about spacing/origin
+    float3 wp = float3{float(x), float(y), float(z)} * fixed_spacing
+                + fixed_origin;
 
     float4 d = df(x,y,z);
-    out(x,y,z) = cuda::linear_at_border(src, src_dims, x+d.x, y+d.y, z+d.z);
+    float3 mp = (wp + float3{d.x, d.y, d.z} - moving_origin)
+                * inv_moving_spacing;
+
+    out(x,y,z) = cuda::linear_at_border(src, src_dims, mp.x, mp.y, mp.z);
 }
 
 template<typename T>
@@ -41,6 +49,10 @@ __global__ void transform_kernel_nn(
     dim3 src_dims,
     cuda::VolumePtr<float4> df,
     dim3 df_dims,
+    float3 fixed_origin,
+    float3 fixed_spacing,
+    float3 moving_origin,
+    float3 inv_moving_spacing,
     cuda::VolumePtr<T> out
 )
 {
@@ -55,11 +67,16 @@ __global__ void transform_kernel_nn(
         return;
     }
 
+    float3 wp = float3{float(x), float(y), float(z)} * fixed_spacing
+                + fixed_origin;
+
     float4 d = df(x,y,z);
+    float3 mp = (wp + float3{d.x, d.y, d.z} - moving_origin)
+                * inv_moving_spacing;
     
-    int xt = roundf(x+d.x);
-    int yt = roundf(y+d.y);
-    int zt = roundf(z+d.z);
+    int xt = roundf(mp.x);
+    int yt = roundf(mp.y);
+    int zt = roundf(mp.z);
 
     if (xt >= 0 && xt < src_dims.x &&
         yt >= 0 && yt < src_dims.y &&
@@ -81,75 +98,291 @@ static void run_nn_kernel(
     stk::GpuVolume& out
 )
 {
+    float3 inv_moving_spacing = {
+        1.0f / src.spacing().x,
+        1.0f / src.spacing().y,
+        1.0f / src.spacing().z,
+    };
+
     switch (type) {
     case stk::Type_Char:
-        transform_kernel_nn<char><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<char><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Char2:
-        transform_kernel_nn<char2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<char2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Char4:
-        transform_kernel_nn<char4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<char4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
 
     case stk::Type_UChar:
-        transform_kernel_nn<uint8_t><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uint8_t><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_UChar2:
-        transform_kernel_nn<uchar2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uchar2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_UChar4:
-        transform_kernel_nn<uchar4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uchar4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
 
     case stk::Type_Short:
-        transform_kernel_nn<short><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<short><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Short2:
-        transform_kernel_nn<short2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<short2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Short4:
-        transform_kernel_nn<short4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<short4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
 
     case stk::Type_UShort:
-        transform_kernel_nn<uint16_t><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uint16_t><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_UShort2:
-        transform_kernel_nn<ushort2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<ushort2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_UShort4:
-        transform_kernel_nn<ushort4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<ushort4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
 
     case stk::Type_Int:
-        transform_kernel_nn<int><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<int><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Int2:
-        transform_kernel_nn<int2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<int2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Int4:
-        transform_kernel_nn<int4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<int4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
 
     case stk::Type_UInt:
-        transform_kernel_nn<uint32_t><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uint32_t><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_UInt2:
-        transform_kernel_nn<uint2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uint2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_UInt4:
-        transform_kernel_nn<uint4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<uint4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
 
     case stk::Type_Float:
-        transform_kernel_nn<float><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<float><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Float2:
-        transform_kernel_nn<float2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<float2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Float4:
-        transform_kernel_nn<float4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_nn<float4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     default:
         FATAL() << "Unsupported format";
@@ -165,15 +398,51 @@ static void run_linear_kernel(
     stk::GpuVolume& out
 )
 {
+    float3 inv_moving_spacing = {
+        1.0f / src.spacing().x,
+        1.0f / src.spacing().y,
+        1.0f / src.spacing().z,
+    };
+    
     switch (type) {
     case stk::Type_Float:
-        transform_kernel_linear<float><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_linear<float><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Float2:
-        transform_kernel_linear<float2><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_linear<float2><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     case stk::Type_Float4:
-        transform_kernel_linear<float4><<<grid_size, block_size>>>(src, src.size(), df, df.size(), out);
+        transform_kernel_linear<float4><<<grid_size, block_size>>>(
+            src,
+            src.size(),
+            df,
+            df.size(),
+            df.origin(),
+            df.spacing(),
+            src.origin(),
+            inv_moving_spacing,
+            out
+        );
         break;
     default:
         FATAL() << "Interpolation mode only supports float types";
