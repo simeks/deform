@@ -62,6 +62,7 @@ set(DEFORM_UTIL_SRCS
 
 if (DF_USE_CUDA)
     CUDA_ADD_LIBRARY(deform_lib STATIC ${DEFORM_LIB_SRCS})
+    target_link_libraries(deform_lib NVToolsExt)
 else ()
     add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 endif ()
