@@ -147,7 +147,7 @@ __global__ void ncc_kernel(
                 if (r2 > radius * radius)
                     continue;
 
-                float3 fp{float(x + dx), float(y + dy), float(z + dz)};
+                int3 fp{x + dx, y + dy, z + dz};
                 
                 if (0 > fp.x || fp.x >= fixed_dims.x ||
                     0 > fp.y || fp.y >= fixed_dims.y ||
@@ -156,8 +156,7 @@ __global__ void ncc_kernel(
 
                 float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
-                // fp should be integers as window indices are integers
-                T fixed_v = fixed(int(fp.x), int(fp.y), int(fp.z));
+                T fixed_v = fixed(fp.x, fp.y, fp.z);
                 T moving_v = cuda::linear_at_border<T>(moving, moving_dims, mp.x, mp.y, mp.z);
 
                 sff += fixed_v * fixed_v;
