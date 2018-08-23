@@ -212,6 +212,7 @@ int run_registration(int argc, char* argv[])
 
 void print_version()
 {
+    // TODO:
     std::cout << "VERSION 0" << std::endl;
 }
 
