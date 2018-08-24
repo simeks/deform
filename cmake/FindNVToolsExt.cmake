@@ -1,7 +1,7 @@
 include(FindPackageHandleStandardArgs)
 
 if (WIN32)
-    find_path(NvToolsExt_INCLUDE_DIRS
+    find_path(NvToolsExt_INCLUDE_DIR
         NAMES
             nvToolsExt.h
         PATH_SUFFIXES
@@ -13,7 +13,7 @@ if (WIN32)
         PATH_SUFFIXES
             "lib/x64" "lib"
         PATHS
-            $ENV{NVTOOLSEXT_PATH})
+            $ENV{NvToolsExt_PATH})
 
     find_library(NvToolsExt_LIBRARY_DEBUG "nvToolsExt64_1"
         PATH_SUFFIXES
@@ -28,10 +28,11 @@ endif ()
 find_package_handle_standard_args(
     NvToolsExt 
     DEFAULT_MSG 
-    NvToolsExt_INCLUDE_DIRS
+    NvToolsExt_INCLUDE_DIR
     NvToolsExt_LIBRARY)
 
 if (NvToolsExt_FOUND)
+    set(NvToolsExt_INCLUDE_DIRS ${NvToolsExt_INCLUDE_DIR})
     set(NvToolsExt_LIBRARIES "${NvToolsExt_LIBRARY}")
 endif()
 
