@@ -17,6 +17,13 @@ option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
 option(DF_BUILD_WITH_DEBUG_INFO "Includes debug info in release builds" OFF)
 option(DF_ENABLE_FAST_MATH "Enables fast math" OFF)
 
+option(DF_ENABLE_MICROPROFILE "Enables microprofile profiler" OFF)
+option(DF_ENABLE_NVTOOLSEXT "Enables nvtoolsext profiler" OFF)
+
+if (DF_ENABLE_MICROPROFILE AND DF_ENABLE_NVTOOLSEXT)
+    message(FATAL_ERROR "Can't enable multiple profilers at the same time")
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting default build type: 'Release'")
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -88,10 +95,15 @@ if (DF_USE_CUDA)
     add_definitions(-DDF_USE_CUDA)
     add_definitions(-DSTK_USE_CUDA)
     find_package(CUDA REQUIRED)
-    find_package(NvToolsExt)
-    if (NvToolsExt_FOUND)
-        add_definitions(-DSTK_USE_NVTOOLSEXT)
+
+    if (DF_ENABLE_NVTOOLSEXT)
+        find_package(NvToolsExt REQUIRED)
+        add_definitions(-DDF_ENABLE_NVTOOLSEXT)
     endif()
+endif()
+
+if (DF_ENABLE_MICROPROFILE)
+    add_definitions(-DDF_ENABLE_MICROPROFILE)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_FLAGS}")

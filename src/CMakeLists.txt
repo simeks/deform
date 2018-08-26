@@ -60,15 +60,31 @@ set(DEFORM_UTIL_SRCS
     "deform_util/cost.cpp"
 )
 
+if (DF_ENABLE_MICROPROFILE)
+    set(DEFORM_LIB_SRCS 
+        ${DEFORM_LIB_SRCS}
+        "deform_lib/profiler/microprofile_html.h"
+        "deform_lib/profiler/microprofile.cpp"
+        "deform_lib/profiler/microprofile.h"
+    )
+endif()
+
 if (DF_USE_CUDA)
     CUDA_ADD_LIBRARY(deform_lib STATIC ${DEFORM_LIB_SRCS})
-    target_link_libraries(deform_lib NVToolsExt)
 else ()
     add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 endif ()
 
+if (DF_ENABLE_NVTOOLSEXT)
+    target_link_libraries(deform_lib NVToolsExt)
+endif()
+
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
 target_link_libraries(deform_lib stk yaml-cpp gco)
+
+if(WIN32)
+  target_link_libraries(deform_lib wsock32 ws2_32)
+endif()
 
 add_executable(deform ${DEFORM_SRCS})
 target_link_libraries(deform deform_lib)

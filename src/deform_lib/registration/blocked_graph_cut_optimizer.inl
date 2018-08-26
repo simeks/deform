@@ -1,6 +1,7 @@
 #include "block_change_flags.h"
 #include "../config.h"
 #include "../graph_cut/graph_cut.h"
+#include "../profiler/profiler.h"
 
 #include <stk/common/log.h>
 
@@ -78,7 +79,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     bool done = false;
     while (!done) {
-
         unary_fn.pre_iteration_hook(num_iterations, def);
 
         done = true;
@@ -86,6 +86,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
         size_t num_blocks_changed = 0;
 
         for (int use_shift = 0; use_shift < 2; ++use_shift) {
+            PROFILER_SCOPE("shift", 0xFF766952);
             if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
                 continue;
 
@@ -106,10 +107,12 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             }
 
             for (int black_or_red = 0; black_or_red < 2; black_or_red++) {
+                PROFILER_SCOPE("red_black", 0xFF339955);
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
                 
                 #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
                 for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
+                    PROFILER_SCOPE("block", 0xFFAA623D);
                     int block_x = block_idx % real_block_count.x;
                     int block_y = (block_idx / real_block_count.x) % real_block_count.y;
                     int block_z = block_idx / (real_block_count.x*real_block_count.y);
@@ -167,6 +170,8 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
             }
         }
 
+        PROFILER_COUNTER_SET("blocks_changed", num_blocks_changed);
+
         done = num_blocks_changed == 0;
         
         #ifdef DF_OUTPUT_VOLUME_ENERGY
@@ -175,6 +180,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         ++num_iterations;
 
+        PROFILER_FLIP();
     }
     LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) 
         << ", Iterations: " << num_iterations;
@@ -202,6 +208,8 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     FlowType current_energy = 0;
     {
+        PROFILER_SCOPE("build", 0xFF228844);
+        
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
             for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
                 for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
@@ -319,6 +327,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     FlowType current_emin;
     {
+        PROFILER_SCOPE("minimize", 0xFF985423);
         current_emin = graph.minimize();
     }
 
@@ -326,6 +335,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     if (1.0 - current_emin / current_energy > _block_energy_epsilon) // Accept solution
     {
+        PROFILER_SCOPE("apply", 0xFF767323);
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
             for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
                 for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
