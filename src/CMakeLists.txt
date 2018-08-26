@@ -72,6 +72,8 @@ if (DF_USE_CUDA)
         "deform_lib/registration/gpu/cost_function.h"
         "deform_lib/registration/gpu/transform.cu"
         "deform_lib/registration/gpu/transform.h"
+        "deform_lib/registration/gpu_registration_engine.cpp"
+        "deform_lib/registration/gpu_registration_engine.h"
         "deform_lib/registration/gpu_volume_pyramid.cpp"
         "deform_lib/registration/gpu_volume_pyramid.h"
     )
