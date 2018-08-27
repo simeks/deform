@@ -14,6 +14,7 @@ pyramid_stop_level: 2
 
 block_size: [20, 24, 38]
 block_energy_epsilon: 0.00000000009
+max_iteration_count: 100
 step_size: 10.5
 regularization_weight: 0.5
 
@@ -23,6 +24,7 @@ levels:
     3:
         block_size: [9,9,9]
         block_energy_epsilon: 0.9
+        max_iteration_count: 99
         step_size: 9.9
         regularization_weight: 9
 
@@ -271,6 +273,7 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].block_size.z == 9);
                 
                 REQUIRE(settings.levels[i].block_energy_epsilon == Approx(0.9));
+                REQUIRE(settings.levels[i].max_iteration_count == 99);
                 REQUIRE(settings.levels[i].step_size.x == Approx(9.9f));
                 REQUIRE(settings.levels[i].step_size.y == Approx(9.9f));
                 REQUIRE(settings.levels[i].step_size.z == Approx(9.9f));
@@ -284,6 +287,7 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].block_size.z == 38);
                 
                 REQUIRE(settings.levels[i].block_energy_epsilon == Approx(0.00000000009));
+                REQUIRE(settings.levels[i].max_iteration_count == 100);
                 REQUIRE(settings.levels[i].step_size.x == Approx(10.5f));
                 REQUIRE(settings.levels[i].step_size.y == Approx(10.5f));
                 REQUIRE(settings.levels[i].step_size.z == Approx(10.5f));

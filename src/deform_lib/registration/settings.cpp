@@ -281,6 +281,10 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
         out.block_energy_epsilon = node["block_energy_epsilon"].as<float>();
     }
 
+    if (node["max_iteration_count"]) {
+        out.max_iteration_count = node["max_iteration_count"].as<int>();
+    }
+
     if (node["regularization_weight"]) {
         out.regularization_weight = node["regularization_weight"].as<float>();
     }
@@ -325,6 +329,7 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "level[" << l << "] = {";
         LOG(Info) << "  block_size = " << settings.levels[l].block_size; 
         LOG(Info) << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon;
+        LOG(Info) << "  max_iteration_count = " << settings.levels[l].max_iteration_count;
         LOG(Info) << "  step_size = " << settings.levels[l].step_size;
         LOG(Info) << "  regularization_weight = " << settings.levels[l].regularization_weight;
         LOG(Info) << "  constraints_weight = " << settings.levels[l].constraints_weight;

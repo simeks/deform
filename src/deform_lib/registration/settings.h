@@ -67,6 +67,9 @@ struct Settings
         // Epsilon used for termination
         double block_energy_epsilon;
         
+        // Maximum number of iterations, -1 indicates an infinite number of iterations
+        int max_iteration_count;
+
         // Only considered if no weight map is given
         float regularization_weight;
 
@@ -83,6 +86,7 @@ struct Settings
         Level() :
             block_size(int3{12, 12, 12}),
             block_energy_epsilon(1e-7f),
+            max_iteration_count(-1),
             regularization_weight(0.05f),
             step_size({0.5f, 0.5f, 0.5f}),
             constraints_weight(1000.0f),
