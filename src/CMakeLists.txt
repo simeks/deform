@@ -1,9 +1,4 @@
 set(DEFORM_LIB_SRCS
-    "deform_lib/filters/gpu/gaussian_filter.cu"
-    "deform_lib/filters/gpu/gaussian_filter.h"
-    "deform_lib/filters/gpu/resample.cu"
-    "deform_lib/filters/gpu/resample.h"
-
     "deform_lib/filters/gaussian_filter.cpp"
     "deform_lib/filters/gaussian_filter.h"
     "deform_lib/filters/resample.cpp"
@@ -15,10 +10,6 @@ set(DEFORM_LIB_SRCS
     "deform_lib/graph_cut/graph_cut.h"
     "deform_lib/graph_cut/graph_cut.inl"
 
-    "deform_lib/registration/gpu/cost_function.cu"
-    "deform_lib/registration/gpu/cost_function.h"
-    "deform_lib/registration/gpu/transform.cu"
-    "deform_lib/registration/gpu/transform.h"
     "deform_lib/registration/block_change_flags.cpp"
     "deform_lib/registration/block_change_flags.h"
     "deform_lib/registration/blocked_graph_cut_optimizer.h"
@@ -60,19 +51,48 @@ set(DEFORM_UTIL_SRCS
     "deform_util/cost.cpp"
 )
 
-if (DF_USE_CUDA)
-    CUDA_ADD_LIBRARY(deform_lib STATIC ${DEFORM_LIB_SRCS})
+if (DF_ENABLE_MICROPROFILE)
+    set(DEFORM_LIB_SRCS 
+        ${DEFORM_LIB_SRCS}
+        "deform_lib/profiler/microprofile_html.h"
+        "deform_lib/profiler/microprofile.cpp"
+        "deform_lib/profiler/microprofile.h"
+    )
+endif()
 
-    if (NvToolsExt_FOUND)
-        target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})
-        target_include_directories(deform_lib PUBLIC ${NvToolsExt_INCLUDE_DIRS})
-    endif()
+if (DF_USE_CUDA)
+    set(DEFORM_LIB_SRCS 
+        ${DEFORM_LIB_SRCS}
+        "deform_lib/filters/gpu/gaussian_filter.cu"
+        "deform_lib/filters/gpu/gaussian_filter.h"
+        "deform_lib/filters/gpu/resample.cu"
+        "deform_lib/filters/gpu/resample.h"
+    
+        "deform_lib/registration/gpu/cost_function.cu"
+        "deform_lib/registration/gpu/cost_function.h"
+        "deform_lib/registration/gpu/transform.cu"
+        "deform_lib/registration/gpu/transform.h"
+        "deform_lib/registration/gpu_registration_engine.cpp"
+        "deform_lib/registration/gpu_registration_engine.h"
+        "deform_lib/registration/gpu_volume_pyramid.cpp"
+        "deform_lib/registration/gpu_volume_pyramid.h"
+    )
+    CUDA_ADD_LIBRARY(deform_lib STATIC ${DEFORM_LIB_SRCS})
 else ()
     add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 endif ()
 
+if (DF_ENABLE_NVTOOLSEXT)
+    target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})
+    target_include_directories(deform_lib PUBLIC ${NvToolsExt_INCLUDE_DIRS})
+endif()
+
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
 target_link_libraries(deform_lib stk yaml-cpp gco)
+
+if(WIN32)
+  target_link_libraries(deform_lib wsock32 ws2_32)
+endif()
 
 add_executable(deform ${DEFORM_SRCS})
 target_link_libraries(deform deform_lib)
