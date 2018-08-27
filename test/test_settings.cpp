@@ -15,9 +15,18 @@ pyramid_stop_level: 2
 block_size: [20, 24, 38]
 block_energy_epsilon: 0.00000000009
 step_size: 10.5
-regularization_weight: [0, 1, 2, 3]
+regularization_weight: 0.5
 
 constraints_weight: 1234.1234
+
+levels:
+    3:
+        block_size: [9,9,9]
+        block_energy_epsilon: 0.9
+        step_size: 9.9
+        regularization_weight: 9
+
+        constraints_weight: 999.999
 
 image_slots:
   # water
@@ -99,32 +108,6 @@ image_slots:
 
 TEST_CASE("parse_registration_settings")
 {
-    SECTION("test_regularization_weight_single_component")
-    {
-        Settings settings;
-        std::string settings_str =
-                "pyramid_levels: 8\n"
-                "regularization_weight: 0.5\n";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        for (int i = 0; i < 8; ++i) {
-            REQUIRE(settings.regularization_weights[i] == Approx(0.5f));
-        }
-    }
-    SECTION("test_regularization_weight_multi_component")
-    {
-        Settings settings;
-        std::string settings_str =
-                "pyramid_levels: 8\n"
-                "regularization_weight: [0, 1, 2, 3, 4, 5, 6, 7]\n";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        for (int i = 0; i < 8; ++i) {
-            REQUIRE(settings.regularization_weights[i] == Approx(float(i)));
-        }
-    }
     SECTION("test_cost_function_single_component")
     {
         Settings settings;
@@ -247,9 +230,11 @@ TEST_CASE("parse_registration_settings")
                 "step_size: [1.1, 2.2, 3.3]\n";
 
         REQUIRE(parse_registration_settings(settings_str, settings));
-        REQUIRE(settings.step_size.x == Approx(1.1f));
-        REQUIRE(settings.step_size.y == Approx(2.2f));
-        REQUIRE(settings.step_size.z == Approx(3.3f));
+        for (int i = 0; i < settings.num_pyramid_levels; ++i) {
+                REQUIRE(settings.levels[i].step_size.x == Approx(1.1f));
+                REQUIRE(settings.levels[i].step_size.y == Approx(2.2f));
+                REQUIRE(settings.levels[i].step_size.z == Approx(3.3f));
+        }
     }
     SECTION("test_vectorial_step_size_broken")
     {
@@ -279,18 +264,34 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(settings.pyramid_stop_level == 2);
         REQUIRE(settings.num_pyramid_levels == 4);
 
-        REQUIRE(settings.block_size.x == 20);
-        REQUIRE(settings.block_size.y == 24);
-        REQUIRE(settings.block_size.z == 38);
-        
-        REQUIRE(settings.block_energy_epsilon == Approx(0.00000000009));
-        REQUIRE(settings.step_size.x == Approx(10.5f));
-        REQUIRE(settings.step_size.y == Approx(10.5f));
-        REQUIRE(settings.step_size.z == Approx(10.5f));
-        for (int i = 0; i < settings.pyramid_stop_level; ++i) {
-            REQUIRE(settings.regularization_weights[i] == Approx(float(i)));
+        for (int i = 0; i < settings.num_pyramid_levels; ++i) {
+            if (i == 3) {
+                REQUIRE(settings.levels[i].block_size.x == 9);
+                REQUIRE(settings.levels[i].block_size.y == 9);
+                REQUIRE(settings.levels[i].block_size.z == 9);
+                
+                REQUIRE(settings.levels[i].block_energy_epsilon == Approx(0.9));
+                REQUIRE(settings.levels[i].step_size.x == Approx(9.9f));
+                REQUIRE(settings.levels[i].step_size.y == Approx(9.9f));
+                REQUIRE(settings.levels[i].step_size.z == Approx(9.9f));
+
+                REQUIRE(settings.levels[i].regularization_weight == Approx(9.0f));
+                REQUIRE(settings.levels[i].constraints_weight == Approx(999.999f));
+            }
+            else {
+                REQUIRE(settings.levels[i].block_size.x == 20);
+                REQUIRE(settings.levels[i].block_size.y == 24);
+                REQUIRE(settings.levels[i].block_size.z == 38);
+                
+                REQUIRE(settings.levels[i].block_energy_epsilon == Approx(0.00000000009));
+                REQUIRE(settings.levels[i].step_size.x == Approx(10.5f));
+                REQUIRE(settings.levels[i].step_size.y == Approx(10.5f));
+                REQUIRE(settings.levels[i].step_size.z == Approx(10.5f));
+
+                REQUIRE(settings.levels[i].regularization_weight == Approx(0.5f));
+                REQUIRE(settings.levels[i].constraints_weight == Approx(1234.1234f));
+            }
         }
-        REQUIRE(settings.constraints_weight == Approx(1234.1234f));
 
         REQUIRE(settings.image_slots[0].resample_method == 
                 Settings::ImageSlot::Resample_Gaussian);
@@ -305,7 +306,7 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(settings.image_slots[1].normalize == true);
         REQUIRE(settings.image_slots[1].cost_functions[0].function == 
                 Settings::ImageSlot::CostFunction_SSD);
-        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[1].cost_functions[0].weight == 
                 1.0f);
         
         REQUIRE(settings.image_slots[2].resample_method == 

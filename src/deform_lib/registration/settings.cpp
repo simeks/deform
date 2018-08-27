@@ -25,7 +25,15 @@ constraints_weight: 1000
 block_size: [12, 12, 12]
 block_energy_epsilon: 0.001
 step_size: 0.5
-regularization_weight: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+regularization_weight: 0.05
+
+levels:
+    0:
+        regularization_weight: 0
+        step_size: 0.1
+    1:
+        regularization_weight: 1
+        step_size: 0.1
 
 image_slots:
 
@@ -260,23 +268,69 @@ const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
     return "none";
 }
 
+static void parse_level(const YAML::Node& node, Settings::Level& out) {
+    if(!node.IsMap()) {
+        throw YAML::RepresentationException(node.Mark(), "expected level");
+    }
+
+    if (node["block_size"]) {
+        out.block_size = node["block_size"].as<int3>();
+    }
+
+    if (node["block_energy_epsilon"]) {
+        out.block_energy_epsilon = node["block_energy_epsilon"].as<float>();
+    }
+
+    if (node["regularization_weight"]) {
+        out.regularization_weight = node["regularization_weight"].as<float>();
+    }
+
+    if (node["step_size"]) {
+        try {
+            out.step_size = node["step_size"].as<float3>();
+        }
+        catch (YAML::RepresentationException&) {
+            try {
+                float f = node["step_size"].as<float>();
+                out.step_size = {f, f, f};
+            }
+            catch (YAML::RepresentationException&) {
+                throw YAML::RepresentationException(
+                        node["step_size"].Mark(),
+                        "expected float or sequence of three floats"
+                        );
+            }
+        }
+    }
+
+    if (node["constraints_weight"]) {
+        out.constraints_weight = node["constraints_weight"].as<float>();
+    }
+    
+
+    if (node["landmarks_weight"]) {
+        out.landmarks_weight = node["landmarks_weight"].as<float>();
+    }
+}
+
+
 void print_registration_settings(const Settings& settings)
 {
     LOG(Info) << "Settings:";
     LOG(Info) << "pyramid_stop_level = " << settings.pyramid_stop_level;
     LOG(Info) << "num_pyramid_levels = " << settings.num_pyramid_levels;
-    LOG(Info) << "block_size = " << settings.block_size; 
-    LOG(Info) << "block_energy_epsilon = " << settings.block_energy_epsilon;
-    LOG(Info) << "step_size = " << settings.step_size;
-    LOG(Info) << "regularization_weight = [";
-    for (int i = 0; i < settings.num_pyramid_levels; ++i) {
-        LOG(Info) << "  " << settings.regularization_weights[i];
-    }
-    LOG(Info) << "]";
-    
-    LOG(Info) << "landmarks_weight = " << settings.landmarks_weight;
     LOG(Info) << "landmarks_stop_level = " << settings.landmarks_stop_level;
-    LOG(Info) << "constraints_weight = " << settings.constraints_weight;
+
+    for (int l = 0; l < settings.num_pyramid_levels; ++l) {
+        LOG(Info) << "level[" << l << "] = {";
+        LOG(Info) << "  block_size = " << settings.levels[l].block_size; 
+        LOG(Info) << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon;
+        LOG(Info) << "  step_size = " << settings.levels[l].step_size;
+        LOG(Info) << "  regularization_weight = " << settings.levels[l].regularization_weight;
+        LOG(Info) << "  constraints_weight = " << settings.levels[l].constraints_weight;
+        LOG(Info) << "  landmarks_weight = " << settings.levels[l].landmarks_weight;
+        LOG(Info) << "}";
+    }
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         auto slot = settings.image_slots[i];
@@ -318,64 +372,23 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
             settings.pyramid_stop_level = root["pyramid_stop_level"].as<int>();
         }
 
-        if (root["step_size"]) {
-            try {
-                settings.step_size = root["step_size"].as<float3>();
+        // First parse global level settings
+        Settings::Level global_level_settings;
+        parse_level(root, global_level_settings);
+
+        // Apply global settings for all levels
+        settings.levels.resize(settings.num_pyramid_levels);
+        for (int i = 0; i < settings.num_pyramid_levels; ++i) {
+            settings.levels[i] = global_level_settings;
+        }
+
+        // Parse per-level overrides
+        auto levels = root["levels"];
+        if (levels) {
+            for (auto it = levels.begin(); it != levels.end(); ++it) {
+                int l = it->first.as<int>();
+                parse_level(it->second, settings.levels[l]);
             }
-            catch (YAML::RepresentationException&) {
-                try {
-                    float f = root["step_size"].as<float>();
-                    settings.step_size = {f, f, f};
-                }
-                catch (YAML::RepresentationException&) {
-                    throw YAML::RepresentationException(
-                            root["step_size"].Mark(),
-                            "expected float or sequence of three floats"
-                            );
-                }
-            }
-        }
-        
-        settings.regularization_weights.resize(settings.num_pyramid_levels);
-
-        // Fill with default value
-        std::fill(settings.regularization_weights.begin(), 
-                  settings.regularization_weights.end(), 
-                  settings.regularization_weights[0]);
-
-
-        auto rw = root["regularization_weight"];
-        if (rw && rw.IsScalar()) {
-            for (size_t i = 0; i < settings.num_pyramid_levels; ++i) {
-                settings.regularization_weights[i] = rw.as<float>();
-            }
-        }
-        else if (rw && rw.IsSequence()) {
-            if (rw.size() != settings.num_pyramid_levels) {
-                throw ValidationError(
-                        "expected the number of regularization weights to match the value of 'pyramid_levels'"
-                        );
-            }
-
-            for (size_t i = 0; i < settings.num_pyramid_levels; ++i) {
-                settings.regularization_weights[i] = rw[i].as<float>();
-            }
-        }
-
-        if (root["block_size"]) {
-            settings.block_size = root["block_size"].as<int3>();
-        }
-
-        if (root["block_energy_epsilon"]) {
-            settings.block_energy_epsilon = root["block_energy_epsilon"].as<float>();
-        }
-
-        if (root["constraints_weight"]) {
-            settings.constraints_weight = root["constraints_weight"].as<float>();
-        }
-
-        if (root["landmarks_weight"]) {
-            settings.landmarks_weight = root["landmarks_weight"].as<float>();
         }
 
         if (root["landmarks_stop_level"]) {
