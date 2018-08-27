@@ -392,6 +392,9 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
         if (levels) {
             for (auto it = levels.begin(); it != levels.end(); ++it) {
                 int l = it->first.as<int>();
+                if (l >= settings.num_pyramid_levels) {
+                    throw ValidationError("Settings: index of level exceed number specified in pyramid_levels");
+                }
                 parse_level(it->second, settings.levels[l]);
             }
         }
