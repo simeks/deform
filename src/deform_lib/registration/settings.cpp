@@ -25,7 +25,7 @@ constraints_weight: 1000
 block_size: [12, 12, 12]
 block_energy_epsilon: 0.001
 step_size: 0.5
-regularization_weight: 0.05
+regularization_weight: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 image_slots:
 
@@ -268,7 +268,12 @@ void print_registration_settings(const Settings& settings)
     LOG(Info) << "block_size = " << settings.block_size; 
     LOG(Info) << "block_energy_epsilon = " << settings.block_energy_epsilon;
     LOG(Info) << "step_size = " << settings.step_size;
-    LOG(Info) << "regularization_weight = " << settings.regularization_weight;
+    LOG(Info) << "regularization_weight = [";
+    for (int i = 0; i < settings.num_pyramid_levels; ++i) {
+        LOG(Info) << "  " << settings.regularization_weights[i];
+    }
+    LOG(Info) << "]";
+    
     LOG(Info) << "landmarks_weight = " << settings.landmarks_weight;
     LOG(Info) << "landmarks_stop_level = " << settings.landmarks_stop_level;
     LOG(Info) << "constraints_weight = " << settings.constraints_weight;
@@ -286,10 +291,10 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);        
         LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
         LOG(Info) << "  cost_functions = {";
-        for (size_t k = 0; k < slot.cost_functions.size(); ++k) {
-            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[k].function) << ": ";
-            LOG(Info) << "      weight: " << slot.cost_functions[k].weight;
-            for (const auto& [k, v] : slot.cost_functions[k].parameters) {
+        for (size_t j = 0; j < slot.cost_functions.size(); ++j) {
+            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": ";
+            LOG(Info) << "      weight: " << slot.cost_functions[j].weight;
+            for (const auto& [k, v] : slot.cost_functions[j].parameters) {
                 LOG(Info) << "      " << k << ": " << v;
             }
         }
@@ -330,9 +335,31 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
                 }
             }
         }
+        
+        settings.regularization_weights.resize(settings.num_pyramid_levels);
 
-        if (root["regularization_weight"]) {
-            settings.regularization_weight = root["regularization_weight"].as<float>();
+        // Fill with default value
+        std::fill(settings.regularization_weights.begin(), 
+                  settings.regularization_weights.end(), 
+                  settings.regularization_weights[0]);
+
+
+        auto rw = root["regularization_weight"];
+        if (rw && rw.IsScalar()) {
+            for (size_t i = 0; i < settings.num_pyramid_levels; ++i) {
+                settings.regularization_weights[i] = rw.as<float>();
+            }
+        }
+        else if (rw && rw.IsSequence()) {
+            if (rw.size() != settings.num_pyramid_levels) {
+                throw ValidationError(
+                        "expected the number of regularization weights to match the value of 'pyramid_levels'"
+                        );
+            }
+
+            for (size_t i = 0; i < settings.num_pyramid_levels; ++i) {
+                settings.regularization_weights[i] = rw[i].as<float>();
+            }
         }
 
         if (root["block_size"]) {

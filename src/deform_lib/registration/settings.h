@@ -74,7 +74,7 @@ struct Settings
     // Step size in [mm]
     float3 step_size;
     // Only considered if no weight map is given
-    float regularization_weight;
+    std::vector<float> regularization_weights;
 
     // Only applicable when constraints are present
     // High weight means harder constraints, a high value (>1000.0f) will act as hard constraints
@@ -91,11 +91,14 @@ struct Settings
         block_size(int3{12, 12, 12}),
         block_energy_epsilon(1e-7f),
         step_size({0.5f, 0.5f, 0.5f}),
-        regularization_weight(0.05f),
         constraints_weight(1000.0f),
         landmarks_weight(1.0f),
         landmarks_stop_level(0)
-    {}
+    {
+        for (int i = 0; i < num_pyramid_levels; ++i) {
+            regularization_weights.push_back(0.05f);
+        }
+    }
 };
 
 // Prints the settings to the log in a human-readable format

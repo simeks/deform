@@ -15,7 +15,7 @@ pyramid_stop_level: 2
 block_size: [20, 24, 38]
 block_energy_epsilon: 0.00000000009
 step_size: 10.5
-regularization_weight: 0.95
+regularization_weight: [0, 1, 2, 3]
 
 constraints_weight: 1234.1234
 
@@ -65,7 +65,7 @@ pyramid_stop_level: 2
 
 block_size: [20, 24
 ": 10.5
-regularization_weight: 0.95
+regularization_weight: [0, 1, 2, 3]
 
 constraints_weight: 1234.1234
 
@@ -99,6 +99,32 @@ image_slots:
 
 TEST_CASE("parse_registration_settings")
 {
+    SECTION("test_regularization_weight_single_component")
+    {
+        Settings settings;
+        std::string settings_str =
+                "pyramid_levels: 8\n"
+                "regularization_weight: 0.5\n";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        for (int i = 0; i < 8; ++i) {
+            REQUIRE(settings.regularization_weights[i] == Approx(0.5f));
+        }
+    }
+    SECTION("test_regularization_weight_multi_component")
+    {
+        Settings settings;
+        std::string settings_str =
+                "pyramid_levels: 8\n"
+                "regularization_weight: [0, 1, 2, 3, 4, 5, 6, 7]\n";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        for (int i = 0; i < 8; ++i) {
+            REQUIRE(settings.regularization_weights[i] == Approx(float(i)));
+        }
+    }
     SECTION("test_cost_function_single_component")
     {
         Settings settings;
@@ -261,7 +287,9 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(settings.step_size.x == Approx(10.5f));
         REQUIRE(settings.step_size.y == Approx(10.5f));
         REQUIRE(settings.step_size.z == Approx(10.5f));
-        REQUIRE(settings.regularization_weight == Approx(0.95f));
+        for (int i = 0; i < settings.pyramid_stop_level; ++i) {
+            REQUIRE(settings.regularization_weights[i] == Approx(float(i)));
+        }
         REQUIRE(settings.constraints_weight == Approx(1234.1234f));
 
         REQUIRE(settings.image_slots[0].resample_method == 
