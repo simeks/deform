@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stk/common/assert.h>
 #include <stk/image/dim3.h>
 #include <stk/image/gpu_volume.h>
 
@@ -97,7 +98,7 @@ struct GpuUnaryFunction
     void operator()(const stk::GpuVolume& df, stk::GpuVolume& cost_acc)
     {
         for (auto& fn : _functions) {
-            fn->cost(df, cost_acc);
+            fn.function->cost(df, cost_acc);
         }
         // TODO: Maybe applying regularization as a separate pass?
         //       Would make sense for regularization weight maps.
@@ -109,4 +110,26 @@ struct GpuUnaryFunction
     }
 
     std::vector<WeightedFunction> _functions;
+};
+
+struct GpuBinaryFunction
+{
+    GpuBinaryFunction() {}
+    ~GpuBinaryFunction() {}
+
+    // Sets the initial displacement for this registration level. This will be
+    //  the reference when computing the regularization energy. Any displacement 
+    //  identical to the initial displacement will result in zero energy.
+    void set_initial_displacement(const stk::GpuVolume& initial)
+    {
+        ASSERT(initial.voxel_type() == stk::Type_Float4);
+        _initial = initial;
+    }
+
+    void operator()(const stk::GpuVolume& df, stk::GpuVolume& cost_acc)
+    {
+        gpu::run_regularizer_kernel(df, _initial, cost_acc);
+    }
+
+    stk::GpuVolume _initial;
 };
