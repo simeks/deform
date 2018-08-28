@@ -15,7 +15,11 @@ template<
 class BlockedGraphCutOptimizer
 {
 public:
-    BlockedGraphCutOptimizer(const int3& block_size, double block_energy_epsilon);
+    BlockedGraphCutOptimizer(
+        const int3& block_size, 
+        double block_energy_epsilon,
+        int max_iteration_count
+    );
     ~BlockedGraphCutOptimizer();
 
     /// step_size : Step size in [mm]
@@ -45,6 +49,9 @@ private:
     int3 _neighbors[6];
     int3 _block_size;
     double _block_energy_epsilon;
+
+    // Maximum number of iterations, -1 indicates an infinite number of iterations
+    int _max_iteration_count;
 };
 
 #include "blocked_graph_cut_optimizer.inl"

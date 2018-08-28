@@ -57,45 +57,64 @@ struct Settings
             normalize{true} {}
     };
 
+    struct Level
+    {
+        // Optimizer specific settings (Blocked graph cut):
+        
+        // Block size, (0,0,0) is the same as using only a single large block
+        int3 block_size;
+
+        // Epsilon used for termination
+        double block_energy_epsilon;
+        
+        // Maximum number of iterations, -1 indicates an infinite number of iterations
+        int max_iteration_count;
+
+        // Only considered if no weight map is given
+        float regularization_weight;
+
+        // Step size in [mm]
+        float3 step_size;
+
+        // Only applicable when constraints are present
+        // High weight means harder constraints, a high value (>1000.0f) will act as hard constraints
+        float constraints_weight;
+
+        // Only applicable to landmark registration
+        float landmarks_weight;
+        
+        Level() :
+            block_size(int3{12, 12, 12}),
+            block_energy_epsilon(1e-7f),
+            max_iteration_count(-1),
+            regularization_weight(0.05f),
+            step_size({0.5f, 0.5f, 0.5f}),
+            constraints_weight(1000.0f),
+            landmarks_weight(1.0f)
+        {
+        }
+    };
+
     // Which level to start registration on
     // 0 being original resolution
     int pyramid_stop_level;
     // Size of pyramid
     int num_pyramid_levels;
 
-    ImageSlot image_slots[DF_MAX_IMAGE_PAIR_COUNT];
+    std::vector<Level> levels;
 
-    // Optimizer specific settings (Blocked graph cut):
-
-    // Block size, (0,0,0) is the same as using only a single large block
-    int3 block_size;
-    // Epsilon used for termination
-    double block_energy_epsilon;
-    // Step size in [mm]
-    float3 step_size;
-    // Only considered if no weight map is given
-    float regularization_weight;
-
-    // Only applicable when constraints are present
-    // High weight means harder constraints, a high value (>1000.0f) will act as hard constraints
-    float constraints_weight;
-
-    // Only applicable to landmark registration
-    float landmarks_weight;
     // Last level for which landmarks are used
     int landmarks_stop_level;
+    
+    ImageSlot image_slots[DF_MAX_IMAGE_PAIR_COUNT];
 
     Settings() :
         pyramid_stop_level(0),
         num_pyramid_levels(6),
-        block_size(int3{12, 12, 12}),
-        block_energy_epsilon(1e-7f),
-        step_size({0.5f, 0.5f, 0.5f}),
-        regularization_weight(0.05f),
-        constraints_weight(1000.0f),
-        landmarks_weight(1.0f),
         landmarks_stop_level(0)
-    {}
+    {
+        levels.resize(num_pyramid_levels);
+    }
 };
 
 // Prints the settings to the log in a human-readable format

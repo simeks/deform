@@ -34,8 +34,16 @@ landmarks_weight: 1.0
 landmarks_stop_level: 0
 block_size: [12, 12, 12]
 block_energy_epsilon: 1e-7
+max_iteration_count: -1
 step_size: 0.5
 regularization_weight: 0.1
+
+levels:
+  0:
+    regularization_weight: 0.1
+  1:
+    regularization_weight: 0.2
+    step_size: 0.01
 
 image_slots:
 
@@ -78,12 +86,16 @@ to `landmarks_stop_level` a value greater than zero.
 
 `block_energy_epsilon`, minimum percentage decrease of the block energy required to accept a solution. Higher epsilon will result in lower run time but also lower quality.
 
+`max_iteration_count`, maximum number of iterations run on each registration level. Setting this to -1 (default) allows an unlimited number of iterations.
+
 `step_size`, this is the step size in `mm` that the solver will use. Can be a
 single `float` value, in that case the same step size will be used in all
 directions, or a sequence `[sx, sy, sz]` of three `float` specifying the size
 for each direction.
 
 `regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
+
+`levels`, specifies parameters on a per-level basis. The key indicates which level the parameters apply to, where 0 is the bottom of the resolution pyramid (last level). The level identifier can not exceed `pyramid_levels`. Parameters available on a per-level basis are: `constraints_weight`, `landmarks_weight`, `block_size`, `block_energy_epsilon`, `max_iteration_count`, `step_size`, and `regularization_weight`.
 
 `image_slots`, specifies how to use the input images. `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` allows to provide one or more cost functions to use. Its value can be the name of a single function (`ssd` for squared distance, `ncc` for normalized cross correlation, `mi` for mutual information), in which case its weight is assumed to be `1.0`, otherwise one or multiple weighted components can be specified by listing each function and its weight. Each function can accept a set of parameters.
 
