@@ -7,7 +7,7 @@ else()
   set(SEP ":")
 endif()
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(DF_BUILD_TESTS "Build unit tests" ON)
 option(DF_BUILD_DOCS "Build Sphinx docs" OFF)
