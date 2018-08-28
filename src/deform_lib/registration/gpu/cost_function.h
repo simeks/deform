@@ -9,28 +9,52 @@
 #include <vector>
 
 namespace gpu {
+    // Computes the regularization cost in three directions (x+, y+, z+), with and without
+    //  applied delta. Results are stored into the three provided cost volumes (of type float2)
     // df           : Displacement field
     // initial_df   : Initial displacement field of current level
-    // cost         : Destination for cost (float4, with cost in x+, y+, z+)
+    // cost_x       : Destination for cost in x+ direction (before and after applied delta)
+    // cost_y       : Destination for cost in y+ direction (before and after applied delta)
+    // cost_z       : Destination for cost in z+ direction (before and after applied delta)
+    // delta    : Delta applied to the displacement, typically based on the step-size.
     void run_regularizer_kernel(
         const stk::GpuVolume& df,
         const stk::GpuVolume& initial_df,
-        stk::GpuVolume& cost,
+        stk::GpuVolume& cost_x, // float2
+        stk::GpuVolume& cost_y, // float2
+        stk::GpuVolume& cost_z, // float2
+        float3 delta,
         const dim3& block_size = {32,32,1}
     );
+
+    // Computes the SSD with and without applied displacement delta. Costs are accumulated
+    //  into the specified cost_acc volume (of type float2), where x is the cost before applying 
+    //  delta and y is the cost after.
+    // df       : Displacement field
+    // cost_acc : Destination for cost (float2, with cost before (x) and after (y) applying delta)
+    // delta    : Delta applied to the displacement, typically based on the step-size.
     void run_ssd_kernel(
         const stk::GpuVolume& fixed,
         const stk::GpuVolume& moving,
         const stk::GpuVolume& df,
-        stk::GpuVolume& cost_acc,
+        stk::GpuVolume& cost_acc, // float2
+        float3 delta,
         const dim3& block_size = {32,32,1}
     );
+    
+    // Computes the NCC with and without applied displacement delta. Costs are accumulated
+    //  into the specified cost_acc volume (of type float2), where x is the cost before applying 
+    //  delta and y is the cost after.
+    // df       : Displacement field
+    // cost_acc : Destination for cost (float2, with cost before (x) and after (y) applying delta)
+    // delta    : Delta applied to the displacement, typically based on the step-size.
     void run_ncc_kernel(
         const stk::GpuVolume& fixed,
         const stk::GpuVolume& moving,
         const stk::GpuVolume& df,
         int radius,
-        stk::GpuVolume& cost_acc,
+        float3 delta,
+        stk::GpuVolume& cost_acc, // float2
         const dim3& block_size = {32,32,1}
     );
 }

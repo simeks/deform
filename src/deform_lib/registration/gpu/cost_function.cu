@@ -13,8 +13,11 @@ __global__ void regularizer_kernel(
     cuda::VolumePtr<float4> df,
     cuda::VolumePtr<float4> initial_df,
     dim3 dims,
-    float3 spacing,
-    cuda::VolumePtr<float4> out // Regularization cost in x+,y+,z+
+    float3 inv_spacing2,
+    float3 delta,
+    cuda::VolumePtr<float2> out_x, // Regularization cost in x+
+    cuda::VolumePtr<float2> out_y, // y+
+    cuda::VolumePtr<float2> out_z  // z+
 )
 {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
@@ -28,25 +31,29 @@ __global__ void regularizer_kernel(
         return;
     }
 
-    float4 o = {0, 0, 0, 0};
+    float2 o_x = {0, 0};
+    float2 o_y = {0, 0};
+    float2 o_z = {0, 0};
 
     if (x + 1 < dims.x) {
         float4 diff_x = (df(x,y,z) - initial_df(x,y,z)) - 
                         (df(x+1,y,z) - initial_df(x+1,y,z));
         float dist2_x = diff_x.x*diff_x.x + diff_x.y*diff_x.y + diff_x.z*diff_x.z;
-        o.x = dist2_x / (spacing.x*spacing.x);
+        o.x = dist2_x * inv_spacing2.x;
+
+
     }
     if (y + 1 < dims.y) {
         float4 diff_y = (df(x,y,z) - initial_df(x,y,z)) - 
                         (df(x,y+1,z) - initial_df(x,y+1,z));
         float dist2_y = diff_y.x*diff_y.x + diff_y.y*diff_y.y + diff_y.z*diff_y.z;
-        o.y = dist2_y / (spacing.y*spacing.y);
+        o.y = dist2_y * inv_spacing2.y;
     }
     if (z + 1 < dims.z) {
         float4 diff_z = (df(x,y,z) - initial_df(x,y,z)) - 
                         (df(x,y,z+1) - initial_df(x,y,z+1));
         float dist2_z = diff_z.x*diff_z.x + diff_z.y*diff_z.y + diff_z.z*diff_z.z;
-        o.z = dist2_z / (spacing.z*spacing.z);
+        o.z = dist2_z * inv_spacing2.z;
     }
     
     o.w = 0;
@@ -61,10 +68,11 @@ __global__ void ssd_kernel(
     cuda::VolumePtr<float4> df,
     dim3 fixed_dims,
     dim3 moving_dims,
-    float4 fixed_origin,
-    float4 fixed_spacing,
-    float4 moving_origin,
-    float4 moving_spacing,
+    float3 fixed_origin,
+    float3 fixed_spacing,
+    float3 moving_origin,
+    float3 inv_moving_spacing,
+    float3 delta,
     cuda::VolumePtr<float> cost_acc
 )
 {
@@ -80,7 +88,7 @@ __global__ void ssd_kernel(
     }
 
     float4 world_p = fixed_origin + float4{float(x),float(y),float(z),0} * fixed_spacing; 
-    float4 moving_p = (world_p + df(x,y,z) - moving_origin) / moving_spacing; 
+    float4 moving_p = (world_p + df(x,y,z) - moving_origin) * inv_moving_spacing; 
     
     // [Filip]: Addition for partial-body registrations
     if (moving_p.x < 0 || moving_p.x > moving_dims.x || 
@@ -103,10 +111,11 @@ __global__ void ncc_kernel(
     int radius,
     dim3 fixed_dims,
     dim3 moving_dims,
-    float4 fixed_origin,
-    float4 fixed_spacing,
-    float4 moving_origin,
-    float4 moving_spacing,
+    float3 fixed_origin,
+    float3 fixed_spacing,
+    float3 moving_origin,
+    float3 inv_moving_spacing,
+    float3 delta,
     cuda::VolumePtr<float> cost_acc
 )
 {
@@ -122,7 +131,7 @@ __global__ void ncc_kernel(
     }
 
     float4 world_p = fixed_origin + float4{float(x),float(y),float(z),0} * fixed_spacing; 
-    float4 moving_p = (world_p + df(x,y,z) - moving_origin) / moving_spacing; 
+    float4 moving_p = (world_p + df(x,y,z) - moving_origin) * inv_moving_spacing; 
     
     // [Filip]: Addition for partial-body registrations
     if (moving_p.x < 0 || moving_p.x > moving_dims.x || 
@@ -189,13 +198,18 @@ __global__ void ncc_kernel(
 void gpu::run_regularizer_kernel(
     const stk::GpuVolume& df,
     const stk::GpuVolume& initial_df,
-    stk::GpuVolume& cost,
+    stk::GpuVolume& cost_x,
+    stk::GpuVolume& cost_y,
+    stk::GpuVolume& cost_z,
     const dim3& block_size
 )
 {
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(initial_df.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(cost_x.voxel_type() == stk::Type_Float2);
+    ASSERT(cost_y.voxel_type() == stk::Type_Float2);
+    ASSERT(cost_z.voxel_type() == stk::Type_Float2);
 
     FATAL_IF(df.voxel_type() != stk::Type_Float4 || 
              initial_df.voxel_type() != stk::Type_Float4 ||
@@ -210,12 +224,18 @@ void gpu::run_regularizer_kernel(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
+    float3 inv_spacing2 {
+        1.0f / (spacing.x*spacing.x),
+        1.0f / (spacing.y*spacing.y),
+        1.0f / (spacing.z*spacing.z)
+    };
+
     regularizer_kernel<<<grid_size, block_size>>>(
         df,
         initial_df,
         dims,
-        df.spacing(),
-        cost
+        inv_spacing2,
+        cost_x,
     );
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
@@ -226,13 +246,15 @@ void gpu::run_ssd_kernel(
     const stk::GpuVolume& fixed,
     const stk::GpuVolume& moving,
     const stk::GpuVolume& df,
-    stk::GpuVolume& cost_acc,
+    stk::GpuVolume& cost_acc, // float2
+    float3 delta,
     const dim3& block_size
 )
 {
     ASSERT(fixed.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
     FATAL_IF(fixed.voxel_type() != stk::Type_Float || moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
@@ -244,16 +266,22 @@ void gpu::run_ssd_kernel(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
+    float3 inv_moving_spacing = {
+        1.0f / moving.spacing().x,
+        1.0f / moving.spacing().y,
+        1.0f / moving.spacing().z
+    };
     ssd_kernel<float><<<grid_size, block_size>>>(
         fixed,
         moving,
         df,
         dims,
         moving.size(),
-        float4{fixed.origin().x, fixed.origin().y, fixed.origin().z, 0},
-        float4{fixed.spacing().x, fixed.spacing().y, fixed.spacing().z, 1},
-        float4{moving.origin().x, moving.origin().y, moving.origin().z, 0},
-        float4{moving.spacing().x, moving.spacing().y, moving.spacing().z, 1},
+        fixed.origin(),
+        fixed.spacing(),
+        moving.origin(),
+        inv_moving_spacing,
+        delta,
         cost_acc
     );
 
@@ -266,13 +294,15 @@ void gpu::run_ncc_kernel(
     const stk::GpuVolume& moving,
     const stk::GpuVolume& df,
     int radius,
-    stk::GpuVolume& cost_acc,
+    float3 delta,
+    stk::GpuVolume& cost_acc, // float2
     const dim3& block_size
 )
 {
     ASSERT(fixed.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
     FATAL_IF(fixed.voxel_type() != stk::Type_Float || moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
@@ -284,6 +314,11 @@ void gpu::run_ncc_kernel(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
+    float3 inv_moving_spacing = {
+        1.0f / moving.spacing().x,
+        1.0f / moving.spacing().y,
+        1.0f / moving.spacing().z
+    };
     ncc_kernel<float><<<grid_size, block_size>>>(
         fixed,
         moving,
@@ -291,10 +326,11 @@ void gpu::run_ncc_kernel(
         radius,
         dims,
         moving.size(),
-        float4{fixed.origin().x, fixed.origin().y, fixed.origin().z, 0},
-        float4{fixed.spacing().x, fixed.spacing().y, fixed.spacing().z, 1},
-        float4{moving.origin().x, moving.origin().y, moving.origin().z, 0},
-        float4{moving.spacing().x, moving.spacing().y, moving.spacing().z, 1},
+        fixed.origin(),
+        fixed.spacing(),
+        moving.origin(),
+        inv_moving_spacing,
+        delta,
         cost_acc
     );
 
