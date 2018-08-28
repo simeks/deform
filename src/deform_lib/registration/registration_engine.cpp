@@ -135,7 +135,7 @@ namespace
 void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
 {
     binary_fn.set_fixed_spacing(_fixed_pyramids[0].volume(level).spacing());
-    binary_fn.set_regularization_weight(_settings.regularization_weight);
+    binary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     // Clone the def, because the current copy will be changed when executing the optimizer
     binary_fn.set_initial_displacement(_deformation_pyramid.volume(level).clone());
@@ -285,7 +285,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         nullptr // Type_Double4
     };
 
-    unary_fn.set_regularization_weight(_settings.regularization_weight);
+    unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
@@ -357,7 +357,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                 fixed.spacing(),
                 fixed.size()
             ),
-            _settings.landmarks_weight
+            _settings.levels[level].landmarks_weight
         );
     }
  
@@ -367,7 +367,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                 _constraints_mask_pyramid.volume(level),
                 _constraints_pyramid.volume(level)
             ),
-            _settings.constraints_weight
+            _settings.levels[level].constraints_weight
         );
     }
 }
@@ -482,11 +482,12 @@ stk::Volume RegistrationEngine::execute()
             }
             
             BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.block_size,
-                _settings.block_energy_epsilon
+                _settings.levels[l].block_size,
+                _settings.levels[l].block_energy_epsilon,
+                _settings.levels[l].max_iteration_count
             );
 
-            optimizer.execute(unary_fn, binary_fn, _settings.step_size, def);
+            optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
         }
         else {
             LOG(Info) << "Skipping level " << l;

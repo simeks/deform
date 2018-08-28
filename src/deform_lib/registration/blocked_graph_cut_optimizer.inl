@@ -10,9 +10,11 @@ template<
 >
 BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
     const int3& block_size,
-    double block_energy_epsilon) :
+    double block_energy_epsilon,
+    int max_iteration_count) :
     _block_size(block_size),
-    _block_energy_epsilon(block_energy_epsilon)
+    _block_energy_epsilon(block_energy_epsilon),
+    _max_iteration_count(max_iteration_count)
 {
     _neighbors[0] = {1, 0, 0};
     _neighbors[1] = {-1, 0, 0};
@@ -175,6 +177,9 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         ++num_iterations;
 
+        // A max_iteration_count of -1 means we run until we converge
+        if (_max_iteration_count != -1 && num_iterations >= _max_iteration_count)
+            break;
     }
     LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) 
         << ", Iterations: " << num_iterations;
