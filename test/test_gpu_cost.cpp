@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#ifdef DF_USE_CUDA
+#if 0 // #ifdef DF_USE_CUDA
 
 #include <deform_lib/cost_function.h>
 #include <deform_lib/registration/gpu/cost_function.h>
