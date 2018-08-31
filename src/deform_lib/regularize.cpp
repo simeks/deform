@@ -225,9 +225,9 @@ int run_regularize(int argc, char* argv[])
         }
         
     #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-        deformation_pyramid.build_from_base_with_residual(src, filters::downsample_vectorfield);
+        deformation_pyramid.build_from_base_with_residual(src, filters::downsample_vectorfield_by_2);
     #else
-        deformation_pyramid.build_from_base(src, filters::downsample_vectorfield);
+        deformation_pyramid.build_from_base(src, filters::downsample_vectorfield_by_2);
     #endif
     }
 

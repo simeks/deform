@@ -7,7 +7,7 @@ else()
   set(SEP ":")
 endif()
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(DF_BUILD_TESTS "Build unit tests" ON)
 option(DF_BUILD_DOCS "Build Sphinx docs" OFF)
@@ -16,6 +16,13 @@ option(DF_USE_CUDA "Enables CUDA support" OFF)
 option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
 option(DF_BUILD_WITH_DEBUG_INFO "Includes debug info in release builds" OFF)
 option(DF_ENABLE_FAST_MATH "Enables fast math" OFF)
+
+option(DF_ENABLE_MICROPROFILE "Enables microprofile profiler" OFF)
+option(DF_ENABLE_NVTOOLSEXT "Enables nvtoolsext profiler" OFF)
+
+if (DF_ENABLE_MICROPROFILE AND DF_ENABLE_NVTOOLSEXT)
+    message(FATAL_ERROR "Can't enable multiple profilers at the same time")
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting default build type: 'Release'")
@@ -86,7 +93,17 @@ endif()
 
 if (DF_USE_CUDA)
     add_definitions(-DDF_USE_CUDA)
+    add_definitions(-DSTK_USE_CUDA)
     find_package(CUDA REQUIRED)
+
+    if (DF_ENABLE_NVTOOLSEXT)
+        find_package(NvToolsExt REQUIRED)
+        add_definitions(-DDF_ENABLE_NVTOOLSEXT)
+    endif()
+endif()
+
+if (DF_ENABLE_MICROPROFILE)
+    add_definitions(-DDF_ENABLE_MICROPROFILE)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_FLAGS}")

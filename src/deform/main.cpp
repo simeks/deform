@@ -3,6 +3,7 @@
 #include <deform_lib/defer.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/jacobian.h>
+#include <deform_lib/profiler/profiler.h>
 #include <deform_lib/registration/landmarks.h>
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
@@ -212,6 +213,7 @@ int run_registration(int argc, char* argv[])
 
 void print_version()
 {
+    // TODO:
     std::cout << "VERSION 0" << std::endl;
 }
 
@@ -219,6 +221,9 @@ int main(int argc, char* argv[])
 {
     stk::log_init();
     defer{stk::log_shutdown();};
+
+    PROFILER_INIT();
+    defer{PROFILER_SHUTDOWN();};
 
     stk::log_add_file("deform_log.txt", stk::Info);
 

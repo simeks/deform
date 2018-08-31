@@ -22,7 +22,7 @@ public:
         int i, 
         const stk::Volume& fixed, 
         const stk::Volume& moving,
-        stk::Volume (*downsample_fn)(const stk::Volume&, float));
+        stk::Volume (*downsample_fn)(const stk::Volume&));
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_regularization_weight_map(const stk::Volume& map);

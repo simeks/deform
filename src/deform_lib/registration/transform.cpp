@@ -34,6 +34,8 @@ namespace
             1.0f / src.spacing().z
         };
 
+        #define FAST_ROUND(x_) int(x_+0.5f)
+
         #pragma omp parallel for
         for (int z = 0; z < int(dims.z); ++z) {
             for (int y = 0; y < int(dims.y); ++y) {
@@ -45,14 +47,16 @@ namespace
                         * inv_moving_spacing;
 
                     out(x, y, z) = src.at(
-                        int(round(moving_p.x)), 
-                        int(round(moving_p.y)), 
-                        int(round(moving_p.z)), 
+                        int(FAST_ROUND(moving_p.x)), 
+                        int(FAST_ROUND(moving_p.y)), 
+                        int(FAST_ROUND(moving_p.z)), 
                         stk::Border_Constant
                     );
                 }
             }
         }
+        #undef FAST_ROUND
+
         return out;
     }
 

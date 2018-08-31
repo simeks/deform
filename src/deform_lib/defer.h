@@ -35,4 +35,5 @@ struct DeferCall {
 };
 
 #define DEFER_NAME(a, b) a##b
-#define defer DeferCall DEFER_NAME(defer__, __LINE__) = [&]()
+#define DEFER_NAME2(a, b) DEFER_NAME(a, b)
+#define defer DeferCall DEFER_NAME2(defer__, __LINE__) = [&]()
