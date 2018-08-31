@@ -27,7 +27,6 @@ struct Settings
             CostFunction_None = 0,
             CostFunction_SSD,
             CostFunction_NCC,
-            CostFunction_NCC_ispc,
             CostFunction_MI,
         };
 

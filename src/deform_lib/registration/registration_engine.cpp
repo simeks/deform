@@ -72,10 +72,18 @@ namespace
     )
     {
         int radius = 2;
+        std::string window = "sphere";
 
         for (const auto& [k, v] : parameters) {
             if (k == "radius") {
                 radius = str_to_num<int>("NCCFunction", k, v);
+            }
+            else if (k == "window") {
+                if (v != "cube" && v != "sphere") {
+                    throw std::invalid_argument("NCCFunction: invalid value '" + v + 
+                                                "' for parameter '" + k + "'");
+                }
+                window = v;
             }
             else {
                 throw std::invalid_argument("NCCFunction: unrecognised parameter "
@@ -83,33 +91,19 @@ namespace
             }
         }
 
-        return std::make_unique<NCCFunction<T>>(
-            fixed, moving, radius
-        );
-    }
-
-    template<typename T>
-    std::unique_ptr<SubFunction> ncc_ispc_function_factory(
-        const stk::Volume& fixed,
-        const stk::Volume& moving,
-        const std::map<std::string, std::string>& parameters
-    )
-    {
-        int radius = 2;
-
-        for (const auto& [k, v] : parameters) {
-            if (k == "radius") {
-                radius = str_to_num<int>("NCCFunction_ispc", k, v);
-            }
-            else {
-                throw std::invalid_argument("NCCFunction_ispc: unrecognised parameter "
-                                            "'" + k + "' with value '" + v + "'");
-            }
+        if ("sphere" == window) {
+            return std::make_unique<NCCFunction_sphere<T>>(
+                fixed, moving, radius
+            );
         }
-
-        return std::make_unique<NCCFunction_ispc<T>>(
-            fixed, moving, radius
-        );
+        else if ("cube" == window) {
+            return std::make_unique<NCCFunction_cube<T>>(
+                fixed, moving, radius
+            );
+        }
+        else {
+            throw std::runtime_error("NCCFunction: there is a bug in the selection of the window.");
+        }
     }
 
     template<typename T>
@@ -266,49 +260,6 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         nullptr, // Type_Double3
         nullptr // Type_Double4
     };
-    FactoryFn ncc_ispc_factory[] = {
-        nullptr, // Type_Unknown
-
-        ncc_ispc_function_factory<char>, // Type_Char
-        nullptr, // Type_Char2
-        nullptr, // Type_Char3
-        nullptr, // Type_Char4
-
-        ncc_ispc_function_factory<uint8_t>, // Type_UChar
-        nullptr, // Type_UChar2
-        nullptr, // Type_UChar3
-        nullptr, // Type_UChar4
-
-        ncc_ispc_function_factory<short>, // Type_Short
-        nullptr, // Type_Short2
-        nullptr, // Type_Short3
-        nullptr, // Type_Short4
-
-        ncc_ispc_function_factory<uint16_t>, // Type_UShort
-        nullptr, // Type_UShort2
-        nullptr, // Type_UShort3
-        nullptr, // Type_UShort4
-
-        ncc_ispc_function_factory<int>, // Type_Int
-        nullptr, // Type_Int2
-        nullptr, // Type_Int3
-        nullptr, // Type_Int4
-
-        ncc_ispc_function_factory<uint32_t>, // Type_UInt
-        nullptr, // Type_UInt2
-        nullptr, // Type_UInt3
-        nullptr, // Type_UInt4
-
-        ncc_ispc_function_factory<float>, // Type_Float
-        nullptr, // Type_Float2
-        nullptr, // Type_Float3
-        nullptr, // Type_Float4
-
-        ncc_ispc_function_factory<double>, // Type_Double
-        nullptr, // Type_Double2
-        nullptr, // Type_Double3
-        nullptr // Type_Double4
-    };
     FactoryFn mi_factory[] = {
         nullptr, // Type_Unknown
 
@@ -388,18 +339,6 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             else if (Settings::ImageSlot::CostFunction_NCC == fn.function)
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
-                if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
-                }
-                else {
-                    FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
-                            << "for metric 'ncc' "
-                            << "(slot: " << i << ")";
-                }
-            }
-            else if (Settings::ImageSlot::CostFunction_NCC_ispc == fn.function)
-            {
-                FactoryFn factory = ncc_ispc_factory[fixed.voxel_type()];
                 if (factory) {
                     unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
                 }

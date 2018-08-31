@@ -181,9 +181,12 @@ struct SquaredDistanceFunction : public SubFunction
 };
 
 template<typename T>
-struct NCCFunction : public SubFunction
+struct NCCFunction_sphere : public SubFunction
 {
-    NCCFunction(const stk::VolumeHelper<T>& fixed,
+    /*!
+     * \brief Compute NCC with a spheric window.
+     */
+    NCCFunction_sphere(const stk::VolumeHelper<T>& fixed,
                 const stk::VolumeHelper<T>& moving,
                 const int radius) :
         _fixed(fixed),
@@ -270,9 +273,14 @@ struct NCCFunction : public SubFunction
 
 
 template<typename T>
-struct NCCFunction_ispc : public SubFunction
+struct NCCFunction_cube : public SubFunction
 {
-    NCCFunction_ispc(const stk::VolumeHelper<T>& fixed,
+    /*!
+     * \brief Compute NCC with a cubic window of side `2 × radius + 1`.
+     *
+     * The code of this function is vectorized with ISPC.
+     */
+    NCCFunction_cube(const stk::VolumeHelper<T>& fixed,
                      const stk::VolumeHelper<T>& moving,
                      const int radius) :
         _fixed({fixed.size().x + 2*radius,
