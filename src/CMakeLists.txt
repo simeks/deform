@@ -90,6 +90,11 @@ endif()
 target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
 target_link_libraries(deform_lib stk yaml-cpp gco)
 
+if(DF_USE_ISPC)
+    add_subdirectory(ispc)
+    target_link_libraries(deform_lib ispc_lib)
+endif()
+
 if(WIN32)
   target_link_libraries(deform_lib wsock32 ws2_32)
 endif()

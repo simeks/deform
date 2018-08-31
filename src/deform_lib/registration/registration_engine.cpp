@@ -72,10 +72,18 @@ namespace
     )
     {
         int radius = 2;
+        std::string window = "sphere";
 
         for (const auto& [k, v] : parameters) {
             if (k == "radius") {
                 radius = str_to_num<int>("NCCFunction", k, v);
+            }
+            else if (k == "window") {
+                if (v != "cube" && v != "sphere") {
+                    throw std::invalid_argument("NCCFunction: invalid value '" + v + 
+                                                "' for parameter '" + k + "'");
+                }
+                window = v;
             }
             else {
                 throw std::invalid_argument("NCCFunction: unrecognised parameter "
@@ -83,9 +91,19 @@ namespace
             }
         }
 
-        return std::make_unique<NCCFunction<T>>(
-            fixed, moving, radius
-        );
+        if ("sphere" == window) {
+            return std::make_unique<NCCFunction_sphere<T>>(
+                fixed, moving, radius
+            );
+        }
+        else if ("cube" == window) {
+            return std::make_unique<NCCFunction_cube<T>>(
+                fixed, moving, radius
+            );
+        }
+        else {
+            throw std::runtime_error("NCCFunction: there is a bug in the selection of the window.");
+        }
     }
 
     template<typename T>

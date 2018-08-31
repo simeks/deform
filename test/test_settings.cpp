@@ -148,6 +148,41 @@ TEST_CASE("parse_registration_settings")
                 Settings::ImageSlot::CostFunction_NCC);
         REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.3f);
     }
+    SECTION("test_ncc_window")
+    {
+        Settings settings;
+        std::string  settings_str;
+
+        // cube
+        settings_str =
+                "image_slots:\n"
+                "  - cost_function:\n"
+                "      - function: ncc\n"
+                "        window: cube\n"
+                "        radius: 3";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "cube");
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "3");
+
+        // sphere
+        settings_str =
+                "image_slots:\n"
+                "  - cost_function:\n"
+                "      - function: ncc\n"
+                "        window: sphere\n"
+                "        radius: 4";
+
+        REQUIRE(parse_registration_settings(settings_str, settings));
+
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "sphere");
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "4");
+    }
     SECTION("test_cost_function_multi_component_2")
     {
         Settings settings;
