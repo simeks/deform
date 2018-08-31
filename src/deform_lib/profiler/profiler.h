@@ -36,7 +36,8 @@
 
 #define PROFILER_FLIP()
 
-#define PROFILER_SCOPE_VAR(line) _profiler_##line
+#define PROFILER_SCOPE_VAR2(line) _profiler_##line
+#define PROFILER_SCOPE_VAR(line) PROFILER_SCOPE_VAR2(line)
 #define PROFILER_SCOPE(name, color) stk::cuda::ProfilerScope PROFILER_SCOPE_VAR(__LINE__)(name, color)
 #define PROFILER_COUNTER_SET(name, v)
 
@@ -60,7 +61,7 @@ namespace cuda {
         }
     };
 
-    void register_thread(const char* name) {
+    inline void register_thread(const char* name) {
         nvtxNameOsThread(::GetCurrentThreadId(), name);
     }
 }
