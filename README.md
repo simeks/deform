@@ -2,10 +2,16 @@
 
 ## Prerequisites
 * CMake : https://cmake.org/
+
+Optional
 * ISPC : https://ispc.github.io/
 
 ## Build
 Use CMake (>=3.8) to generate build options of your own choosing.
+
+If CMake cannot find the ISPC executable on your installation, it is possible
+to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
+full path to the executable with `-DISPC_EXECUTABLE`.
 
 ## Run
 To perform a registration
@@ -105,11 +111,12 @@ The parameters available for each function are:
 + `ssd`: no parameters available
 + `ncc`:
   + `window` (`string`): shape of the correlation window, either `sphere` or
-      `cube` (default: `spere`). For a given number of samples, the sphere has
-      a better spatial distribution of the samples, yielding a slightly
-      superior quality. When running on the CPU, for the same number of samples
-      (e.g., roughly, a sphere of radius `2` and a cube of radius `1`) the cube
-      can be significantly faster to compute.
+      `cube` (default: `spere`). Note that `cube` is available only if the
+      program is built with ISPC support. For a given number of samples, the
+      sphere has a better spatial distribution of the samples, yielding a
+      slightly superior quality. When running on the CPU, for the same number
+      of samples (e.g., roughly, a sphere of radius `2` and a cube of radius
+      `1`) the cube can be significantly faster to compute.
   + `radius` (`int`): radius of the cross-correlation kernel (default: `2`).
       For `window=sphere`, given a point where NCC is evaluated, samples are
       taken in all the voxels such that the Euclidean distance of each sample

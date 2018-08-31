@@ -4,7 +4,9 @@
 #include "registration/transform.h"
 #include "mutual_information.h"
 
-#include <ispc_lib.h>
+#if DF_USE_ISPC
+    #include <ispc_lib.h>
+#endif
 
 #include <stk/common/assert.h>
 #include <stk/image/volume.h>
@@ -272,6 +274,7 @@ struct NCCFunction_sphere : public SubFunction
 };
 
 
+#if DF_USE_ISPC
 template<typename T>
 struct NCCFunction_cube : public SubFunction
 {
@@ -361,6 +364,27 @@ struct NCCFunction_cube : public SubFunction
     stk::VolumeHelper<float> _moving;
     const int _radius;
 };
+
+#else // DF_USE_ISPC
+template<typename T>
+struct NCCFunction_cube : public SubFunction
+{
+    NCCFunction_cube(const stk::VolumeHelper<T>& /* fixed */,
+                     const stk::VolumeHelper<T>& /* moving */,
+                     const int /* radius */)
+    {
+        throw std::runtime_error("deform_lib must be built with ISPC support "
+                                 "in order to use NCC with cubic window.");
+    }
+
+
+    float cost(const int3& p, const float3& def)
+    {
+        throw std::runtime_error("deform_lib must be built with ISPC support "
+                                 "in order to use NCC with cubic window.");
+    }
+};
+#endif // DF_USE_ISPC
 
 
 struct LandmarksFunction : public SubFunction

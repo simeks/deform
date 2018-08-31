@@ -5,20 +5,9 @@ set(ISPC_SRCS
 set(ISPC_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ispc_lib.o")
 set(ISPC_OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ispc_lib.h")
 
-if(NOT WIN32)
-    set(ISPC_OPTIONS "--pic")
-endif()
-
-if (DF_ENABLE_FAST_MATH)
-    set(ISPC_OPTIONS ${ISPC_OPTIONS} " --opt=fast-math")
-endif()
-if (DF_BUILD_WITH_DEBUG_INFO)
-    set(ISPC_OPTIONS ${ISPC_OPTIONS} " -g")
-endif()
-
 add_custom_command(
     OUTPUT ${ISPC_OUTPUT}
-    COMMAND ispc ${ISPC_OPTIONS}
+    COMMAND ${ISPC_EXECUTABLE} ${ISPC_OPTIONS}
                  -o ${ISPC_OUTPUT}
                  -h ${ISPC_OUTPUT_HEADER}
                  ${ISPC_SRCS}
