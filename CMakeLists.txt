@@ -97,6 +97,10 @@ if (DF_USE_CUDA)
     add_definitions(-DSTK_USE_CUDA)
     find_package(CUDA REQUIRED)
 
+    if (DF_ENABLE_FAST_MATH)
+        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} --use_fast_math")
+    endif()
+
     if (DF_ENABLE_NVTOOLSEXT)
         find_package(NvToolsExt REQUIRED)
         add_definitions(-DDF_ENABLE_NVTOOLSEXT)
