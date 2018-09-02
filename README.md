@@ -17,17 +17,17 @@ full path to the executable with `-DISPC_EXECUTABLE`.
 To perform a registration
 `deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
 
-| Argument                    |                                             |
-| --------------------------- | ------------------------------------------- |
-| `-f<i> <file>`              | Filename of the i:th fixed image (i < 8)*.  |
-| `-m<i> <file>`              | Filename of the i:th moving image (i < 8)*. |
-| `-fp <file>`                | Filename for the fixed landmarks.           |
-| `-mp <file>`                | Filename for the moving landmarks.          |
-| `-d0 <file>`                | Filename for initial deformation field.     |
-| `-constraint_mask <file>`   | Filename for constraint mask.               |
-| `-constraint_values <file>` | Filename for constraint values.             |
-| `-p <file>`                 | Filename of the parameter file.             |
-| `-o <file>`                 | Filename of the resulting deformation field |
+| Argument                    |                                                |
+| --------------------------- | ---------------------------------------------- |
+| `-f<i> <file>`              | Filename of the i:th fixed image (i &lt; 8)*.  |
+| `-m<i> <file>`              | Filename of the i:th moving image (i &lt; 8)*. |
+| `-fp <file>`                | Filename for the fixed landmarks.              |
+| `-mp <file>`                | Filename for the moving landmarks.             |
+| `-d0 <file>`                | Filename for initial deformation field.        |
+| `-constraint_mask <file>`   | Filename for constraint mask.                  |
+| `-constraint_values <file>` | Filename for constraint values.                |
+| `-p <file>`                 | Filename of the parameter file.                |
+| `-o <file>`                 | Filename of the resulting deformation field    |
 
 * Requires a matching number of fixed and moving images.
 
@@ -70,6 +70,9 @@ image_slots:
         bins: 256
         update_interval: 1
         interpolator: nearest
+      - function: gradient_ssd
+        weight: 0.7
+        sigma: 1.0
 
   # sfcm
   - resampler: gaussian
@@ -105,7 +108,15 @@ for each direction.
 
 `levels`, specifies parameters on a per-level basis. The key indicates which level the parameters apply to, where 0 is the bottom of the resolution pyramid (last level). The level identifier can not exceed `pyramid_levels`. Parameters available on a per-level basis are: `constraints_weight`, `landmarks_weight`, `block_size`, `block_energy_epsilon`, `max_iteration_count`, `step_size`, and `regularization_weight`.
 
-`image_slots`, specifies how to use the input images. `resampler` only supports 'gaussian' for now, `normalize` specifies whether the volumes should be normalized before the registration, and `cost_function` allows to provide one or more cost functions to use. Its value can be the name of a single function (`ssd` for squared distance, `ncc` for normalized cross correlation, `mi` for mutual information), in which case its weight is assumed to be `1.0`, otherwise one or multiple weighted components can be specified by listing each function and its weight. Each function can accept a set of parameters.
+`image_slots`, specifies how to use the input images. `resampler` only supports
+'gaussian' for now, `normalize` specifies whether the volumes should be
+normalized before the registration, and `cost_function` allows to provide one
+or more cost functions to use. Its value can be the name of a single function
+(`ssd` for squared distance, `ncc` for normalized cross correlation, `mi` for
+mutual information, `gradient_ssd` for squared distance of the gradients), in
+which case its weight is assumed to be `1.0`, otherwise one or multiple
+weighted components can be specified by listing each function and its weight.
+Each function can accept a set of parameters.
 
 The parameters available for each function are:
 + `ssd`: no parameters available
@@ -132,6 +143,9 @@ The parameters available for each function are:
       entropy estimates (default: `1`). If `0`, updates are disabled.
   + `interpolator` (`'linear'` or `'nearest'`): interpolator used in the update
       the entropy estimates (default: `'nearest'`)
++ `gradient_ssd`:
+  + `sigma` (`float`): Gaussian smoothing applied to the images before
+      computing the Sobel operator (default: `0.0`)
 
 ## References
 + <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih: *Visual correspondence using energy minimization and mutual information.* Proceedings of the Ninth IEEE International Conference on Computer Vision, 1033-1040, 2003.
