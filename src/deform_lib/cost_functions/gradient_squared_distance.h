@@ -10,7 +10,7 @@ struct GradientSSDFunction : public SubFunction
 {
     GradientSSDFunction(const stk::VolumeHelper<T>& fixed,
                         const stk::VolumeHelper<T>& moving,
-                        const int sigma) :
+                        const float sigma) :
         _fixed(stk::sobel(stk::gaussian_filter_3d(fixed, sigma))),
         _moving(stk::sobel(stk::gaussian_filter_3d(moving, sigma)))
     {}

@@ -161,7 +161,7 @@ namespace
 
         for (const auto& [k, v] : parameters) {
             if (k == "sigma") {
-                sigma = str_to_num<double>("GradientSSDFunction", k, v);
+                sigma = str_to_num<float>("GradientSSDFunction", k, v);
             }
             else {
                 throw std::invalid_argument("GradientSSDFunction: unrecognised parameter "
