@@ -1,5 +1,5 @@
 #include "../config.h"
-#include "../cost_function.h"
+#include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
 
 #include "blocked_graph_cut_optimizer.h"

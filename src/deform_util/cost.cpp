@@ -1,5 +1,5 @@
 #include <deform_lib/arg_parser.h>
-#include <deform_lib/cost_function.h>
+#include <deform_lib/cost_functions/cost_function.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/settings.h>
