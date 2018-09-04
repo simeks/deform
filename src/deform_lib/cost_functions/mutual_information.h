@@ -1,5 +1,9 @@
 #pragma once
 
+#include "sub_function.h"
+
+#include <deform_lib/registration/transform.h>
+
 #include <stk/common/assert.h>
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
@@ -328,3 +332,87 @@ private:
     }
 };
 
+
+template<typename T>
+struct MIFunction : public SubFunction
+{
+    MIFunction(const stk::VolumeHelper<T>& fixed,
+               const stk::VolumeHelper<T>& moving,
+               const int bins,
+               const double sigma,
+               const int update_interval,
+               const transform::Interp interpolator) :
+        _fixed(fixed),
+        _moving(moving),
+        _bins(bins),
+        _sigma(sigma),
+        _update_interval(update_interval),
+        _interpolator(interpolator),
+        _voxel_count(fixed.size().x * fixed.size().y * fixed.size().z),
+        _joint_entropy(fixed, moving, bins, sigma),
+        _entropy(moving, bins, sigma)
+    {
+    }
+
+    /*!
+     * \brief Contribution of a single voxel to the mutual information.
+     *
+     * Mutual information is broken to a voxel-wise sum thanks to an
+     * approximation of the entropy function based on Taylor polynomia
+     * and Parzen KDE. The formula was introduced in:
+     *   Kim, Junhwan et al. (2003): Visual correspondence using energy
+     *   minimization and mutual information, Proceedings of the Ninth
+     *   IEEE International Conference on Computer Vision, 1033–1040.
+     *
+     * Here, both the joint entropy and the entropy of the moving image
+     * are approximated. The entropy of the fixed image is ignored
+     * since it is constant with respect to the displacement, hence it
+     * has no effect on the optimisation process.
+     */
+    float cost(const int3& p, const float3& def)
+    {
+        const float3 fixed_p{float(p.x), float(p.y), float(p.z)};
+
+        // [fixed] -> [world] -> [moving]
+        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
+        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
+
+        T i1 = _fixed(p);
+        T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
+
+        // NOTE: the sign is inverted (minimising negated MI)
+        return _voxel_count * static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
+    }
+
+    /*!
+     * \brief Update the entropy term estimations.
+     *
+     * The entropy terms are approximated with a first order truncated
+     * Taylor polynomial, which is a function of the displacement. The
+     * approximation gets worse as the displacement gets larger. To
+     * compensate for this, resample the moving volume and update the
+     * entropy of the moving image and the joint entropy after each
+     * iteration.
+     */
+    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    {
+        if (0 == iteration || 0 == _update_interval || iteration % _update_interval) {
+            return;
+        }
+        auto tmp = transform_volume(_moving, def, _interpolator);
+        _joint_entropy.update(_fixed, tmp);
+        _entropy.update(tmp);
+    }
+
+    stk::VolumeHelper<T> _fixed;
+    stk::VolumeHelper<T> _moving;
+    const int _bins;
+    const double _sigma;
+    const int _update_interval;
+    const transform::Interp _interpolator;
+
+private:
+    const int _voxel_count;
+    JointEntropyTerm<T> _joint_entropy;
+    EntropyTerm<T> _entropy;
+};

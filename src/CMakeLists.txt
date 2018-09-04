@@ -1,4 +1,16 @@
 set(DEFORM_LIB_SRCS
+    "deform_lib/cost_functions/cost_function.h"
+    "deform_lib/cost_functions/cross_correlation_cube.h"
+    "deform_lib/cost_functions/cross_correlation_sphere.h"
+    "deform_lib/cost_functions/landmarks.h"
+    "deform_lib/cost_functions/mutual_information.cpp"
+    "deform_lib/cost_functions/mutual_information.h"
+    "deform_lib/cost_functions/regularizer.h"
+    "deform_lib/cost_functions/soft_constraints.h"
+    "deform_lib/cost_functions/squared_distance.h"
+    "deform_lib/cost_functions/sub_function.h"
+    "deform_lib/cost_functions/unary_function.h"
+
     "deform_lib/filters/gaussian_filter.cpp"
     "deform_lib/filters/gaussian_filter.h"
     "deform_lib/filters/resample.cpp"
@@ -32,11 +44,8 @@ set(DEFORM_LIB_SRCS
     "deform_lib/arg_parser.cpp"
     "deform_lib/arg_parser.h"
     "deform_lib/config.h"
-    "deform_lib/cost_function.h"
     "deform_lib/jacobian.cpp"
     "deform_lib/jacobian.h"
-    "deform_lib/mutual_information.cpp"
-    "deform_lib/mutual_information.h"
     "deform_lib/regularize.cpp"
 )
 
