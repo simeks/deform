@@ -163,6 +163,10 @@ namespace YAML {
                 out = Settings::ImageSlot::CostFunction_MI;
                 return true;
             }
+            else if (fn == "gradient_ssd") {
+                out = Settings::ImageSlot::CostFunction_Gradient_SSD;
+                return true;
+            }
             
             throw YAML::RepresentationException(node.Mark(), "unrecognised cost function " + fn);
         }
@@ -254,6 +258,8 @@ const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
         return "ncc";
     case Settings::ImageSlot::CostFunction_MI:
         return "mi";
+    case Settings::ImageSlot::CostFunction_Gradient_SSD:
+        return "gradient_ssd";
     default:
     case Settings::ImageSlot::CostFunction_None:
         return "none";

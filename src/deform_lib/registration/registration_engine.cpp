@@ -149,6 +149,30 @@ namespace
             fixed, moving, bins, sigma, update_interval, interpolator
         );
     }
+
+    template<typename T>
+    std::unique_ptr<SubFunction> gradient_ssd_function_factory(
+        const stk::Volume& fixed,
+        const stk::Volume& moving,
+        const std::map<std::string, std::string>& parameters
+    )
+    {
+        float sigma = 0.0f;
+
+        for (const auto& [k, v] : parameters) {
+            if (k == "sigma") {
+                sigma = str_to_num<double>("GradientSSDFunction", k, v);
+            }
+            else {
+                throw std::invalid_argument("GradientSSDFunction: unrecognised parameter "
+                                            "'" + k + "' with value '" + v + "'");
+            }
+        }
+
+        return std::make_unique<GradientSSDFunction<T>>(
+            fixed, moving, sigma
+        );
+    }
 }
 
 void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
@@ -303,6 +327,49 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         nullptr, // Type_Double3
         nullptr // Type_Double4
     };
+    FactoryFn gradient_ssd_factory[] = {
+        nullptr, // Type_Unknown
+
+        gradient_ssd_function_factory<char>, // Type_Char
+        nullptr, // Type_Char2
+        nullptr, // Type_Char3
+        nullptr, // Type_Char4
+
+        gradient_ssd_function_factory<uint8_t>, // Type_UChar
+        nullptr, // Type_UChar2
+        nullptr, // Type_UChar3
+        nullptr, // Type_UChar4
+
+        gradient_ssd_function_factory<short>, // Type_Short
+        nullptr, // Type_Short2
+        nullptr, // Type_Short3
+        nullptr, // Type_Short4
+
+        gradient_ssd_function_factory<uint16_t>, // Type_UShort
+        nullptr, // Type_UShort2
+        nullptr, // Type_UShort3
+        nullptr, // Type_UShort4
+
+        gradient_ssd_function_factory<int>, // Type_Int
+        nullptr, // Type_Int2
+        nullptr, // Type_Int3
+        nullptr, // Type_Int4
+
+        gradient_ssd_function_factory<uint32_t>, // Type_UInt
+        nullptr, // Type_UInt2
+        nullptr, // Type_UInt3
+        nullptr, // Type_UInt4
+
+        gradient_ssd_function_factory<float>, // Type_Float
+        nullptr, // Type_Float2
+        nullptr, // Type_Float3
+        nullptr, // Type_Float4
+
+        gradient_ssd_function_factory<double>, // Type_Double
+        nullptr, // Type_Double2
+        nullptr, // Type_Double3
+        nullptr // Type_Double4
+    };
 
     unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
@@ -357,6 +424,18 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
                             << "for metric 'mi' "
+                            << "(slot: " << i << ")";
+                }
+            }
+            else if (Settings::ImageSlot::CostFunction_Gradient_SSD == fn.function)
+            {
+                FactoryFn factory = gradient_ssd_factory[fixed.voxel_type()];
+                if (factory) {
+                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                }
+                else {
+                    FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
+                            << "for metric 'gradient_ssd' "
                             << "(slot: " << i << ")";
                 }
             }

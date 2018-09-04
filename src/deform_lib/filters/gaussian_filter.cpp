@@ -13,6 +13,11 @@ namespace
     stk::VolumeHelper<TVoxelType> gaussian_filter_3d(const stk::VolumeHelper<TVoxelType>& img, float sigma)
     {
         stk::VolumeHelper<TVoxelType> result = img.clone(); // Clone to get size and meta data
+
+        if (sigma <= 0.0f) {
+            return result;
+        }
+
         stk::VolumeHelper<TVoxelType> tmp = img.clone();
 
         double spacing_x = double(img.spacing().x);

@@ -28,6 +28,7 @@ struct Settings
             CostFunction_SSD,
             CostFunction_NCC,
             CostFunction_MI,
+            CostFunction_Gradient_SSD,
         };
 
         enum ResampleMethod
