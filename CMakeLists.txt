@@ -96,10 +96,10 @@ endif()
 if (DF_USE_CUDA)
     add_definitions(-DDF_USE_CUDA)
     add_definitions(-DSTK_USE_CUDA)
-    find_package(CUDA REQUIRED)
+    enable_language(CUDA)
 
     if (DF_ENABLE_FAST_MATH)
-        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} --use_fast_math")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math")
     endif()
 
     if (DF_ENABLE_NVTOOLSEXT)

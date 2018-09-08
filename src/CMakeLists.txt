@@ -86,17 +86,19 @@ if (DF_USE_CUDA)
         "deform_lib/registration/gpu_volume_pyramid.cpp"
         "deform_lib/registration/gpu_volume_pyramid.h"
     )
-    CUDA_ADD_LIBRARY(deform_lib STATIC ${DEFORM_LIB_SRCS})
-else ()
-    add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 endif ()
+
+add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 
 if (DF_ENABLE_NVTOOLSEXT)
     target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})
     target_include_directories(deform_lib PUBLIC ${NvToolsExt_INCLUDE_DIRS})
 endif()
 
-target_include_directories(deform_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CUDA_INCLUDE_DIRS})
+target_include_directories(deform_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+    )
 target_link_libraries(deform_lib stk yaml-cpp gco)
 
 if(DF_USE_ISPC)
