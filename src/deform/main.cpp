@@ -134,7 +134,6 @@ int run_registration(int argc, char* argv[])
     std::optional<stk::Volume> initial_displacement;
     if (!init_deform_file.empty()) {
         initial_displacement = stk::read_volume(init_deform_file.c_str());
-        LOG(Info) << "Initial displacement: '" << init_deform_file << "'";
     }
 
     std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
