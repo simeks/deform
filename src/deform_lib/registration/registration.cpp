@@ -8,6 +8,11 @@
 #include <deform_lib/registration/transform.h>
 #include <deform_lib/registration/volume_pyramid.h>
 
+#ifdef DF_USE_CUDA
+    #include <deform_lib/registration/gpu_registration_engine.h>
+#endif
+
+
 #include <stk/common/assert.h>
 #include <stk/common/log.h>
 #include <stk/filters/normalize.h>
@@ -71,6 +76,7 @@ static void validate_volume_properties(
     }
 }
 
+template<typename TEngine>
 stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
@@ -80,8 +86,8 @@ stk::Volume registration(
         const std::optional<stk::Volume> initial_deformation,
         const std::optional<stk::Volume> constraint_mask,
         const std::optional<stk::Volume> constraint_values,
-        const int num_threads = 0
-        )
+        const int num_threads
+)
 {
     LOG(Info) << "Running registration";
 
@@ -208,4 +214,51 @@ stk::Volume registration(
     LOG(Info) << "Registration completed in " << elapsed / 60 << ":" << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
 
     return def;
+}
+
+stk::Volume registration(
+        const Settings& settings,
+        std::vector<stk::Volume>& fixed_volumes,
+        std::vector<stk::Volume>& moving_volumes,
+        const std::optional<std::vector<float3>> fixed_landmarks,
+        const std::optional<std::vector<float3>> moving_landmarks,
+        const std::optional<stk::Volume> initial_deformation,
+        const std::optional<stk::Volume> constraint_mask,
+        const std::optional<stk::Volume> constraint_values,
+        const int num_threads
+#ifdef DF_USE_CUDA
+        , bool use_gpu
+#endif
+        )
+{
+#ifdef DF_USE_CUDA
+    // TODO: Check cuda availability
+    if (use_gpu) {
+        return registration<GpuRegistrationEngine>(
+            settings,
+            fixed_volumes,
+            moving_volumes,
+            fixed_landmarks,
+            moving_landmarks,
+            initial_deformation,
+            constraint_mask,
+            constraint_values,
+            num_threads
+        );
+    }else{
+#endif
+        return registration<RegistrationEngine>(
+            settings,
+            fixed_volumes,
+            moving_volumes,
+            fixed_landmarks,
+            moving_landmarks,
+            initial_deformation,
+            constraint_mask,
+            constraint_values,
+            num_threads
+        );
+#ifdef DF_USE_CUDA
+    }
+#endif
 }

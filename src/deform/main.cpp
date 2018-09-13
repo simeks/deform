@@ -89,6 +89,11 @@ int run_registration(int argc, char* argv[])
     args.add_group();
     args.add_option("num_threads", "--num-threads", "Maximum number of threads");
 
+#ifdef DF_USE_CUDA
+    args.add_group();
+    args.add_flag("use_gpu", "--gpu", "Enables GPU supported registration");
+#endif // DF_USE_CUDA
+
     if (!args.parse()) {
         return 1;
     }
@@ -175,17 +180,25 @@ int run_registration(int argc, char* argv[])
         return 1;
     }
 
+
     stk::Volume def;
-    try {
+    try { 
+#ifdef DF_USE_CUDA
+        bool use_gpu = args.is_set("use_gpu");
+#endif
         def = registration(settings,
-                           fixed_volumes,
-                           moving_volumes,
-                           fixed_landmarks,
-                           moving_landmarks,
-                           initial_displacement,
-                           constraint_mask,
-                           constraint_values,
-                           args.get<int>("num_threads", 0));
+                        fixed_volumes,
+                        moving_volumes,
+                        fixed_landmarks,
+                        moving_landmarks,
+                        initial_displacement,
+                        constraint_mask,
+                        constraint_values,
+                        args.get<int>("num_threads", 0)
+                    #ifdef DF_USE_CUDA
+                        , use_gpu
+                    #endif
+                        );
     }
     catch (ValidationError& e) {
         LOG(Error) << e.what();

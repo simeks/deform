@@ -24,4 +24,8 @@ stk::Volume registration(
         const std::optional<stk::Volume> initial_deformation,
         const std::optional<stk::Volume> constraint_mask,
         const std::optional<stk::Volume> constraint_values,
-        const int num_threads);
+        const int num_threads
+#ifdef DF_USE_CUDA
+        , bool use_gpu
+#endif
+);
