@@ -155,10 +155,8 @@ stk::Volume registration(
             }
         }
 
-        // It's the only available fn for now
-        auto downsample_fn = filters::downsample_volume_by_2;
 
-        engine.set_image_pair(static_cast<int>(i), fixed, moving, downsample_fn);
+        engine.set_image_pair(static_cast<int>(i), fixed, moving);
     }
 
     if (initial_deformation.has_value()) {
