@@ -595,7 +595,7 @@ stk::Volume RegistrationEngine::execute()
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
             #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-                filters::upsample_vectorfield(def, upsampled_dims, _deformation_pyramid.residual(l - 1)));
+                filters::upsample_vectorfield(def, upsampled_dims, _deformation_pyramid.residual(l - 1))
             #else
                 filters::upsample_vectorfield(def, upsampled_dims)
             #endif

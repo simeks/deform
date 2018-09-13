@@ -79,17 +79,20 @@ stk::Volume filters::downsample_vectorfield_by_2(const stk::Volume& field
     float unit_sigma = std::min(spacing.x, std::min(spacing.y, spacing.z));
     stk::Volume filtered = filters::gaussian_filter_3d(field, unit_sigma);
 
-    stk::Volume result = ::downsample_volume_by_2<float3>(filtered);
+    stk::VolumeFloat3 result = ::downsample_volume_by_2<float3>(filtered);
 
-    #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS    
-        stk::VolumeHelper<float3> tmp(field.size());
+    #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
+        dim3 old_dims = field.size();
+        stk::VolumeFloat3 src(field);
+        stk::VolumeFloat3 tmp(old_dims);
+        
     
         #pragma omp parallel for
         for (int z = 0; z < int(old_dims.z); ++z) {
             for (int y = 0; y < int(old_dims.y); ++y) {
                 for (int x = 0; x < int(old_dims.x); ++x) {
-                    tmp(x, y, z) = field(x, y, z) - 
-                        result.linear_at(scale*x, scale*y, scale*z, stk::Border_Replicate);
+                    tmp(x, y, z) = src(x, y, z) - 
+                        result.linear_at(0.5f*x, 0.5f*y, 0.5f*z, stk::Border_Replicate);
                 }
             }
         }
@@ -100,7 +103,7 @@ stk::Volume filters::downsample_vectorfield_by_2(const stk::Volume& field
 
 stk::Volume filters::upsample_vectorfield(const stk::Volume& vol, const dim3& new_dims
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-    , stk::Volume& residual
+    , const stk::Volume& residual
 #endif
 )
 {

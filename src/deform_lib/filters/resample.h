@@ -25,7 +25,7 @@ namespace filters
     /// residual : Passing an invalid Volume (simply Volume()) will behave the same as having a zero residual
     stk::Volume upsample_vectorfield(const stk::Volume& vol, const dim3& new_dims
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-        , stk::Volume& residual
+        , const stk::Volume& residual
 #endif
     );
 }

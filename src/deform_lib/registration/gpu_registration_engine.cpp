@@ -22,7 +22,7 @@ void GpuRegistrationEngine::set_initial_deformation(const stk::GpuVolume& def)
     ASSERT(def.voxel_type() == stk::Type_Float4);
     ASSERT(_settings.num_pyramid_levels);
     
-    _deformation_pyramid.build_from_base(def, filters::gpu::downsample_vectorfield_by_2);
+  //  _deformation_pyramid.build_from_base(def, filters::gpu::downsample_vectorfield_by_2);
 }
 void GpuRegistrationEngine::set_image_pair(
         int i, 
