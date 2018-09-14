@@ -182,9 +182,6 @@ int run_registration(int argc, char* argv[])
  
 #ifdef DF_USE_CUDA
     bool use_gpu = args.is_set("use_gpu");
-    if (use_gpu) {
-        LOG(Info) << "GPU registration enabled";
-    }
 #endif
 
     stk::Volume def;

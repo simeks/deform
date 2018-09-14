@@ -8,6 +8,8 @@
 
 #include <vector>
 
+class GpuBinaryFunction;
+class GpuUnaryFunction;
 class GpuRegistrationEngine
 {
 public:
@@ -37,6 +39,12 @@ public:
     stk::Volume execute();
     
 private:
+    /// Builds a unary function for the specified pyramid level
+    void build_unary_function(int level, GpuUnaryFunction& unary_fn);
+
+    /// Builds a binary function for the specified pyramid level
+    void build_binary_function(int level, GpuBinaryFunction& binary_fn);
+
     Settings _settings;
 
     std::vector<GpuVolumePyramid> _fixed_pyramids;

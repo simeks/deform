@@ -107,8 +107,9 @@ struct GpuCostFunction_NCC : public GpuSubFunction
     int _radius;
 };
 
-struct GpuUnaryFunction
+class GpuUnaryFunction
 {
+public:
     struct WeightedFunction {
         float weight;
         std::unique_ptr<GpuSubFunction> function;
@@ -116,14 +117,27 @@ struct GpuUnaryFunction
 
     // TODO: Weights, regularization term, etc
 
-    GpuUnaryFunction() {}
+    GpuUnaryFunction() : _regularization_weight(0.0f) {}
     ~GpuUnaryFunction() {}
 
-    void operator()(const stk::GpuVolume& df, stk::GpuVolume& cost_acc)
+    void set_regularization_weight(float weight)
     {
-        for (auto& fn : _functions) {
-            fn.function->cost(df, cost_acc);
-        }
+        _regularization_weight = weight;
+    }
+    
+    // cost_acc : Cost accumulator for unary term. float2 with f0 and f1.
+    void operator()(
+        const int3& offset,
+        const int3& dims,
+        const float3& delta, 
+        const stk::GpuVolume& df,
+        stk::GpuVolume& cost_acc,
+        stk::cuda::Stream stream
+    )
+    {
+        // for (auto& fn : _functions) {
+        //     fn.function->cost(df, cost_acc);
+        // }
         // TODO: Maybe applying regularization as a separate pass?
         //       Would make sense for regularization weight maps.
     }
@@ -133,13 +147,26 @@ struct GpuUnaryFunction
         _functions.push_back({weight, std::move(fn)});
     }
 
+private:
+    float _regularization_weight;
+
     std::vector<WeightedFunction> _functions;
 };
 
-struct GpuBinaryFunction
+class GpuBinaryFunction
 {
-    GpuBinaryFunction() {}
+public:
+    GpuBinaryFunction() : _weight(0.0f), _spacing{0} {}
     ~GpuBinaryFunction() {}
+
+    void set_regularization_weight(float weight)
+    {
+        _weight = weight;
+    }
+    void set_fixed_spacing(const float3& spacing)
+    {
+        _spacing = spacing;
+    }
 
     // Sets the initial displacement for this registration level. This will be
     //  the reference when computing the regularization energy. Any displacement 
@@ -150,10 +177,26 @@ struct GpuBinaryFunction
         _initial = initial;
     }
 
-    void operator()(const stk::GpuVolume& df, stk::GpuVolume& cost_acc)
+    // cost_x, cost_y, cost_z : float4 volumes holding the binary cost in
+    //                          positive directions (x,y,z). Each element holds
+    //                          {f00, f01, f10, f11}
+    void operator()(
+        const int3& offset,
+        const int3& dims,
+        const float3& delta,
+        const stk::GpuVolume& df, 
+        stk::GpuVolume& cost_x,
+        stk::GpuVolume& cost_y,
+        stk::GpuVolume& cost_z,   
+        stk::cuda::Stream stream
+    )
     {
         gpu::run_regularizer_kernel(df, _initial, cost_acc);
     }
+
+private:
+    float _weight;
+    float3 _spacing;
 
     stk::GpuVolume _initial;
 };

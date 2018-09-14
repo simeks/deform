@@ -34,6 +34,73 @@ namespace {
     }
 }
 
+void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& unary_fn)
+{
+    ASSERT(_fixed_landmarks.size() == 0 && _moving_landmarks.size() == 0);
+    ASSERT(!_constraints_mask_pyramid.volume(level).valid());
+
+    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+        stk::GpuVolume fixed;
+        stk::GpuVolume moving;
+
+        ASSERT(fixed.voxel_type() == stk::Type_Float);
+        ASSERT(moving.voxel_type() == stk::Type_Float);
+
+        if (_fixed_pyramids[i].levels() > 0)
+            fixed = _fixed_pyramids[i].volume(level);
+        if (_moving_pyramids[i].levels() > 0)
+            moving = _moving_pyramids[i].volume(level);
+
+        if (!fixed.valid() || !moving.valid())
+            continue; // Skip empty slots
+
+        ASSERT(fixed.voxel_type() == moving.voxel_type());
+        for (auto& fn : _settings.image_slots[i].cost_functions) {
+            if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
+                if (!fn.parameters.empty()) {
+                    throw std::invalid_argument("[GPU] SSDFunction: unrecognised parameter "
+                                                "'" + fn.parameters.begin()->first + "' with value '" 
+                                                + fn.parameters.begin()->second + "'");
+                }
+
+                unary_fn.add_function(
+                    std::make_unique<GpuCostFunction_SSD>(fixed, moving),
+                    fn.weight
+                );
+            }
+            else if (Settings::ImageSlot::CostFunction_NCC == fn.function) {
+                int radius = 2;
+
+                for (const auto& [k, v] : fn.parameters) {
+                    if (k == "radius") {
+                        radius = str_to_num<int>("NCCFunction", k, v);
+                    }
+                    else {
+                        throw std::invalid_argument("[GPU] NCCFunction: unrecognised parameter "
+                                                    "'" + k + "' with value '" + v + "'");
+                    }
+                }
+
+                unary_fn.add_function(
+                    std::make_unique<GpuCostFunction_NCC>(fixed, moving, radius),
+                    fn.weight
+                );
+            }
+            else {
+                FATAL() << "[GPU] Unsupported cost function (slot: " << i << ")";
+            }
+        }
+    }
+}
+void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& binary_fn)
+{
+    binary_fn.set_fixed_spacing(_fixed_pyramids[0].volume(level).spacing());
+    binary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
+
+    // Clone the def, because the current copy will be changed when executing the optimizer
+    binary_fn.set_initial_displacement(_deformation_pyramid.volume(level).clone());
+}
+
 GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
     _settings(settings)
 {
@@ -63,7 +130,10 @@ void GpuRegistrationEngine::set_image_pair(
         const stk::Volume& moving)
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
-    
+    FATAL_IF(fixed.voxel_type() != stk::Type_Float || 
+             moving.voxel_type() == stk::Type_Float)
+        << "Unsupported format";
+
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     
@@ -104,6 +174,8 @@ void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,
 
 stk::Volume GpuRegistrationEngine::execute()
 {
+    LOG(Info) << "Running GPU supported registration";
+
     if (!_deformation_pyramid.volume(0).valid()) {
         // No initial deformation, create a field with all zeros
         
@@ -124,22 +196,12 @@ stk::Volume GpuRegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            UnaryFunction unary_fn;
+            GpuUnaryFunction unary_fn;
             build_unary_function(l, unary_fn);
 
-            Regularizer binary_fn;
+            GpuBinaryFunction binary_fn;
             build_regularizer(l, binary_fn);
 
-            if (_constraints_mask_pyramid.volume(l).valid())
-            {
-                // Fix constrained voxels by updating the initial deformation field
-                constrain_deformation_field(
-                    def,
-                    _constraints_mask_pyramid.volume(l),
-                    _constraints_pyramid.volume(l)
-                );
-            }
-            
             BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
                 _settings.levels[l].block_size,
                 _settings.levels[l].block_energy_epsilon,
@@ -155,7 +217,7 @@ stk::Volume GpuRegistrationEngine::execute()
         if (l != 0) {
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
-                filters::upsample_vectorfield(def, upsampled_dims)
+                filters::gpu::upsample_vectorfield(def, upsampled_dims)
             );
 
         }
@@ -164,7 +226,5 @@ stk::Volume GpuRegistrationEngine::execute()
         }
     }
 
-
-    stk::Volume out = volume_float4_to_float3(_deformation_pyramid.volume(0).download());
-    return out;
+    return volume_float4_to_float3(_deformation_pyramid.volume(0).download());
 }
