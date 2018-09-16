@@ -1,6 +1,11 @@
 #pragma once
 
+#include <stk/image/gpu_volume.h>
+#include <stk/image/volume.h>
+
 #include "settings.h"
+
+#include <deque>
 
 class GpuBinaryFunction;
 class GpuUnaryFunction;
@@ -17,16 +22,14 @@ public:
         const Settings::Level& settings,
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
-        const float3& step_size,
         stk::GpuVolume& df
     );
 
 private:
     struct Block
     {
-        int3 idx;
-        int3 dims;
-        int3 offset;
+        int3 begin;
+        int3 end;
     };
 
     // Allocates CPU and GPU buffers for the costs
@@ -39,12 +42,33 @@ private:
     void enqueue_block(const Block& block);
 
     // Dispatches all queues block
-    void dispatch_blocks(
+    // Returns the number of changed blocks
+    size_t dispatch_blocks(
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
-        const float3& delta
+        const float3& delta,
+        double energy_epsilon,
+        stk::GpuVolume& df
     );
 
+    // Performs graph cut on block
+    // Returns true if block was changed
+    bool minimize_block(const Block& block, double energy_epsilon);
+    
+    // Applies delta based on labels in _gpu_labels.
+    void apply_displacement_delta(
+        const float3& delta,
+        stk::GpuVolume& df,
+        stk::cuda::Stream& stream
+    );
+
+    void download_subvolume(
+        const stk::GpuVolume& src, 
+        stk::Volume& tgt, 
+        const Block& block,
+        bool pad, // Pad all axes by 1 in negative direction for binary cost
+        stk::cuda::Stream& stream
+    );
 
     stk::VolumeFloat2 _unary_cost;
     stk::GpuVolume _gpu_unary_cost;
@@ -66,4 +90,5 @@ private:
     // Blocks awaiting minimization
     std::deque<Block> _minimize_queue;
 
+    int3 _neighbors[6];
 };

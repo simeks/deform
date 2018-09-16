@@ -6,10 +6,23 @@
 #include <stk/image/gpu_volume.h>
 
 namespace {
+    // TODO: Duplicate from registration_engine.cpp
+    template<typename T>
+    static T str_to_num(const std::string& f, const std::string& k, const std::string& v) {
+        try {
+            return static_cast<T>(std::stod(v));
+        }
+        catch (std::invalid_argument&) {
+            throw std::invalid_argument(f + ": unrecognised value "
+                                        "'" + v + "' for parameter '" + k + "'");
+        }
+    }
+
     stk::VolumeFloat4 volume_float3_to_float4(const stk::VolumeFloat3& df)
     {
         dim3 dims = df.size();
         stk::VolumeFloat4 out(dims);
+        out.copy_meta_from(df);
 
         for (int z = 0; z < (int)dims.z; ++z) {
         for (int y = 0; y < (int)dims.y; ++y) {
@@ -23,6 +36,7 @@ namespace {
     {
         dim3 dims = df.size();
         stk::VolumeFloat3 out(dims);
+        out.copy_meta_from(df);
 
         for (int z = 0; z < (int)dims.z; ++z) {
         for (int y = 0; y < (int)dims.y; ++y) {
@@ -36,15 +50,11 @@ namespace {
 
 void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& unary_fn)
 {
-    ASSERT(_fixed_landmarks.size() == 0 && _moving_landmarks.size() == 0);
-    ASSERT(!_constraints_mask_pyramid.volume(level).valid());
+    unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         stk::GpuVolume fixed;
         stk::GpuVolume moving;
-
-        ASSERT(fixed.voxel_type() == stk::Type_Float);
-        ASSERT(moving.voxel_type() == stk::Type_Float);
 
         if (_fixed_pyramids[i].levels() > 0)
             fixed = _fixed_pyramids[i].volume(level);
@@ -53,6 +63,9 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
 
         if (!fixed.valid() || !moving.valid())
             continue; // Skip empty slots
+
+        ASSERT(fixed.voxel_type() == stk::Type_Float);
+        ASSERT(moving.voxel_type() == stk::Type_Float);
 
         ASSERT(fixed.voxel_type() == moving.voxel_type());
         for (auto& fn : _settings.image_slots[i].cost_functions) {
@@ -116,11 +129,15 @@ GpuRegistrationEngine::~GpuRegistrationEngine()
 void GpuRegistrationEngine::set_initial_deformation(const stk::Volume& def)
 {
     // GPU prefers float4 over float3
-    ASSERT(def.voxel_type() == stk::Type_Float4);
+    ASSERT(def.voxel_type() == stk::Type_Float4 || def.voxel_type() == stk::Type_Float3);
     ASSERT(_settings.num_pyramid_levels);
     
     // Upload
-    stk::GpuVolume gpu_def(volume_float3_to_float4(def));
+    stk::GpuVolume gpu_def;
+    if (def.voxel_type() == stk::Type_Float3)
+        gpu_def = volume_float3_to_float4(def);
+    else
+        gpu_def = def;
 
     _deformation_pyramid.build_from_base(gpu_def, filters::gpu::downsample_vectorfield_by_2);
 }
@@ -131,7 +148,7 @@ void GpuRegistrationEngine::set_image_pair(
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
     FATAL_IF(fixed.voxel_type() != stk::Type_Float || 
-             moving.voxel_type() == stk::Type_Float)
+             moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
 
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
@@ -186,8 +203,7 @@ stk::Volume GpuRegistrationEngine::execute()
         initial.set_origin(base.origin());
         initial.set_spacing(base.spacing());
         
-        stk::GpuVolume gpu_initial(initial);
-        set_initial_deformation(gpu_initial);
+        set_initial_deformation(initial);
     }
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
@@ -200,15 +216,9 @@ stk::Volume GpuRegistrationEngine::execute()
             build_unary_function(l, unary_fn);
 
             GpuBinaryFunction binary_fn;
-            build_regularizer(l, binary_fn);
+            build_binary_function(l, binary_fn);
 
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.levels[l].block_size,
-                _settings.levels[l].block_energy_epsilon,
-                _settings.levels[l].max_iteration_count
-            );
-
-            optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            _optimizer.execute(_settings.levels[l], unary_fn, binary_fn, df);
         }
         else {
             LOG(Info) << "Skipping level " << l;
@@ -217,12 +227,12 @@ stk::Volume GpuRegistrationEngine::execute()
         if (l != 0) {
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
-                filters::gpu::upsample_vectorfield(def, upsampled_dims)
+                filters::gpu::upsample_vectorfield(df, upsampled_dims)
             );
 
         }
         else {
-            _deformation_pyramid.set_volume(0, def);
+            _deformation_pyramid.set_volume(0, df);
         }
     }
 

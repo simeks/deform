@@ -3,6 +3,7 @@
 #include "../config.h"
 #include "settings.h"
 #include "gpu_volume_pyramid.h"
+#include "hybrid_graph_cut_optimizer.h"
 
 #include <stk/image/volume.h>
 
@@ -51,4 +52,5 @@ private:
     std::vector<GpuVolumePyramid> _moving_pyramids;
     GpuVolumePyramid _deformation_pyramid;
 
+    HybridGraphCutOptimizer _optimizer;
 };
