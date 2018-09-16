@@ -97,7 +97,7 @@ stk::Volume registration(
     }
 
     print_registration_settings(settings);
-    RegistrationEngine engine(settings);
+    TEngine engine(settings);
 
     // Rules:
     // * All volumes for the same subject (i.e. fixed or moving) must have the
