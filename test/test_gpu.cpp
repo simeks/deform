@@ -13,6 +13,7 @@
 
 #include <stk/image/gpu_volume.h>
 #include <stk/image/volume.h>
+#include <stk/io/io.h>
 
 TEST_CASE("gpu_gaussian_filter", "")
 {
@@ -23,20 +24,20 @@ TEST_CASE("gpu_gaussian_filter", "")
     for (int x = 0; x < (int)src.size().x; ++x) {
         
         int r = (x-7)*(x-7) + (y-7)*(y-7) + (z-7)*(z-7);
-        if (r < 6) {
+        if (r < 8*8) {
             src(x,y,z) = 1.0f;
         }
         else {
             src(x,y,z) = 0.0f;            
         }
     }
-
+    
     // Use CPU-version as ground truth
     stk::VolumeFloat out = filters::gaussian_filter_3d(src, 2.5f);
 
     stk::GpuVolume gpu_src(src);
     stk::VolumeFloat gpu_out = filters::gpu::gaussian_filter_3d(gpu_src, 2.5f).download();
-    
+
     CHECK(gpu_out.spacing().x == Approx(out.spacing().x));
     CHECK(gpu_out.spacing().y == Approx(out.spacing().y));
     CHECK(gpu_out.spacing().z == Approx(out.spacing().z));
@@ -61,7 +62,7 @@ TEST_CASE("gpu_downsample_gaussian", "")
     for (int x = 0; x < (int)src.size().x; ++x) {
         
         int r = (x-7)*(x-7) + (y-7)*(y-7) + (z-7)*(z-7);
-        if (r < 6) {
+        if (r < 8*8) {
             src(x,y,z) = 10.0f;
         }
         else {
