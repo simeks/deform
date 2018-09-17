@@ -110,7 +110,7 @@ __global__ void regularizer_kernel(
      // Compute cost at block border
     
      if (x == 0 && gx != 0) {
-         float4 dx = {df(gx-1,gy,gz).x, df(gx-1,gy,gz).y, df(gx-1,gy,gz).z};
+        float4 dx = df(gx-1, gy, gz) - initial_df(gx-1, gy, gz);
         
          float4 diff_00 = d - dx;
          float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
@@ -125,7 +125,7 @@ __global__ void regularizer_kernel(
      }
     
      if (y == 0 && gy != 0) {
-         float4 dy = {df(gx,gy-1,gz).x, df(gx,gy-1,gz).y, df(gx,gy-1,gz).z};
+        float4 dy = df(gx, gy-1, gz) - initial_df(gx, gy-1, gz);
         
          float4 diff_00 = d - dy;
          float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
@@ -140,7 +140,7 @@ __global__ void regularizer_kernel(
      }
 
      if (z == 0 && gz != 0) {
-         float4 dz = {df(gx,gy,gz-1).x, df(gx,gy,gz-1).y, df(gx,gy,gz-1).z};
+        float4 dz = df(gx, gy, gz-1) - initial_df(gx, gy, gz-1);
         
          float4 diff_00 = d - dz;
          float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;

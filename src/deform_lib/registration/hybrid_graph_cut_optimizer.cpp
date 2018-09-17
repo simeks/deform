@@ -283,13 +283,15 @@ size_t HybridGraphCutOptimizer::dispatch_blocks(
     }
 
     size_t num_blocks_changed = 0;
-    while (!_minimize_queue.empty()) {
-        Block block = _minimize_queue.front();
-        _minimize_queue.pop_front();
+    #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
+    for (int i = 0; i < _minimize_queue.size(); ++i) {
+        Block block = _minimize_queue[i];
+        //_minimize_queue.pop_front();
 
         bool changed = minimize_block(block, energy_epsilon);
         num_blocks_changed += changed ? 1 : 0;
     }
+    _minimize_queue.clear();
 
     _gpu_labels.upload(_labels);
 
