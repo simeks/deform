@@ -87,7 +87,7 @@ stk::GpuVolume shrink_volume_by_2(const stk::GpuVolume& src)
     };
     dest.set_spacing(new_spacing);
 
-    dim3 block_size{8,8,1};
+    dim3 block_size{32,32,1};
     dim3 grid_size {
         (new_dims.x + block_size.x - 1) / block_size.x,
         (new_dims.y + block_size.y - 1) / block_size.y,
