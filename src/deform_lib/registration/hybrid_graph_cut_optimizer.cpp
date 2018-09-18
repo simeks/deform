@@ -58,8 +58,11 @@ void HybridGraphCutOptimizer::execute(
     while (!done) {
         PROFILER_SCOPE("iteration", 0xFF39842A);
 
-        done = true;
+        // A max_iteration_count of -1 means we run until we converge
+        if (settings.max_iteration_count != -1 && num_iterations >= settings.max_iteration_count)
+            break;
         
+        done = true;
         size_t num_blocks_changed = 0;
 
         for (int use_shift = 0; use_shift < 2; ++use_shift) {
@@ -163,10 +166,6 @@ void HybridGraphCutOptimizer::execute(
 
         ++num_iterations;
 
-        // A max_iteration_count of -1 means we run until we converge
-        if (settings.max_iteration_count != -1 && num_iterations >= settings.max_iteration_count)
-            break;
-        
         PROFILER_FLIP();
     }
     LOG(Info) << "Energy: " << /*calculate_energy(unary_fn, binary_fn, def)*/ "TODO" 

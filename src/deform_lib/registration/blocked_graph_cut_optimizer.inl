@@ -66,6 +66,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     bool done = false;
     while (!done) {
+        // A max_iteration_count of -1 means we run until we converge
+        if (_max_iteration_count != -1 && num_iterations >= _max_iteration_count)
+            break;
+        
         unary_fn.pre_iteration_hook(num_iterations, def);
 
         done = true;
@@ -167,10 +171,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         ++num_iterations;
 
-        // A max_iteration_count of -1 means we run until we converge
-        if (_max_iteration_count != -1 && num_iterations >= _max_iteration_count)
-            break;
-        
         PROFILER_FLIP();
     }
     LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) 
