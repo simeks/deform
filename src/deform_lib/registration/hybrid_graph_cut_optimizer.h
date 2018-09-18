@@ -70,6 +70,13 @@ private:
         stk::cuda::Stream& stream
     );
 
+    // Calculates the energy sum for the given displacement field
+    double calculate_energy(
+        GpuUnaryFunction& unary_fn,
+        GpuBinaryFunction& binary_fn,
+        stk::GpuVolume& df
+    );
+
     stk::VolumeFloat2 _unary_cost;
     stk::GpuVolume _gpu_unary_cost;
     

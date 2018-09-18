@@ -52,7 +52,7 @@ void HybridGraphCutOptimizer::execute(
     BlockChangeFlags change_flags(block_count);
 
     int num_iterations = 0;
-    //LOG(Info) << "Initial Energy: " << calculate_energy(unary_fn, binary_fn, def);
+    LOG(Info) << "Initial Energy: " << calculate_energy(unary_fn, binary_fn, df);
 
     bool done = false;
     while (!done) {
@@ -168,7 +168,7 @@ void HybridGraphCutOptimizer::execute(
 
         PROFILER_FLIP();
     }
-    LOG(Info) << "Energy: " << /*calculate_energy(unary_fn, binary_fn, def)*/ "TODO" 
+    LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, df)
         << ", Iterations: " << num_iterations;
 }
 void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
