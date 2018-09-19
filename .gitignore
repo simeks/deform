@@ -1,5 +1,6 @@
 build/
 build_debug/
+build_vs/
 bin/
 .vs/
 .vscode/
