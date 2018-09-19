@@ -64,10 +64,7 @@ __global__ void regularizer_kernel(
             o_x.y = dist2_01;
             o_x.z = dist2_10;
             o_x.w = dist2_00; // E11 same as E00
-            
-            if (gx == 7 && gy == 9 && gz == 0) {
             }
-        }
         if (gy + 1 < df_dims.y) {
             float4 dy = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
 
@@ -247,21 +244,6 @@ __global__ void ncc_kernel(
     float3 moving_p0 = (world_p + d0 - moving_origin) * inv_moving_spacing; 
     float3 moving_p1 = (world_p + d1 - moving_origin) * inv_moving_spacing; 
     
-    // [Filip]: Addition for partial-body registrations
-    if (moving_p0.x < 0 || moving_p0.x > moving_dims.x || 
-        moving_p0.y < 0 || moving_p0.y > moving_dims.y || 
-        moving_p0.z < 0 || moving_p0.z > moving_dims.z) {
-        // Does not affect the cost accumulator
-        return;
-    }
-    if (moving_p1.x < 0 || moving_p1.x > moving_dims.x || 
-        moving_p1.y < 0 || moving_p1.y > moving_dims.y || 
-        moving_p1.z < 0 || moving_p1.z > moving_dims.z) {
-        // Does not affect the cost accumulator
-        return;
-    }
-
-
     float sff = 0.0f;
     float sf = 0.0f;
     
@@ -320,20 +302,29 @@ __global__ void ncc_kernel(
 
     // Subtract mean
     sff -= (sf * sf / n);
-
     smm0 -= (sm0 * sm0 / n);
     sfm0 -= (sf * sm0 / n);
-    
     smm1 -= (sm1 * sm1 / n);
     sfm1 -= (sf * sm1 / n);
     
-    float denom0 = sqrt(sff*smm0);
     float denom1 = sqrt(sff*smm1);
+    float denom0 = sqrt(sff*smm0);
 
-    if (denom0 > 1e-14) {
+    // Set cost to zero if outside moving volume
+    
+    if (moving_p0.x >= 0 && moving_p0.x < moving_dims.x &&
+        moving_p0.y >= 0 && moving_p0.y < moving_dims.y &&
+        moving_p0.z >= 0 && moving_p0.z < moving_dims.z &&
+        denom0 > 1e-14)
+    {
         cost_acc(x,y,z).x += weight * 0.5f * (1.0f-float(sfm0 / denom0));
     }
-    if (denom1 > 1e-14) {
+
+    if (moving_p1.x >= 0 && moving_p1.x < moving_dims.x &&
+        moving_p1.y >= 0 && moving_p1.y < moving_dims.y &&
+        moving_p1.z >= 0 && moving_p1.z < moving_dims.z &&
+        denom1 > 1e-14)
+    {
         cost_acc(x,y,z).y += weight * 0.5f * (1.0f-float(sfm1 / denom1));
     }
 }

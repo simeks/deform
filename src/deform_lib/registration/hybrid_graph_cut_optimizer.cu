@@ -55,7 +55,7 @@ __global__ void reduce_total_energy(
     cuda::VolumePtr<float2> unary_term,
     cuda::VolumePtr<float4> binary_term_x, // Regularization cost in x+
     cuda::VolumePtr<float4> binary_term_y, // y+
-    cuda::VolumePtr<float4> binary_term_z,  // z+
+    cuda::VolumePtr<float4> binary_term_z, // z+
     dim3 dims,
     float* out
 )
@@ -117,6 +117,8 @@ double HybridGraphCutOptimizer::calculate_energy(
     stk::GpuVolume& df
 )
 {
+    reset_unary_cost();
+
     dim3 dims = _gpu_unary_cost.size();
     int3 begin {0, 0, 0};
     int3 end {(int)dims.x, (int)dims.y, (int)dims.z};
@@ -167,7 +169,7 @@ double HybridGraphCutOptimizer::calculate_energy(
 
     // TODO: Perform all reduction on GPU
     double total_energy = 0;
-    for (int i = 0; i < n_blocks; ++i) {
+    for (int i = 0; i < (int)n_blocks; ++i) {
         total_energy += block_sum[i];
     }
 

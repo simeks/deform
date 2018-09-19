@@ -7,7 +7,6 @@
 
 #include <stk/cuda/stream.h>
 #include <stk/image/gpu_volume.h>
-#include <stk/io/io.h>
 
 HybridGraphCutOptimizer::HybridGraphCutOptimizer()
 {
@@ -90,9 +89,10 @@ void HybridGraphCutOptimizer::execute(
                     real_block_count.z += 1;
             }
             
-            for (int black_or_red = 0; black_or_red < 2; black_or_red++) {
-                PROFILER_SCOPE("red_black", 0xFF339955);
+            // Only do red-black when having more than 1 block
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
+            for (int black_or_red = 0; black_or_red < (num_blocks > 1 ? 2 : 1); black_or_red++) {
+                PROFILER_SCOPE("red_black", 0xFF339955);
                 
                 const int n_count = 6; // Neighbors
                 for (int n = 0; n < n_count; ++n) {
@@ -210,6 +210,8 @@ size_t HybridGraphCutOptimizer::dispatch_blocks(
     stk::GpuVolume& df
 )
 {
+    // Unary cost volumes are used as accumulators, compared to binary cost which are not. 
+    //  Therefore we need to reset them between each iteration.  
     reset_unary_cost();
 
     _labels.fill(0);
@@ -419,9 +421,9 @@ bool HybridGraphCutOptimizer::minimize_block(const Block& block, double energy_e
     if (1.0 - current_emin / current_energy > energy_epsilon) // Accept solution
     {
         PROFILER_SCOPE("apply", 0xFF767323);
-        for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
-            for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
-                for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
+        for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
+            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
                     // Global coordinates
                     int gx = block.begin.x + sub_x;
                     int gy = block.begin.y + sub_y;
@@ -435,8 +437,8 @@ bool HybridGraphCutOptimizer::minimize_block(const Block& block, double energy_e
                         continue;
                     }
 
-                    _labels(gx,gy,gz) = (uint8_t)graph.get_var(sub_x, sub_y, sub_z);
-                    if (_labels(gx,gy,gz) == 1) {
+                    if (graph.get_var(sub_x, sub_y, sub_z) == 1) {
+                        _labels(gx,gy,gz) = 1;
                         changed_flag = true;
                     }
                 }
