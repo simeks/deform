@@ -8,7 +8,7 @@
 class BlockChangeFlags
 {
 public:
-    BlockChangeFlags(const int3& block_count);
+    BlockChangeFlags(const int3& block_count = {0,0,0});
 
     bool is_block_set(const int3& block_p, bool shift) const;
     void set_block(const int3& block_p, bool changed, bool shift);

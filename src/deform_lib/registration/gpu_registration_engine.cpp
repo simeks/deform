@@ -1,9 +1,13 @@
 #include "gpu_registration_engine.h"
 #include "gpu/cost_function.h"
+#include "hybrid_graph_cut_optimizer.h"
 
 #include "../filters/gpu/resample.h"
 
+#include <stk/cuda/stream.h>
 #include <stk/image/gpu_volume.h>
+
+#include <omp.h>
 
 namespace {
     // TODO: Duplicate from registration_engine.cpp
@@ -115,12 +119,16 @@ void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& 
 }
 
 GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
-    _settings(settings)
+    _settings(settings),
+    _worker_pool(omp_get_max_threads()-1) // Consider main thread as a worker
 {
     _fixed_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
     _moving_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
 
     _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
+
+    // Create CUDA streams
+    _stream_pool.resize(4);
 }
 GpuRegistrationEngine::~GpuRegistrationEngine()
 {
@@ -218,7 +226,16 @@ stk::Volume GpuRegistrationEngine::execute()
             GpuBinaryFunction binary_fn;
             build_binary_function(l, binary_fn);
 
-            _optimizer.execute(_settings.levels[l], unary_fn, binary_fn, df);
+            HybridGraphCutOptimizer optimizer(
+                _settings.levels[l],
+                unary_fn,
+                binary_fn,
+                df,
+                _worker_pool,
+                _stream_pool
+            );
+            
+            optimizer.execute();
         }
         else {
             LOG(Info) << "Skipping level " << l;

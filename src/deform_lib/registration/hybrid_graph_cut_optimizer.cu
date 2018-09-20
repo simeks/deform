@@ -28,13 +28,9 @@ __global__ void apply_displacement_delta_kernel(
     df(x,y,z) = df(x,y,z) + delta * labels(x,y,z);
 }
 
-void HybridGraphCutOptimizer::apply_displacement_delta(
-    const float3& delta,
-    stk::GpuVolume& df,
-    cuda::Stream& stream
-)
+void HybridGraphCutOptimizer::apply_displacement_delta(cuda::Stream stream)
 {
-    dim3 dims = df.size();
+    dim3 dims = _df.size();
     dim3 block_size {32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
@@ -43,10 +39,10 @@ void HybridGraphCutOptimizer::apply_displacement_delta(
     };
 
     apply_displacement_delta_kernel<<<grid_size, block_size, 0, stream>>>(
-        df, 
+        _df, 
         _gpu_labels, 
         dims, 
-        float4{delta.x, delta.y, delta.z, 0.0f}
+        float4{_current_delta.x, _current_delta.y, _current_delta.z, 0.0f}
     );
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
 }
@@ -111,11 +107,7 @@ __global__ void reduce_total_energy(
     #undef REDUCTION_STEP
 }
 
-double HybridGraphCutOptimizer::calculate_energy(
-    GpuUnaryFunction& unary_fn,
-    GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df
-)
+double HybridGraphCutOptimizer::calculate_energy()
 {
     reset_unary_cost();
 
@@ -124,11 +116,11 @@ double HybridGraphCutOptimizer::calculate_energy(
     int3 end {(int)dims.x, (int)dims.y, (int)dims.z};
 
     cuda::Stream& stream = stk::cuda::Stream::null();
-    unary_fn(df, {0,0,0}, begin, end, _gpu_unary_cost, stream);
+    _unary_fn(_df, {0,0,0}, begin, end, _gpu_unary_cost, stream);
     
     // Compute binary terms
-    binary_fn(
-        df,
+    _binary_fn(
+        _df,
         {0, 0, 0},
         begin,
         end,

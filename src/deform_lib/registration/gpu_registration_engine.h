@@ -3,11 +3,15 @@
 #include "../config.h"
 #include "settings.h"
 #include "gpu_volume_pyramid.h"
-#include "hybrid_graph_cut_optimizer.h"
+#include "worker_pool.h"
 
 #include <stk/image/volume.h>
 
 #include <vector>
+
+namespace stk { namespace cuda {
+    class Stream;
+}}
 
 class GpuBinaryFunction;
 class GpuUnaryFunction;
@@ -52,5 +56,6 @@ private:
     std::vector<GpuVolumePyramid> _moving_pyramids;
     GpuVolumePyramid _deformation_pyramid;
 
-    HybridGraphCutOptimizer _optimizer;
+    WorkerPool _worker_pool;
+    std::vector<stk::cuda::Stream> _stream_pool;
 };

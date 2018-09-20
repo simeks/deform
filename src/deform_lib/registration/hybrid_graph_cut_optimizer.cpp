@@ -1,6 +1,7 @@
 #include "block_change_flags.h"
 #include "gpu/cost_function.h"
 #include "hybrid_graph_cut_optimizer.h"
+#include "worker_pool.h"
 
 #include "deform_lib/graph_cut/graph_cut.h"
 #include "deform_lib/profiler/profiler.h"
@@ -8,32 +9,47 @@
 #include <stk/cuda/stream.h>
 #include <stk/image/gpu_volume.h>
 
-HybridGraphCutOptimizer::HybridGraphCutOptimizer()
+namespace {
+    int _neighbor_count = 6;
+    int3 _neighbors[] = {
+        {1, 0, 0},
+        {-1, 0, 0},
+        {0, 1, 0},
+        {0, -1, 0},
+        {0, 0, 1},
+        {0, 0, -1}
+    };
+}
+
+HybridGraphCutOptimizer::HybridGraphCutOptimizer(
+    const Settings::Level& settings,
+    GpuUnaryFunction& unary_fn,
+    GpuBinaryFunction& binary_fn,
+    stk::GpuVolume& df,
+    WorkerPool& worker_pool,
+    std::vector<stk::cuda::Stream>& stream_pool) :
+    _settings(settings),
+    _worker_pool(worker_pool),
+    _stream_pool(stream_pool),
+    _unary_fn(unary_fn),
+    _binary_fn(binary_fn),
+    _df(df),
+    _current_delta{0}
 {
-    _neighbors[0] = {1, 0, 0};
-    _neighbors[1] = {-1, 0, 0};
-    _neighbors[2] = {0, 1, 0};
-    _neighbors[3] = {0, -1, 0};
-    _neighbors[4] = {0, 0, 1};
-    _neighbors[5] = {0, 0, -1};
+    allocate_cost_buffers(df.size());
 }
 HybridGraphCutOptimizer::~HybridGraphCutOptimizer()
 {
 }
 
-void HybridGraphCutOptimizer::execute(
-    const Settings::Level& settings,
-    GpuUnaryFunction& unary_fn,
-    GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df
-)
+void HybridGraphCutOptimizer::execute()
 {
-    dim3 dims = df.size();
+    PROFILER_SCOPE("execute", 0xFF532439);
 
-    allocate_cost_buffers(dims);
+    dim3 dims = _df.size();
 
     // Setting the block size to (0, 0, 0) will disable blocking and run the whole volume
-    int3 block_dims = settings.block_size;
+    int3 block_dims = _settings.block_size;
     if (block_dims.x == 0) block_dims.x = dims.x;
     if (block_dims.y == 0) block_dims.y = dims.y;
     if (block_dims.z == 0) block_dims.z = dims.z;
@@ -48,17 +64,17 @@ void HybridGraphCutOptimizer::execute(
     DLOG(Info) << "Block count: " << block_count;
     DLOG(Info) << "Block size: " << block_dims;
 
-    BlockChangeFlags change_flags(block_count);
+    _block_change_flags = BlockChangeFlags(block_count);
 
     int num_iterations = 0;
-    LOG(Info) << "Initial Energy: " << calculate_energy(unary_fn, binary_fn, df);
+    LOG(Info) << "Initial Energy: " << calculate_energy();
 
     bool done = false;
     while (!done) {
         PROFILER_SCOPE("iteration", 0xFF39842A);
 
         // A max_iteration_count of -1 means we run until we converge
-        if (settings.max_iteration_count != -1 && num_iterations >= settings.max_iteration_count)
+        if (_settings.max_iteration_count != -1 && num_iterations >= _settings.max_iteration_count)
             break;
         
         done = true;
@@ -99,10 +115,10 @@ void HybridGraphCutOptimizer::execute(
                     PROFILER_SCOPE("step", 0xFFAA6FE2);
 
                     // delta in [mm]
-                    float3 delta {
-                        settings.step_size.x * _neighbors[n].x,
-                        settings.step_size.y * _neighbors[n].y,
-                        settings.step_size.z * _neighbors[n].z
+                    _current_delta = {
+                        _settings.step_size.x * _neighbors[n].x,
+                        _settings.step_size.y * _neighbors[n].y,
+                        _settings.step_size.z * _neighbors[n].z
                     };
                     
                     // Queue all blocks
@@ -121,13 +137,13 @@ void HybridGraphCutOptimizer::execute(
 
                         int3 block_idx{block_x, block_y, block_z};
 
-                        bool need_update = change_flags.is_block_set(block_idx, use_shift == 1);
+                        bool need_update = _block_change_flags.is_block_set(block_idx, use_shift == 1);
                         for (int i = 0; i < n_count; ++i) {
                             int3 neighbor = block_idx + _neighbors[i];
                             if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
                                 0 <= neighbor.y && neighbor.y < real_block_count.y &&
                                 0 <= neighbor.z && neighbor.z < real_block_count.z) {
-                                need_update = need_update || change_flags.is_block_set(neighbor, use_shift == 1);
+                                need_update = need_update || _block_change_flags.is_block_set(neighbor, use_shift == 1);
                             }
                         }
 
@@ -142,6 +158,7 @@ void HybridGraphCutOptimizer::execute(
                         };
 
                         Block block;
+                        block.idx = block_idx;
                         block.begin = int3{
                             std::max<int>(0, offset.x),
                             std::max<int>(0, offset.y),
@@ -152,12 +169,11 @@ void HybridGraphCutOptimizer::execute(
                             std::min<int>(offset.y + block_dims.y, dims.y),
                             std::min<int>(offset.z + block_dims.z, dims.z)
                         };
+                        block.shift = use_shift == 1;
 
-                        enqueue_block(block);
+                        _block_queue.push_back(block);
                     }
-                    num_blocks_changed += dispatch_blocks(
-                        unary_fn, binary_fn, delta, settings.block_energy_epsilon, df
-                    );
+                    num_blocks_changed += dispatch_blocks();
                 }
             }
         }
@@ -168,15 +184,22 @@ void HybridGraphCutOptimizer::execute(
 
         PROFILER_FLIP();
     }
-    LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, df)
+    LOG(Info) << "Energy: " << calculate_energy()
         << ", Iterations: " << num_iterations;
 }
 void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
 {
-    _unary_cost = stk::VolumeFloat2(size, {0});
-    _binary_cost_x = stk::VolumeFloat4(size, {0});
-    _binary_cost_y = stk::VolumeFloat4(size, {0});
-    _binary_cost_z = stk::VolumeFloat4(size, {0});
+    _unary_cost = stk::Volume(size, stk::Type_Float2, nullptr, stk::Usage_Pinned);
+    _unary_cost.fill({0});
+
+    _binary_cost_x = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
+    _binary_cost_x.fill({0});
+
+    _binary_cost_y = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
+    _binary_cost_y.fill({0});
+
+    _binary_cost_z = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
+    _binary_cost_z.fill({0});
 
     _gpu_unary_cost = stk::GpuVolume(size, stk::Type_Float2);
     _gpu_binary_cost_x = stk::GpuVolume(size, stk::Type_Float4);
@@ -198,110 +221,179 @@ void HybridGraphCutOptimizer::reset_unary_cost()
     CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_unary_cost.pitched_ptr(), 0, extent));
 }
 
-void HybridGraphCutOptimizer::enqueue_block(const Block& block)
-{
-    _cost_queue.push_back(block);
-}
-size_t HybridGraphCutOptimizer::dispatch_blocks(
-    GpuUnaryFunction& unary_fn,
-    GpuBinaryFunction& binary_fn,
-    const float3& delta,
-    double energy_epsilon,
-    stk::GpuVolume& df
-)
+size_t HybridGraphCutOptimizer::dispatch_blocks()
 {
     // Unary cost volumes are used as accumulators, compared to binary cost which are not. 
     //  Therefore we need to reset them between each iteration.  
     reset_unary_cost();
 
+    // Reset labels
     _labels.fill(0);
-    
-    while(!_cost_queue.empty()) {
-        stk::cuda::Stream& stream = stk::cuda::Stream::null();
 
-        Block block = _cost_queue.front();
-        _cost_queue.pop_front();
+    // Reset change count
+    _num_blocks_changed = 0;
+    _num_blocks_remaining = _block_queue.size();
 
-        stream.synchronize();
+    for (int i = 0; i < _stream_pool.size(); ++i) {
+        stk::cuda::Stream stream = _stream_pool[i];
+        std::scoped_lock lock(_block_queue_lock);
+        if (!_block_queue.empty()) {
+            Block block = _block_queue.front();
+            _block_queue.pop_front();
 
-        int3 block_dims = block.end - block.begin;
-
-        // Compute unary terms for block
-        unary_fn(df, delta, block.begin, block_dims, _gpu_unary_cost, stream);
-        
-        // Download the unary terms for the block into the large unary term volume. 
-        download_subvolume(
-            _gpu_unary_cost, 
-            _unary_cost,
-            block,
-            false, // No padding for unary term
-            stream
-        );
-
-        // Compute binary terms
-        binary_fn(
-            df,
-            delta,
-            block.begin,
-            block_dims,
-            _gpu_binary_cost_x,
-            _gpu_binary_cost_y,
-            _gpu_binary_cost_z,
-            stream
-        );
-
-        // Download binary terms, since we're dependent on neighbouring terms at
-        //  block borders we make sure to download them as well by padding
-        //  negative directions by 1. This shouldn't affect the end results since
-        //  these blocks are disabled anyways because of the red-black ordering.
-        
-        download_subvolume(
-            _gpu_binary_cost_x, 
-            _binary_cost_x,
-            block,
-            true,
-            stream
-        );
-
-        download_subvolume(
-            _gpu_binary_cost_y, 
-            _binary_cost_y,
-            block,
-            true,
-            stream
-        );
-
-        download_subvolume(
-            _gpu_binary_cost_z, 
-            _binary_cost_z,
-            block,
-            true,
-            stream
-        );
-
-        stream.synchronize();
-        _minimize_queue.push_back(block);
+            _worker_pool.push_back([this, block, stream](){
+                this->block_cost_task(block, stream);
+            });
+        }
     }
 
-    size_t num_blocks_changed = 0;
-    #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
-    for (int i = 0; i < _minimize_queue.size(); ++i) {
-        Block block = _minimize_queue[i];
-        //_minimize_queue.pop_front();
-
-        bool changed = minimize_block(block, energy_epsilon);
-        num_blocks_changed += changed ? 1 : 0;
+    while (_num_blocks_remaining > 0) {
+        // Attempt to assist worker pool
+        auto task = _worker_pool.try_pop();
+        if (task)
+            (*task)();
+        else
+            std::this_thread::yield();
     }
-    _minimize_queue.clear();
 
-    _gpu_labels.upload(_labels);
+    {
+        PROFILER_SCOPE("apply", 0xFF532439);
+        _gpu_labels.upload(_labels);
+        apply_displacement_delta(stk::cuda::Stream::null());
+    }
 
-    apply_displacement_delta(delta, df, stk::cuda::Stream::null());
-
-    return num_blocks_changed;
+    return _num_blocks_changed;
 }
-bool HybridGraphCutOptimizer::minimize_block(const Block& block, double energy_epsilon)
+void HybridGraphCutOptimizer::dispatch_next_cost_block(stk::cuda::Stream stream)
 {
+    // Dispatch next cost block (if any)
+    std::scoped_lock lock(_block_queue_lock);
+
+    if (!_block_queue.empty()) {
+        Block block = _block_queue.front();
+        _block_queue.pop_front();
+
+        // Cost computation should take higher priority since the minimization is 
+        //  dependent on the result, so we push to the front of the queue.
+        _worker_pool.push_front([this, block, stream](){
+            this->block_cost_task(block, stream);
+        });
+    }
+}
+void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
+{
+    _worker_pool.push_back([this, block](){
+        this->minimize_block_task(block);
+    });
+}
+
+void HybridGraphCutOptimizer::download_subvolume(
+    const stk::GpuVolume& src, 
+    stk::Volume& tgt, 
+    const Block& block,
+    bool pad, // Pad all axes by 1 in negative direction for binary cost
+    stk::cuda::Stream stream)
+{
+    ASSERT(src.size() == tgt.size());
+
+    int3 padded_begin = block.begin;
+
+    if (pad) {
+        if (padded_begin.x > 0) padded_begin.x -= 1;
+        if (padded_begin.y > 0) padded_begin.y -= 1;
+        if (padded_begin.z > 0) padded_begin.z -= 1;
+    }
+
+    stk::GpuVolume sub_src(src,
+        { padded_begin.x, block.end.x },
+        { padded_begin.y, block.end.y },
+        { padded_begin.z, block.end.z }
+    );
+
+    stk::Volume sub_tgt(tgt,
+        { padded_begin.x, block.end.x },
+        { padded_begin.y, block.end.y },
+        { padded_begin.z, block.end.z }
+    );
+
+    sub_src.download(sub_tgt, stream);
+}
+void HybridGraphCutOptimizer::block_cost_task(
+    const Block& block,
+    stk::cuda::Stream stream
+)
+{
+    PROFILER_SCOPE("block_cost", 0xFF532439);
+
+    int3 block_dims = block.end - block.begin;
+
+    // Compute unary terms for block
+    _unary_fn(_df, _current_delta, block.begin, block_dims, _gpu_unary_cost, stream);
+    
+    // Download the unary terms for the block into the large unary term volume. 
+    download_subvolume(
+        _gpu_unary_cost, 
+        _unary_cost,
+        block,
+        false, // No padding for unary term
+        stream
+    );
+
+    // Compute binary terms
+    _binary_fn(
+        _df,
+        _current_delta,
+        block.begin,
+        block_dims,
+        _gpu_binary_cost_x,
+        _gpu_binary_cost_y,
+        _gpu_binary_cost_z,
+        stream
+    );
+
+    // Download binary terms, since we're dependent on neighbouring terms at
+    //  block borders we make sure to download them as well by padding
+    //  negative directions by 1. This shouldn't affect the end results since
+    //  these blocks are disabled anyways because of the red-black ordering.
+    
+    download_subvolume(
+        _gpu_binary_cost_x, 
+        _binary_cost_x,
+        block,
+        true,
+        stream
+    );
+
+    download_subvolume(
+        _gpu_binary_cost_y, 
+        _binary_cost_y,
+        block,
+        true,
+        stream
+    );
+
+    download_subvolume(
+        _gpu_binary_cost_z, 
+        _binary_cost_z,
+        block,
+        true,
+        stream
+    );
+
+    // No queueing here, queuing next blocks will be performed in the callback
+    //  invoked when the cost computation is completed. This will leave room
+    //  for the work pool to work on other tasks
+
+    stream.add_callback([this, block](stk::cuda::Stream stream, int){
+        this->dispatch_next_cost_block(stream);
+        this->dispatch_minimize_block(block);
+    });
+}
+
+void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
+{
+    PROFILER_SCOPE("minimize_block", 0xFF228844);
+
     dim3 full_dims = _labels.size();
 
     int3 block_dims {
@@ -314,8 +406,6 @@ bool HybridGraphCutOptimizer::minimize_block(const Block& block, double energy_e
 
     double current_energy = 0;
     {
-        PROFILER_SCOPE("build", 0xFF228844);
-        
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
             for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
                 for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
@@ -412,15 +502,13 @@ bool HybridGraphCutOptimizer::minimize_block(const Block& block, double energy_e
 
     double current_emin;
     {
-        PROFILER_SCOPE("minimize", 0xFF985423);
         current_emin = graph.minimize();
     }
 
     bool changed_flag = false;
 
-    if (1.0 - current_emin / current_energy > energy_epsilon) // Accept solution
+    if (1.0 - current_emin / current_energy > _settings.block_energy_epsilon) // Accept solution
     {
-        PROFILER_SCOPE("apply", 0xFF767323);
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
             for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
                 for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
@@ -445,36 +533,9 @@ bool HybridGraphCutOptimizer::minimize_block(const Block& block, double energy_e
             }
         }
     }
-    return changed_flag;
-}
-void HybridGraphCutOptimizer::download_subvolume(
-    const stk::GpuVolume& src, 
-    stk::Volume& tgt, 
-    const Block& block,
-    bool pad, // Pad all axes by 1 in negative direction for binary cost
-    stk::cuda::Stream& stream)
-{
-    ASSERT(src.size() == tgt.size());
-
-    int3 padded_begin = block.begin;
-
-    if (pad) {
-        if (padded_begin.x > 0) padded_begin.x -= 1;
-        if (padded_begin.y > 0) padded_begin.y -= 1;
-        if (padded_begin.z > 0) padded_begin.z -= 1;
+    if (changed_flag) {
+        _block_change_flags.set_block(block.idx, changed_flag, block.shift);
+        ++_num_blocks_changed;
     }
-
-    stk::GpuVolume sub_src(src,
-        { padded_begin.x, block.end.x },
-        { padded_begin.y, block.end.y },
-        { padded_begin.z, block.end.z }
-    );
-
-    stk::Volume sub_tgt(tgt,
-        { padded_begin.x, block.end.x },
-        { padded_begin.y, block.end.y },
-        { padded_begin.z, block.end.z }
-    );
-
-    sub_src.download(sub_tgt, stream);
+    --_num_blocks_remaining;
 }
