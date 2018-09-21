@@ -3,6 +3,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <deque>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -18,13 +19,13 @@ public:
                     std::function<void()> task;
                     {
                         std::unique_lock<std::mutex> lock(_queue_lock);
-                        _cv.wait(lock, [this] { 
+                        _cv.wait(lock, [this] {
                             return this->_stop || !this->_queue.empty();
                         });
-                        
+
                         if(_stop && _queue.empty())
                             return;
-                        
+
                         task = std::move(_queue.front());
                         _queue.pop_front();
                     }
@@ -48,7 +49,7 @@ public:
     {
         std::unique_lock<std::mutex> lock(_queue_lock);
         _queue.push_front(fn);
-    
+
         _cv.notify_one();
     }
 

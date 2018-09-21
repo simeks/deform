@@ -10,7 +10,7 @@
 #include <stk/image/gpu_volume.h>
 
 namespace {
-    int _neighbor_count = 6;
+    // int _neighbor_count = 6;
     int3 _neighbors[] = {
         {1, 0, 0},
         {-1, 0, 0},
@@ -34,7 +34,7 @@ HybridGraphCutOptimizer::HybridGraphCutOptimizer(
     _unary_fn(unary_fn),
     _binary_fn(binary_fn),
     _df(df),
-    _current_delta{0}
+    _current_delta{0, 0, 0}
 {
     allocate_cost_buffers(df.size());
 }
@@ -76,7 +76,7 @@ void HybridGraphCutOptimizer::execute()
         // A max_iteration_count of -1 means we run until we converge
         if (_settings.max_iteration_count != -1 && num_iterations >= _settings.max_iteration_count)
             break;
-        
+
         done = true;
         size_t num_blocks_changed = 0;
 
@@ -92,24 +92,24 @@ void HybridGraphCutOptimizer::execute()
                 block_offset.x = block_count.x == 1 ? 0 : (block_dims.x / 2);
                 block_offset.y = block_count.y == 1 ? 0 : (block_dims.y / 2);
                 block_offset.z = block_count.z == 1 ? 0 : (block_dims.z / 2);
-                
+
                 // Only add an additional shift block if necessary, some configurations may not
                 //  need the additional block. E.g. a volume of size 5 with a block size of 4 will
                 //  cover whole volume with 2 blocks both with and without shifting.
 
-                if (block_count.x > 1 && (block_count.x * block_dims.x - block_offset.x) <= (int)dims.x) 
+                if (block_count.x > 1 && (block_count.x * block_dims.x - block_offset.x) <= (int)dims.x)
                     real_block_count.x += 1;
                 if (block_count.y > 1 && (block_count.y * block_dims.y - block_offset.y) <= (int)dims.y)
                     real_block_count.y += 1;
                 if (block_count.z > 1 && (block_count.z * block_dims.z - block_offset.z) <= (int)dims.z)
                     real_block_count.z += 1;
             }
-            
+
             // Only do red-black when having more than 1 block
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
             for (int black_or_red = 0; black_or_red < (num_blocks > 1 ? 2 : 1); black_or_red++) {
                 PROFILER_SCOPE("red_black", 0xFF339955);
-                
+
                 const int n_count = 6; // Neighbors
                 for (int n = 0; n < n_count; ++n) {
                     PROFILER_SCOPE("step", 0xFFAA6FE2);
@@ -120,7 +120,7 @@ void HybridGraphCutOptimizer::execute()
                         _settings.step_size.y * _neighbors[n].y,
                         _settings.step_size.z * _neighbors[n].z
                     };
-                    
+
                     // Queue all blocks
                     for (int b = 0; b < num_blocks; ++b) {
                         int block_x = b % real_block_count.x;
@@ -214,8 +214,8 @@ void HybridGraphCutOptimizer::reset_unary_cost()
     // TODO: Just a temp solution until GpuVolume::fill()
 
     cudaExtent extent = make_cudaExtent(
-        _gpu_unary_cost.size().x * sizeof(float2), 
-        _gpu_unary_cost.size().y, 
+        _gpu_unary_cost.size().x * sizeof(float2),
+        _gpu_unary_cost.size().y,
         _gpu_unary_cost.size().z
     );
     CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_unary_cost.pitched_ptr(), 0, extent));
@@ -223,8 +223,8 @@ void HybridGraphCutOptimizer::reset_unary_cost()
 
 size_t HybridGraphCutOptimizer::dispatch_blocks()
 {
-    // Unary cost volumes are used as accumulators, compared to binary cost which are not. 
-    //  Therefore we need to reset them between each iteration.  
+    // Unary cost volumes are used as accumulators, compared to binary cost which are not.
+    //  Therefore we need to reset them between each iteration.
     reset_unary_cost();
 
     // Reset labels
@@ -234,7 +234,7 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
     _num_blocks_changed = 0;
     _num_blocks_remaining = _block_queue.size();
 
-    for (int i = 0; i < _stream_pool.size(); ++i) {
+    for (int i = 0; i < (int) _stream_pool.size(); ++i) {
         stk::cuda::Stream stream = _stream_pool[i];
         std::scoped_lock lock(_block_queue_lock);
         if (!_block_queue.empty()) {
@@ -273,7 +273,7 @@ void HybridGraphCutOptimizer::dispatch_next_cost_block(stk::cuda::Stream stream)
         Block block = _block_queue.front();
         _block_queue.pop_front();
 
-        // Cost computation should take higher priority since the minimization is 
+        // Cost computation should take higher priority since the minimization is
         //  dependent on the result, so we push to the front of the queue.
         _worker_pool.push_front([this, block, stream](){
             this->block_cost_task(block, stream);
@@ -288,8 +288,8 @@ void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
 }
 
 void HybridGraphCutOptimizer::download_subvolume(
-    const stk::GpuVolume& src, 
-    stk::Volume& tgt, 
+    const stk::GpuVolume& src,
+    stk::Volume& tgt,
     const Block& block,
     bool pad, // Pad all axes by 1 in negative direction for binary cost
     stk::cuda::Stream stream)
@@ -329,10 +329,10 @@ void HybridGraphCutOptimizer::block_cost_task(
 
     // Compute unary terms for block
     _unary_fn(_df, _current_delta, block.begin, block_dims, _gpu_unary_cost, stream);
-    
-    // Download the unary terms for the block into the large unary term volume. 
+
+    // Download the unary terms for the block into the large unary term volume.
     download_subvolume(
-        _gpu_unary_cost, 
+        _gpu_unary_cost,
         _unary_cost,
         block,
         false, // No padding for unary term
@@ -355,9 +355,9 @@ void HybridGraphCutOptimizer::block_cost_task(
     //  block borders we make sure to download them as well by padding
     //  negative directions by 1. This shouldn't affect the end results since
     //  these blocks are disabled anyways because of the red-black ordering.
-    
+
     download_subvolume(
-        _gpu_binary_cost_x, 
+        _gpu_binary_cost_x,
         _binary_cost_x,
         block,
         true,
@@ -365,7 +365,7 @@ void HybridGraphCutOptimizer::block_cost_task(
     );
 
     download_subvolume(
-        _gpu_binary_cost_y, 
+        _gpu_binary_cost_y,
         _binary_cost_y,
         block,
         true,
@@ -373,7 +373,7 @@ void HybridGraphCutOptimizer::block_cost_task(
     );
 
     download_subvolume(
-        _gpu_binary_cost_z, 
+        _gpu_binary_cost_z,
         _binary_cost_z,
         block,
         true,
@@ -465,7 +465,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
-                            sub_x + 1, sub_y, sub_z, 
+                            sub_x + 1, sub_y, sub_z,
                             f_same, f01, f10, f_same);
 
                         current_energy += f_same;
@@ -477,7 +477,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
-                            sub_x, sub_y + 1, sub_z, 
+                            sub_x, sub_y + 1, sub_z,
                             f_same, f01, f10, f_same);
 
                         current_energy += f_same;
@@ -489,7 +489,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
-                            sub_x, sub_y, sub_z + 1, 
+                            sub_x, sub_y, sub_z + 1,
                             f_same, f01, f10, f_same);
 
                         current_energy += f_same;

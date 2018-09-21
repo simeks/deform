@@ -33,7 +33,7 @@ namespace {
         for (int x = 0; x < (int)dims.x; ++x) {
             out(x,y,z) = float4{df(x,y,z).x, df(x,y,z).y, df(x,y,z).z, 0.0f};
         }}}
-        
+
         return out;
     }
     stk::VolumeFloat3 volume_float4_to_float3(const stk::VolumeFloat4& df)
@@ -47,7 +47,7 @@ namespace {
         for (int x = 0; x < (int)dims.x; ++x) {
             out(x,y,z) = float3{df(x,y,z).x, df(x,y,z).y, df(x,y,z).z};
         }}}
-        
+
         return out;
     }
 }
@@ -76,7 +76,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
                 if (!fn.parameters.empty()) {
                     throw std::invalid_argument("[GPU] SSDFunction: unrecognised parameter "
-                                                "'" + fn.parameters.begin()->first + "' with value '" 
+                                                "'" + fn.parameters.begin()->first + "' with value '"
                                                 + fn.parameters.begin()->second + "'");
                 }
 
@@ -139,7 +139,7 @@ void GpuRegistrationEngine::set_initial_deformation(const stk::Volume& def)
     // GPU prefers float4 over float3
     ASSERT(def.voxel_type() == stk::Type_Float4 || def.voxel_type() == stk::Type_Float3);
     ASSERT(_settings.num_pyramid_levels);
-    
+
     // Upload
     stk::GpuVolume gpu_def;
     if (def.voxel_type() == stk::Type_Float3)
@@ -150,18 +150,18 @@ void GpuRegistrationEngine::set_initial_deformation(const stk::Volume& def)
     _deformation_pyramid.build_from_base(gpu_def, filters::gpu::downsample_vectorfield_by_2);
 }
 void GpuRegistrationEngine::set_image_pair(
-        int i, 
-        const stk::Volume& fixed, 
+        int i,
+        const stk::Volume& fixed,
         const stk::Volume& moving)
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
-    FATAL_IF(fixed.voxel_type() != stk::Type_Float || 
+    FATAL_IF(fixed.voxel_type() != stk::Type_Float ||
              moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
 
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
-    
+
     auto downsample_fn = filters::gpu::downsample_volume_by_2;
 
     // Upload
@@ -184,15 +184,15 @@ void GpuRegistrationEngine::set_regularization_weight_map(const stk::Volume& map
 void GpuRegistrationEngine::set_landmarks(const std::vector<float3>& fixed_landmarks,
                                           const std::vector<float3>& moving_landmarks)
 {
-    fixed_landmarks; moving_landmarks;
-    
+    (void) fixed_landmarks; (void) moving_landmarks;
+
     FATAL() << "Not implemented";
 }
 
-void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask, 
+void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,
                                                   const stk::VolumeFloat3& values)
 {
-    mask; values;
+    (void) mask; (void) values;
 
     FATAL() << "Not implemented";
 }
@@ -203,14 +203,14 @@ stk::Volume GpuRegistrationEngine::execute()
 
     if (!_deformation_pyramid.volume(0).valid()) {
         // No initial deformation, create a field with all zeros
-        
+
         stk::GpuVolume base = _fixed_pyramids[0].volume(0);
 
         // TODO: Until we get a proper GpuVolume::fill()
         stk::VolumeFloat4 initial(base.size(), float4{0});
         initial.set_origin(base.origin());
         initial.set_spacing(base.spacing());
-        
+
         set_initial_deformation(initial);
     }
 
@@ -234,13 +234,13 @@ stk::Volume GpuRegistrationEngine::execute()
                 _worker_pool,
                 _stream_pool
             );
-            
+
             optimizer.execute();
         }
         else {
             LOG(Info) << "Skipping level " << l;
         }
-        
+
         if (l != 0) {
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,

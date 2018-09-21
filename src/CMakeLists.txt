@@ -61,7 +61,7 @@ set(DEFORM_UTIL_SRCS
 )
 
 if (DF_ENABLE_MICROPROFILE)
-    set(DEFORM_LIB_SRCS 
+    set(DEFORM_LIB_SRCS
         ${DEFORM_LIB_SRCS}
         "deform_lib/profiler/microprofile_html.h"
         "deform_lib/profiler/microprofile.cpp"
@@ -70,13 +70,13 @@ if (DF_ENABLE_MICROPROFILE)
 endif()
 
 if (DF_USE_CUDA)
-    set(DEFORM_LIB_SRCS 
+    set(DEFORM_LIB_SRCS
         ${DEFORM_LIB_SRCS}
         "deform_lib/filters/gpu/gaussian_filter.cu"
         "deform_lib/filters/gpu/gaussian_filter.h"
         "deform_lib/filters/gpu/resample.cu"
         "deform_lib/filters/gpu/resample.h"
-    
+
         "deform_lib/registration/gpu/cost_function.cu"
         "deform_lib/registration/gpu/cost_function.h"
         "deform_lib/registration/gpu/transform.cu"
@@ -120,9 +120,18 @@ add_executable(deform-util ${DEFORM_UTIL_SRCS})
 target_link_libraries(deform-util deform_lib)
 
 if(DF_BUILD_PYTHON_WRAPPER)
-    pybind11_add_module(_pydeform "python_wrapper/_pydeform.cpp")
-    target_include_directories(_pydeform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(_pydeform PUBLIC stk yaml-cpp gco deform_lib)
+    add_library(_pydeform MODULE "python_wrapper/_pydeform.cpp")
+
+    set_target_properties(_pydeform PROPERTIES
+        PREFIX "${PYTHON_MODULE_PREFIX}"
+        SUFFIX "${PYTHON_MODULE_EXTENSION}"
+        CXX_VISIBILITY_PRESET "hidden"
+        CUDA_VISIBILITY_PRESET "hidden"
+        )
+
+    target_include_directories(_pydeform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR} ${pybind11_INCLUDE_DIR})
+    target_link_libraries(_pydeform PUBLIC stk yaml-cpp gco deform_lib ${PYTHON_LIBRARIES})
 
     set(DF_PYTHON_PATH "$ENV{PYTHONPATH}${SEP}${CMAKE_CURRENT_BINARY_DIR}" PARENT_SCOPE)
 endif()

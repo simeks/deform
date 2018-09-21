@@ -11,7 +11,7 @@ if (NOT YAML-CPP_FOUND)
         # /wd4244 : "conversion from 'unsigned int' to 'unsigned char'"
         # /wd4456 : "declaration of 'token' hides previous local declaration"
         # /wd4702 : "unreachable code"
-        set_target_properties(yaml-cpp PROPERTIES COMPILE_FLAGS 
+        set_target_properties(yaml-cpp PROPERTIES COMPILE_FLAGS
             "/wd4100 /wd4127 /wd4244 /wd4456 /wd4702"
             )
     endif()
