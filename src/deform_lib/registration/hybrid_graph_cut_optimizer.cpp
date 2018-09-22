@@ -10,7 +10,7 @@
 #include <stk/image/gpu_volume.h>
 
 namespace {
-    // int _neighbor_count = 6;
+    const int _neighbor_count = 6;
     int3 _neighbors[] = {
         {1, 0, 0},
         {-1, 0, 0},
@@ -97,21 +97,20 @@ void HybridGraphCutOptimizer::execute()
                 //  need the additional block. E.g. a volume of size 5 with a block size of 4 will
                 //  cover whole volume with 2 blocks both with and without shifting.
 
-                if (block_count.x > 1 && (block_count.x * block_dims.x - block_offset.x) <= (int)dims.x)
+                if (block_count.x > 1 && (block_count.x * block_dims.x - block_offset.x) < (int)dims.x)
                     real_block_count.x += 1;
-                if (block_count.y > 1 && (block_count.y * block_dims.y - block_offset.y) <= (int)dims.y)
+                if (block_count.y > 1 && (block_count.y * block_dims.y - block_offset.y) < (int)dims.y)
                     real_block_count.y += 1;
-                if (block_count.z > 1 && (block_count.z * block_dims.z - block_offset.z) <= (int)dims.z)
+                if (block_count.z > 1 && (block_count.z * block_dims.z - block_offset.z) < (int)dims.z)
                     real_block_count.z += 1;
             }
 
             // Only do red-black when having more than 1 block
-                int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
+            int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
             for (int black_or_red = 0; black_or_red < (num_blocks > 1 ? 2 : 1); black_or_red++) {
                 PROFILER_SCOPE("red_black", 0xFF339955);
 
-                const int n_count = 6; // Neighbors
-                for (int n = 0; n < n_count; ++n) {
+                for (int n = 0; n < _neighbor_count; ++n) {
                     PROFILER_SCOPE("step", 0xFFAA6FE2);
 
                     // delta in [mm]
@@ -138,7 +137,7 @@ void HybridGraphCutOptimizer::execute()
                         int3 block_idx{block_x, block_y, block_z};
 
                         bool need_update = _block_change_flags.is_block_set(block_idx, use_shift == 1);
-                        for (int i = 0; i < n_count; ++i) {
+                        for (int i = 0; i < _neighbor_count; ++i) {
                             int3 neighbor = block_idx + _neighbors[i];
                             if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
                                 0 <= neighbor.y && neighbor.y < real_block_count.y &&
