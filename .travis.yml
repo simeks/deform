@@ -3,6 +3,11 @@ compiler:
   - gcc
 dist: trusty
 
+matrix:
+  include:
+    - env: CONFIG=Release
+    - env: CONFIG=Debug
+
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
@@ -12,5 +17,6 @@ install:
 script:
   - mkdir build
   - cd build
-  - cmake ..
-  - make
+  - cmake .. -DDF_BUILD_TESTS=1 -DCMAKE_BUILD_TYPE=${CONFIG}
+  - cmake --build . --config ${CONFIG}
+  - ctest --output-on-failure
