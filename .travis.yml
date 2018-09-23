@@ -6,7 +6,11 @@ matrix:
   include:
   - env: CONFIG=Release
   - env: CONFIG=Debug
+git:
+  submodules: false
 before_install:
+- sed -i 's,git@github.com:,https://github.com/,g' .gitmodules
+- git submodule update --init --recursive
 - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 - sudo apt-get update -qq
 install:
