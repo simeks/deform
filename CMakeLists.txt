@@ -150,5 +150,6 @@ if (DF_BUILD_DOCS)
 endif()
 
 if (DF_BUILD_TESTS)
+    enable_testing()
     add_subdirectory(test)
 endif()

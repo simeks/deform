@@ -1,0 +1,27 @@
+language: cpp
+compiler:
+- gcc
+dist: trusty
+matrix:
+  include:
+  - env: CONFIG=Release
+  - env: CONFIG=Debug
+git:
+  submodules: false
+before_install:
+- sed -i 's,git@github.com:,https://github.com/,g' .gitmodules
+- git submodule update --init --recursive
+- sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+- sudo apt-get update -qq
+install:
+- sudo apt-get install -qq g++-8
+- sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 90
+script:
+- mkdir build
+- cd build
+- cmake .. -DDF_BUILD_TESTS=1 -DCMAKE_BUILD_TYPE=${CONFIG}
+- cmake --build . --config ${CONFIG}
+- ctest --output-on-failure
+notifications:
+  slack:
+    secure: yAgy9xahI0+X1uRxzMKejHuFFPHF7jpkB4cCLrmChyMvpR0CLu91Py4mONpfP9HEAvhd2EL9ffapGkJ47sfEkVlPE5EL+yMnAM+xavnbxasMnK99hGfHDGOZt4BW1exbrUnTL99c9urtHkvwOVJ25qXySJUN5boIxfB2kumc2P40sbCOCx3NALLFgaysrHNq/y6Pa9tP1zG06acibb6FCJ+zOY3+1Ad8PhRDwZAWiIZ2y0Ic8TlwCwvDIABVahuuNgeY2Fkrt++SFT+/0o19YRydSpteMgoM6hRhKMe6tholj1bO9JclvFqa1WW1Ik8571WJXICk6d6AGipJafWbH5L410dIi/oyClW45nEpmna2wTQKL3eSIRd5NO4YZlm/yqaqJpXaTMwLGQDJyBurpOVC4DYny47ph8ep8wZ3ORCNiujBsHWWRKYK3MDXZuCVCmuK4wBH+GcCMee1Ww8m5acrY1bHJyEYYmSt4x2r49BXYYA9p9t6Gmwmmk2wJWsiWR1OkkvC1UW/Y6nyFTBu4uD0CPaXXj1in69U0xocdhmeS5txRqsw0HJxmbr+GKSMGmIttTXgZyDKrUsKYqH8KKlAfxPJKJeTuKM6f96v5Zj05FELx90Y8VbZu9auk6QPSIie10c9yCKIdnrzEN15pBhmgVFqJVRWsBy2rGkFmhY=
