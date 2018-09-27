@@ -146,7 +146,7 @@ export uniform float ncc(
     
     uniform double d = sqrt(sff*smm);
 
-    return (float) (d > 1d-14 ? 0.5d * (1.0d - sfm / d) : 0.0d);
+    return (float) (d > 1d-5 ? 0.5d * (1.0d - sfm / d) : 0.0d);
 }
 
 

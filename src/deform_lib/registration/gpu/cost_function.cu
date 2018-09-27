@@ -315,7 +315,7 @@ __global__ void ncc_kernel(
     if (moving_p0.x >= 0 && moving_p0.x < moving_dims.x &&
         moving_p0.y >= 0 && moving_p0.y < moving_dims.y &&
         moving_p0.z >= 0 && moving_p0.z < moving_dims.z &&
-        denom0 > 1e-14)
+        denom0 > 1e-5)
     {
         cost_acc(x,y,z).x += weight * 0.5f * (1.0f-float(sfm0 / denom0));
     }
@@ -323,7 +323,7 @@ __global__ void ncc_kernel(
     if (moving_p1.x >= 0 && moving_p1.x < moving_dims.x &&
         moving_p1.y >= 0 && moving_p1.y < moving_dims.y &&
         moving_p1.z >= 0 && moving_p1.z < moving_dims.z &&
-        denom1 > 1e-14)
+        denom1 > 1e-5)
     {
         cost_acc(x,y,z).y += weight * 0.5f * (1.0f-float(sfm1 / denom1));
     }
