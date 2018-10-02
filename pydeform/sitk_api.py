@@ -13,8 +13,8 @@ def register(
         constraint_mask = None,
         constraint_values = None,
         settings = None,
-        num_threads = 0,
         log_file = None,
+        num_threads = 0,
         subprocess = False,
         use_gpu = False,
         ):
@@ -53,12 +53,12 @@ def register(
         Python dictionary containing the settings for the
         registration.
 
+    log_file: str
+        Filename for the registration log.
+
     num_threads: int
         Number of OpenMP threads to be used. If zero, the
         number is selected automatically.
-
-    log_file: str
-        Filename for the registration log.
 
     subprocess: bool
         If `True`, run the call in a subprocess and handle
