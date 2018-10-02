@@ -13,6 +13,16 @@ if '--debug' in sys.argv:
     sys.argv.remove('--debug')
     DF_DEBUG = True
 
+DF_USE_CUDA = 'OFF'
+if '--use-cuda' in sys.argv:
+    sys.argv.remove('--use-cuda')
+    DF_USE_CUDA = 'ON'
+
+DF_USE_ISPC = 'OFF'
+if '--use-ispc' in sys.argv:
+    sys.argv.remove('--use-ispc')
+    DF_USE_ISPC = 'ON'
+
 class CMakeExtension(Extension):
     def __init__(self, name, cmake_lists_dir=''):
         Extension.__init__(self, name, sources=[])
@@ -40,6 +50,8 @@ class CMakeBuild(build_ext):
             '-DDF_BUILD_TESTS=OFF',
             '-DF_BUILD_WITH_DEBUG_INFO=%s' % ('ON' if cfg == 'Debug' else 'OFF'),
             '-DCMAKE_BUILD_TYPE=%s' % cfg,
+            '-DDF_USE_CUDA=%s' % DF_USE_CUDA,
+            '-DDF_USE_ISPC=%s' % DF_USE_ISPC,
             '-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
         ]

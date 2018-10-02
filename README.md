@@ -28,6 +28,7 @@ To perform a registration
 | `-constraint_values <file>` | Filename for constraint values.                |
 | `-p <file>`                 | Filename of the parameter file.                |
 | `-o <file>`                 | Filename of the resulting deformation field    |
+| `--gpu`                     | Enables GPU assisted registration.             |
 
 * Requires a matching number of fixed and moving images.
 
@@ -146,6 +147,12 @@ The parameters available for each function are:
 + `gradient_ssd`:
   + `sigma` (`float`): Gaussian smoothing applied to the images before
       computing the Sobel operator (default: `0.0`)
+
+### GPU
+
+GPU assisted registration is supported on newer CUDA supported hardware. First step to enable GPU registration is to compile with the `DF_USE_CUDA=1` flag, this is set when generating the project with CMake. When both these prerequisites are met, you simply add the `--gpu` flag to the command-line.
+
+As for now the GPU implementation is considered a pre-release and not all cost functions and features from the original registration implementation are supported. Currently the only two supported cost functions are `ssd` and `ncc`.
 
 ## References
 + <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih: *Visual correspondence using energy minimization and mutual information.* Proceedings of the Ninth IEEE International Conference on Computer Vision, 1033-1040, 2003.

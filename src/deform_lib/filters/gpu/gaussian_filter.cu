@@ -35,7 +35,7 @@ __global__ void gaussian_filter_x_kernel(
     {
         float c = expf(factor*t*t*spacing*spacing);
 
-        int sx = max(0, min(x + t, dims.x - 1));
+        int sx = max(0, min(x + t, (int)dims.x - 1));
         value += c * in(sx, y, z);
         norm += c;
     }
@@ -68,7 +68,7 @@ __global__ void gaussian_filter_y_kernel(
     {
         float c = expf(factor*t*t*spacing*spacing);
 
-        int sy = max(0, min(y + t, dims.y - 1));
+        int sy = max(0, min(y + t, (int)dims.y - 1));
         value += c * in(x, sy, z);
         norm += c;
     }
@@ -101,7 +101,7 @@ __global__ void gaussian_filter_z_kernel(
     {
         float c = expf(factor*t*t*spacing*spacing);
 
-        int sz = max(0, min(z + t, dims.z - 1));
+        int sz = max(0, min(z + t, (int)dims.z - 1));
         value += c * in(x, y, sz);
         norm += c;
     }
@@ -121,7 +121,7 @@ namespace {
             (int)ceilf(3 * sigma / spacing.z)
         };
     
-        dim3 block_size{8,8,1};
+        dim3 block_size{32,32,1};
         dim3 grid_size
         {
             (volume_size.x + block_size.x - 1) / block_size.x,

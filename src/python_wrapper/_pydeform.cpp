@@ -176,7 +176,7 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
 }
 
 /*!
- * \brief Wrap the registration routine, converting 
+ * \brief Wrap the registration routine, converting
  *        the input and the output to the correct object
  *        types.
  *
@@ -219,6 +219,8 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
  *                    the number is determined automatically, usually
  *                    equal to the number of logic processors available
  *                    on the system.
+ * @param use_gpu If `True`, use GPU acceleration from a CUDA device.
+ *                Requires a build with CUDA support.
  *
  * @return A numpy array whose shape is `(nz, ny, nx, 3)`, where
  *         `(x, y, z)` is the shape of the fixed image, containing
@@ -239,10 +241,11 @@ py::array registration_wrapper(
         const py::object& constraint_mask,
         const py::object& constraint_values,
         const py::object& settings,
-        const int num_threads
+        const int num_threads,
+        const bool use_gpu
         )
 {
-    // Handle single images passed as objects, without a container 
+    // Handle single images passed as objects, without a container
     std::vector<py::array> fixed_images_;
     if (py::isinstance<py::array>(fixed_images)) {
         fixed_images_ = {py::cast<py::array>(fixed_images)};
@@ -264,7 +267,7 @@ py::array registration_wrapper(
         throw ValidationError("The number of fixed and moving images must match.");
     }
 
-    // Convert fixed and moving images 
+    // Convert fixed and moving images
     std::vector<stk::Volume> fixed_volumes, moving_volumes;
     for (size_t i = 0; i < fixed_images_.size(); ++i) {
         fixed_volumes.push_back(image_to_volume(fixed_images_[i], fixed_origin, fixed_spacing));
@@ -272,7 +275,7 @@ py::array registration_wrapper(
     }
 
     // Convert optional arguments. Try to cast to the correct numeric
-    // type if possible. 
+    // type if possible.
     std::optional<std::vector<float3>> fixed_landmarks_;
     if (!fixed_landmarks.is_none()) {
         fixed_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(fixed_landmarks));
@@ -322,7 +325,11 @@ py::array registration_wrapper(
                                             initial_displacement_,
                                             constraint_mask_,
                                             constraint_values_,
-                                            num_threads);
+                                            num_threads
+                                            #ifdef DF_USE_CUDA
+                                            , use_gpu
+                                            #endif
+                                            );
 
     // Build shape
     auto shape = get_vector_shape(fixed_images_[0]);
@@ -383,6 +390,10 @@ num_threads: int
     Number of OpenMP threads to be used. If zero, the
     number is selected automatically.
 
+use_gpu: bool
+    If `True`, use GPU acceleration from a CUDA device.
+    Requires a build with CUDA support.
+
 Returns
 -------
 np.ndarray
@@ -414,7 +425,7 @@ np.ndarray
  *                      spacing of the reference space (displacement).
  * @param moving_origin Analogous to `fixed_origin`, for the moving image.
  * @param moving_spacing Analogous to `fixed_spacing`, for the moving image.
- * @param interpolator Interpolator used in the resampling. The values are 
+ * @param interpolator Interpolator used in the resampling. The values are
  *                     exposed in Python as an enum class.
  *
  * @return A numpy array representing the resample image, matching in size,
@@ -441,7 +452,7 @@ py::array transform_wrapper(
     return py::array(image.dtype(), shape, reinterpret_cast<const float*>(result.ptr()));
 }
 
-std::string transform_docstring = 
+std::string transform_docstring =
 R"(Warp an image given a displacement field.
 
 The image is resampled using the given displacement field.
@@ -484,7 +495,7 @@ np.ndarray
 
 
 /*!
- * \brief Compute the Jacobian determinant of a vector field. 
+ * \brief Compute the Jacobian determinant of a vector field.
  *
  * The Jacobian is computed with first order central differences.
  *
@@ -567,7 +578,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("constraint_mask") = py::none(),
           py::arg("constraint_values") = py::none(),
           py::arg("settings") = py::none(),
-          py::arg("num_threads") = 0
+          py::arg("num_threads") = 0,
+          py::arg("use_gpu") = false
           );
 
     m.def("transform",

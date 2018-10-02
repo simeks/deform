@@ -45,34 +45,19 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     // Setting the block size to (0, 0, 0) will disable blocking and run the whole volume
     int3 block_dims = _block_size;
-    if (block_dims.x == 0)
-        block_dims.x = dims.x;
-    if (block_dims.y == 0)
-        block_dims.y = dims.y;
-    if (block_dims.z == 0)
-        block_dims.z = dims.z;
+    if (block_dims.x == 0) block_dims.x = dims.x;
+    if (block_dims.y == 0) block_dims.y = dims.y;
+    if (block_dims.z == 0) block_dims.z = dims.z;
 
     int3 block_count {
-        int(dims.x) / block_dims.x,
-        int(dims.y) / block_dims.y,
-        int(dims.z) / block_dims.z
+        int(dims.x + block_dims.x - 1) / block_dims.x,
+        int(dims.y + block_dims.y - 1) / block_dims.y,
+        int(dims.z + block_dims.z - 1) / block_dims.z
     };
-
-    // Rest
-    int3 block_rest {
-        int(dims.x) % block_dims.x,
-        int(dims.y) % block_dims.y,
-        int(dims.z) % block_dims.z
-    };
-
-    block_count.x += (block_rest.x > 0 ? 1 : 0);
-    block_count.y += (block_rest.y > 0 ? 1 : 0);
-    block_count.z += (block_rest.z > 0 ? 1 : 0);
 
     DLOG(Info) << "Volume size: " << dims;
     DLOG(Info) << "Block count: " << block_count;
     DLOG(Info) << "Block size: " << block_dims;
-    DLOG(Info) << "Block rest: " << block_rest;
 
     BlockChangeFlags change_flags(block_count); 
 
@@ -81,6 +66,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
     bool done = false;
     while (!done) {
+        // A max_iteration_count of -1 means we run until we converge
+        if (_max_iteration_count != -1 && num_iterations >= _max_iteration_count)
+            break;
+        
         unary_fn.pre_iteration_hook(num_iterations, def);
 
         done = true;
@@ -182,10 +171,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
         ++num_iterations;
 
-        // A max_iteration_count of -1 means we run until we converge
-        if (_max_iteration_count != -1 && num_iterations >= _max_iteration_count)
-            break;
-        
         PROFILER_FLIP();
     }
     LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) 

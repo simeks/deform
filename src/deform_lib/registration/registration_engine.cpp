@@ -502,13 +502,15 @@ void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 void RegistrationEngine::set_image_pair(
     int i, 
     const stk::Volume& fixed, 
-    const stk::Volume& moving,
-    stk::Volume (*downsample_fn)(const stk::Volume&))
+    const stk::Volume& moving)
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
     
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
+    
+    // It's the only available fn for now
+    auto downsample_fn = filters::downsample_volume_by_2;
     
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);

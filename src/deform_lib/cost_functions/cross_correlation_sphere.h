@@ -82,8 +82,8 @@ struct NCCFunction_sphere : public SubFunction
         
         double d = sqrt(sff*smm);
 
-        if(d > 1e-14) {
-            return 0.5f*(1.0f-float(sfm / d));
+        if(d > 1e-5) {
+            return float(0.5*(1.0-sfm / d));
         }
         return 0.0f;
     }
