@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
 
 #include <deform_lib/registration/settings.h>
@@ -215,6 +216,7 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
  *                          is thrown.
  * @param settings Python dictionary for the settings. If `None`,
  *                 default settings are used.
+ * @param log_file Filename for the registration log.
  * @param num_threads Number of OpenMP threads to be used. If zero,
  *                    the number is determined automatically, usually
  *                    equal to the number of logic processors available
@@ -241,10 +243,17 @@ py::array registration_wrapper(
         const py::object& constraint_mask,
         const py::object& constraint_values,
         const py::object& settings,
+        const py::object& log_file,
         const int num_threads,
         const bool use_gpu
         )
 {
+    stk::log_init();
+    defer{stk::log_shutdown();};
+    if (!log_file.is_none()) {
+        stk::log_add_file(py::cast<std::string>(log_file).c_str(), stk::Info);
+    }
+
     // Handle single images passed as objects, without a container
     std::vector<py::array> fixed_images_;
     if (py::isinstance<py::array>(fixed_images)) {
@@ -385,6 +394,9 @@ constraint_values: np.ndarray
 settings: dict
     Python dictionary containing the settings for the
     registration.
+
+log_file: str
+    Filename for the registration log.
 
 num_threads: int
     Number of OpenMP threads to be used. If zero, the
@@ -578,6 +590,7 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("constraint_mask") = py::none(),
           py::arg("constraint_values") = py::none(),
           py::arg("settings") = py::none(),
+          py::arg("log_file") = py::none(),
           py::arg("num_threads") = 0,
           py::arg("use_gpu") = false
           );

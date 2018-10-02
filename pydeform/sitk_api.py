@@ -14,6 +14,7 @@ def register(
         constraint_values = None,
         settings = None,
         num_threads = 0,
+        log_file = None,
         subprocess = False,
         use_gpu = False,
         ):
@@ -55,6 +56,9 @@ def register(
     num_threads: int
         Number of OpenMP threads to be used. If zero, the
         number is selected automatically.
+
+    log_file: str
+        Filename for the registration log.
 
     subprocess: bool
         If `True`, run the call in a subprocess and handle
@@ -113,6 +117,7 @@ def register(
                             constraint_mask=constraint_mask,
                             constraint_values=constraint_values,
                             settings=settings,
+                            log_file=log_file,
                             num_threads=num_threads,
                             use_gpu=use_gpu,
                             )
