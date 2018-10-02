@@ -13,7 +13,8 @@ def register(
         constraint_mask = None,
         constraint_values = None,
         settings = None,
-        log_file = None,
+        log = None,
+        silent = False,
         num_threads = 0,
         subprocess = False,
         use_gpu = False,
@@ -53,8 +54,11 @@ def register(
         Python dictionary containing the settings for the
         registration.
 
-    log_file: str
-        Filename for the registration log.
+    log: Union[StringIO, str]
+        Output for the log, either a StringIO or a filename.
+
+    silent: bool
+        If `True`, do not write output to screen.
 
     num_threads: int
         Number of OpenMP threads to be used. If zero, the
@@ -117,7 +121,8 @@ def register(
                             constraint_mask=constraint_mask,
                             constraint_values=constraint_values,
                             settings=settings,
-                            log_file=log_file,
+                            log=log,
+                            silent=silent,
                             num_threads=num_threads,
                             use_gpu=use_gpu,
                             )

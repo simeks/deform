@@ -1,3 +1,4 @@
+#include <pybind11/iostream.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -216,7 +217,8 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
  *                          is thrown.
  * @param settings Python dictionary for the settings. If `None`,
  *                 default settings are used.
- * @param log_file Filename for the registration log.
+ * @param log Output for the log, either a `StringIO` or a `str` object.
+ * @param silent If `True`, do not write output to screen.
  * @param num_threads Number of OpenMP threads to be used. If zero,
  *                    the number is determined automatically, usually
  *                    equal to the number of logic processors available
@@ -243,7 +245,8 @@ py::array registration_wrapper(
         const py::object& constraint_mask,
         const py::object& constraint_values,
         const py::object& settings,
-        const py::object& log_file,
+        const py::object& log,
+        const bool silent,
         const int num_threads,
         const bool use_gpu
         )
@@ -254,10 +257,29 @@ py::array registration_wrapper(
     }
     #endif
 
-    stk::log_init();
-    defer{stk::log_shutdown();};
-    if (!log_file.is_none()) {
-        stk::log_add_file(py::cast<std::string>(log_file).c_str(), stk::Info);
+    // Handle stdout/stderr
+    auto python_output = py::module::import("sys").attr("stdout");
+    py::scoped_ostream_redirect std_out(std::cout, python_output);
+    py::scoped_ostream_redirect std_err(std::cerr, python_output);
+
+    // Handle logging
+    py::detail::pythonbuf *buffer = nullptr;
+    std::ostream *out = nullptr;
+    stk::log_init(silent);
+    if (!log.is_none()) {
+        try {
+            stk::log_add_file(py::cast<std::string>(log).c_str(), stk::Info);
+        }
+        catch (py::cast_error &) {
+            try {
+                buffer = new py::detail::pythonbuf(log);
+                out = new std::ostream(buffer);
+                stk::log_add_stream(out, stk::Info);
+            }
+            catch (...) {
+                throw std::invalid_argument("Invalid log object!");
+            }
+        }
     }
 
     // Handle single images passed as objects, without a container
@@ -349,6 +371,15 @@ py::array registration_wrapper(
     // Build shape
     auto shape = get_vector_shape(fixed_images_[0]);
 
+    // Cleanup (order matters)
+    stk::log_shutdown();
+    if (buffer) {
+        delete buffer;
+    }
+    if (out) {
+        delete out;
+    }
+
     return py::array_t<float>(shape, reinterpret_cast<const float*>(displacement.ptr()));
 }
 
@@ -401,8 +432,11 @@ settings: dict
     Python dictionary containing the settings for the
     registration.
 
-log_file: str
-    Filename for the registration log.
+log: Union[StringIO, str]
+    Output for the log, either a StringIO or a filename.
+
+silent: bool
+    If `True`, do not write output to screen.
 
 num_threads: int
     Number of OpenMP threads to be used. If zero, the
@@ -596,7 +630,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("constraint_mask") = py::none(),
           py::arg("constraint_values") = py::none(),
           py::arg("settings") = py::none(),
-          py::arg("log_file") = py::none(),
+          py::arg("log") = py::none(),
+          py::arg("silent") = false,
           py::arg("num_threads") = 0,
           py::arg("use_gpu") = false
           );
