@@ -325,8 +325,11 @@ py::array registration_wrapper(
                                             initial_displacement_,
                                             constraint_mask_,
                                             constraint_values_,
-                                            num_threads,
-                                            use_gpu);
+                                            num_threads
+                                            #ifdef DF_USE_CUDA
+                                            , use_gpu
+                                            #endif
+                                            );
 
     // Build shape
     auto shape = get_vector_shape(fixed_images_[0]);
