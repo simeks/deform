@@ -6,6 +6,7 @@ from . import interruptible
 def register(
         fixed_images,
         moving_images,
+        *,
         fixed_landmarks = None,
         moving_landmarks = None,
         initial_displacement = None,
@@ -14,6 +15,7 @@ def register(
         settings = None,
         num_threads = 0,
         subprocess = False,
+        use_gpu = False,
         ):
     R""" Perform deformable registration.
 
@@ -59,6 +61,10 @@ def register(
         keyboard interrupts. This has a memory overhead, since
         a new instance of the intepreter is spawned and
         input objects are copied in the subprocess memory.
+
+    use_gpu: bool
+        If `True`, use GPU acceleration from a CUDA device.
+        Requires a build with CUDA support.
 
     Returns
     -------
@@ -107,7 +113,9 @@ def register(
                             constraint_mask=constraint_mask,
                             constraint_values=constraint_values,
                             settings=settings,
-                            num_threads=num_threads)
+                            num_threads=num_threads,
+                            use_gpu=use_gpu,
+                            )
 
     # Convert the result to SimpleITK
     displacement = sitk.GetImageFromArray(displacement)
