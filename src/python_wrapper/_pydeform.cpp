@@ -248,6 +248,12 @@ py::array registration_wrapper(
         const bool use_gpu
         )
 {
+    #ifndef DF_USE_CUDA
+    if (use_gpu) {
+        throw std::invalid_argument("This build of pydeform has no CUDA support!");
+    }
+    #endif
+
     stk::log_init();
     defer{stk::log_shutdown();};
     if (!log_file.is_none()) {
