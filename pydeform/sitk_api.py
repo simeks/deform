@@ -14,7 +14,7 @@ def register(
         constraint_values = None,
         settings = None,
         log = None,
-        silent = False,
+        silent = True,
         num_threads = 0,
         subprocess = False,
         use_gpu = False,

@@ -178,6 +178,38 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
 }
 
 /*!
+ * \brief Add the logger, converting it if necessary.
+ *
+ * If the input is a string, add a file logger using it as filename. If
+ * it is a Python object, try to cast it to StringIO and add a stream
+ * logger.
+ */
+void add_logger(
+        const py::object& log,
+        std::unique_ptr<py::detail::pythonbuf>& buffer,
+        std::unique_ptr<std::ostream>& out_stream
+        )
+{
+    if (log.is_none()) {
+        return;
+    }
+
+    try {
+        stk::log_add_file(py::cast<std::string>(log).c_str(), stk::Info);
+    }
+    catch (py::cast_error &) {
+        try {
+            buffer = std::make_unique<py::detail::pythonbuf>(log);
+            out_stream = std::make_unique<std::ostream>(buffer.get());
+            stk::log_add_stream(out_stream.get(), stk::Info);
+        }
+        catch (...) {
+            throw std::invalid_argument("Invalid log object!");
+        }
+    }
+}
+
+/*!
  * \brief Wrap the registration routine, converting
  *        the input and the output to the correct object
  *        types.
@@ -257,30 +289,15 @@ py::array registration_wrapper(
     }
     #endif
 
-    // Handle stdout/stderr
-    auto python_output = py::module::import("sys").attr("stdout");
-    py::scoped_ostream_redirect std_out(std::cout, python_output);
-    py::scoped_ostream_redirect std_err(std::cerr, python_output);
+    // Redirect C++ stdout/stderr to Python's
+    py::scoped_ostream_redirect std_out(std::cout, py::module::import("sys").attr("stdout"));
+    py::scoped_ostream_redirect std_err(std::cerr, py::module::import("sys").attr("stderr"));
 
     // Handle logging
-    py::detail::pythonbuf *buffer = nullptr;
-    std::ostream *out = nullptr;
+    std::unique_ptr<py::detail::pythonbuf> buffer;
+    std::unique_ptr<std::ostream> out_stream;
     stk::log_init(silent);
-    if (!log.is_none()) {
-        try {
-            stk::log_add_file(py::cast<std::string>(log).c_str(), stk::Info);
-        }
-        catch (py::cast_error &) {
-            try {
-                buffer = new py::detail::pythonbuf(log);
-                out = new std::ostream(buffer);
-                stk::log_add_stream(out, stk::Info);
-            }
-            catch (...) {
-                throw std::invalid_argument("Invalid log object!");
-            }
-        }
-    }
+    add_logger(log, buffer, out_stream);
 
     // Handle single images passed as objects, without a container
     std::vector<py::array> fixed_images_;
@@ -299,7 +316,7 @@ py::array registration_wrapper(
         moving_images_ = py::cast<std::vector<py::array>>(moving_images);
     }
 
-    // Ensure the number of fixed and moving images match
+    // Ensure the number of fixed and moving images matches
     if (fixed_images_.size() != moving_images_.size()) {
         throw ValidationError("The number of fixed and moving images must match.");
     }
@@ -371,14 +388,8 @@ py::array registration_wrapper(
     // Build shape
     auto shape = get_vector_shape(fixed_images_[0]);
 
-    // Cleanup (order matters)
+    // This must be done before the `out_stream` goes out of scope
     stk::log_shutdown();
-    if (buffer) {
-        delete buffer;
-    }
-    if (out) {
-        delete out;
-    }
 
     return py::array_t<float>(shape, reinterpret_cast<const float*>(displacement.ptr()));
 }
@@ -572,7 +583,9 @@ py::array jacobian_wrapper(
         const std::vector<double>& spacing
         )
 {
+    // Compute Jacobian
     auto jacobian = calculate_jacobian(image_to_volume(displacement, origin, spacing));
+
     auto shape = get_scalar_shape(displacement);
     return py::array_t<JAC_TYPE>(shape, reinterpret_cast<const JAC_TYPE*>(jacobian.ptr()));
 }
@@ -631,7 +644,7 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("constraint_values") = py::none(),
           py::arg("settings") = py::none(),
           py::arg("log") = py::none(),
-          py::arg("silent") = false,
+          py::arg("silent") = true,
           py::arg("num_threads") = 0,
           py::arg("use_gpu") = false
           );
