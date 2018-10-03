@@ -13,15 +13,8 @@ struct SquaredDistanceFunction : public SubFunction
 
     float cost(const int3& p, const float3& def)
     {
-        float3 fixed_p{
-            float(p.x),
-            float(p.y),
-            float(p.z)
-        };
-        
         // [fixed] -> [world] -> [moving]
-        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
+        const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
         T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 

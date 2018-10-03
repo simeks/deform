@@ -371,14 +371,11 @@ struct MIFunction : public SubFunction
      */
     float cost(const int3& p, const float3& def)
     {
-        const float3 fixed_p{float(p.x), float(p.y), float(p.z)};
-
         // [fixed] -> [world] -> [moving]
-        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
+        const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
-        T i1 = _fixed(p);
-        T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
+        const T i1 = _fixed(p);
+        const T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // NOTE: the sign is inverted (minimising negated MI)
         return _voxel_count * static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));

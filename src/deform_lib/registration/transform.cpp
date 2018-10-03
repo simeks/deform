@@ -10,7 +10,7 @@ namespace
         const stk::VolumeHelper<TVoxelType>& src,
         const stk::VolumeFloat3& def)
     {
-        // Transformed volume will have the same dimensions and properties (origin and spacing) 
+        // Transformed volume will have the same dimensions and properties (origin and spacing)
         //  as the deformation field and not the source image. The deformation field is inherited
         //  from the fixed volume in the registration and we want to transform the moving image (src)
         //  to the fixed image space.
@@ -26,7 +26,7 @@ namespace
 
         float3 fixed_origin = def.origin();
         float3 moving_origin = src.origin();
-        
+
         float3 fixed_spacing = def.spacing();
         float3 inv_moving_spacing{
             1.0f / src.spacing().x,
@@ -41,15 +41,15 @@ namespace
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
                     // [fixed] -> [world] -> [moving]
-                    float3 world_p = float3{float(x), float(y), float(z)} * fixed_spacing 
+                    float3 world_p = float3{float(x), float(y), float(z)} * fixed_spacing
                         + fixed_origin;
-                    float3 moving_p = (world_p + def(x,y,z) - moving_origin) 
+                    float3 moving_p = (world_p + def(x,y,z) - moving_origin)
                         * inv_moving_spacing;
 
                     out(x, y, z) = src.at(
-                        int(FAST_ROUND(moving_p.x)), 
-                        int(FAST_ROUND(moving_p.y)), 
-                        int(FAST_ROUND(moving_p.z)), 
+                        int(FAST_ROUND(moving_p.x)),
+                        int(FAST_ROUND(moving_p.y)),
+                        int(FAST_ROUND(moving_p.z)),
                         stk::Border_Constant
                     );
                 }
@@ -65,42 +65,27 @@ namespace
         const stk::VolumeHelper<TVoxelType>& src,
         const stk::VolumeFloat3& def)
     {
-        // Transformed volume will have the same dimensions and properties (origin and spacing) 
+        // Transformed volume will have the same dimensions and properties (origin and spacing)
         //  as the deformation field and not the source image. The deformation field is inherited
         //  from the fixed volume in the registration and we want to transform the moving image (src)
         //  to the fixed image space.
 
-        // There should be no requirements on src to have the same size, spacing and origin as
-        //  the fixed image.
+        // There should be no requirements on src to have the same size, spacing, origin, and direction
+        //  as the fixed image.
 
         dim3 dims = def.size();
 
         stk::VolumeHelper<TVoxelType> out(dims);
         out.set_origin(def.origin());
         out.set_spacing(def.spacing());
-
-        float3 fixed_origin = def.origin();
-        float3 moving_origin = src.origin();
-        
-        float3 fixed_spacing = def.spacing();
-        float3 inv_moving_spacing{
-            1.0f / src.spacing().x,
-            1.0f / src.spacing().y,
-            1.0f / src.spacing().z
-        };
+        out.set_direction(def.direction());
 
         #pragma omp parallel for
         for (int z = 0; z < int(dims.z); ++z) {
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
-                    // [fixed] -> [world] -> [moving]
-                    float3 world_p = float3{float(x), float(y), float(z)} * fixed_spacing 
-                        + fixed_origin;
-                    float3 moving_p = (world_p + def(x,y,z) - moving_origin) 
-                        * inv_moving_spacing;
-
-                    out(x, y, z) = src.linear_at(moving_p.x, moving_p.y, moving_p.z, 
-                                                 stk::Border_Constant);
+                    const float3 moving_p = def.index2point(int3({x, y, z})) + def(x, y, z);
+                    out(x, y, z) = src.linear_at_point(moving_p, stk::Border_Constant);
                 }
             }
         }
