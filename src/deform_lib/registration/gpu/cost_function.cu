@@ -198,8 +198,8 @@ __global__ void ssd_kernel(
     float f1 = fixed(x,y,z) - cuda::linear_at_border<float>(
         moving, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
     
-    cost_acc(x,y,z).x = weight*f0*f0;
-    cost_acc(x,y,z).y = weight*f1*f1;
+    cost_acc(x,y,z).x += weight*f0*f0;
+    cost_acc(x,y,z).y += weight*f1*f1;
 }
 
 template<typename T>
