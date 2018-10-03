@@ -1,3 +1,4 @@
+#include <pybind11/iostream.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -7,6 +8,7 @@
 #include <optional>
 #include <string>
 
+#include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
 
 #include <deform_lib/registration/settings.h>
@@ -176,6 +178,38 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
 }
 
 /*!
+ * \brief Add the logger, converting it if necessary.
+ *
+ * If the input is a string, add a file logger using it as filename. If
+ * it is a Python object, try to cast it to StringIO and add a stream
+ * logger.
+ */
+void add_logger(
+        const py::object& log,
+        std::unique_ptr<py::detail::pythonbuf>& buffer,
+        std::unique_ptr<std::ostream>& out_stream
+        )
+{
+    if (log.is_none()) {
+        return;
+    }
+
+    try {
+        stk::log_add_file(py::cast<std::string>(log).c_str(), stk::Info);
+    }
+    catch (py::cast_error &) {
+        try {
+            buffer = std::make_unique<py::detail::pythonbuf>(log);
+            out_stream = std::make_unique<std::ostream>(buffer.get());
+            stk::log_add_stream(out_stream.get(), stk::Info);
+        }
+        catch (...) {
+            throw std::invalid_argument("Invalid log object!");
+        }
+    }
+}
+
+/*!
  * \brief Wrap the registration routine, converting
  *        the input and the output to the correct object
  *        types.
@@ -215,6 +249,8 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
  *                          is thrown.
  * @param settings Python dictionary for the settings. If `None`,
  *                 default settings are used.
+ * @param log Output for the log, either a `StringIO` or a `str` object.
+ * @param silent If `True`, do not write output to screen.
  * @param num_threads Number of OpenMP threads to be used. If zero,
  *                    the number is determined automatically, usually
  *                    equal to the number of logic processors available
@@ -241,10 +277,28 @@ py::array registration_wrapper(
         const py::object& constraint_mask,
         const py::object& constraint_values,
         const py::object& settings,
+        const py::object& log,
+        const bool silent,
         const int num_threads,
         const bool use_gpu
         )
 {
+    #ifndef DF_USE_CUDA
+    if (use_gpu) {
+        throw std::invalid_argument("This build of pydeform has no CUDA support!");
+    }
+    #endif
+
+    // Redirect C++ stdout/stderr to Python's
+    py::scoped_ostream_redirect std_out(std::cout, py::module::import("sys").attr("stdout"));
+    py::scoped_ostream_redirect std_err(std::cerr, py::module::import("sys").attr("stderr"));
+
+    // Handle logging
+    std::unique_ptr<py::detail::pythonbuf> buffer;
+    std::unique_ptr<std::ostream> out_stream;
+    stk::log_init(silent);
+    add_logger(log, buffer, out_stream);
+
     // Handle single images passed as objects, without a container
     std::vector<py::array> fixed_images_;
     if (py::isinstance<py::array>(fixed_images)) {
@@ -262,7 +316,7 @@ py::array registration_wrapper(
         moving_images_ = py::cast<std::vector<py::array>>(moving_images);
     }
 
-    // Ensure the number of fixed and moving images match
+    // Ensure the number of fixed and moving images matches
     if (fixed_images_.size() != moving_images_.size()) {
         throw ValidationError("The number of fixed and moving images must match.");
     }
@@ -334,6 +388,9 @@ py::array registration_wrapper(
     // Build shape
     auto shape = get_vector_shape(fixed_images_[0]);
 
+    // This must be done before the `out_stream` goes out of scope
+    stk::log_shutdown();
+
     return py::array_t<float>(shape, reinterpret_cast<const float*>(displacement.ptr()));
 }
 
@@ -385,6 +442,12 @@ constraint_values: np.ndarray
 settings: dict
     Python dictionary containing the settings for the
     registration.
+
+log: Union[StringIO, str]
+    Output for the log, either a StringIO or a filename.
+
+silent: bool
+    If `True`, do not write output to screen.
 
 num_threads: int
     Number of OpenMP threads to be used. If zero, the
@@ -520,7 +583,9 @@ py::array jacobian_wrapper(
         const std::vector<double>& spacing
         )
 {
+    // Compute Jacobian
     auto jacobian = calculate_jacobian(image_to_volume(displacement, origin, spacing));
+
     auto shape = get_scalar_shape(displacement);
     return py::array_t<JAC_TYPE>(shape, reinterpret_cast<const JAC_TYPE*>(jacobian.ptr()));
 }
@@ -578,6 +643,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("constraint_mask") = py::none(),
           py::arg("constraint_values") = py::none(),
           py::arg("settings") = py::none(),
+          py::arg("log") = py::none(),
+          py::arg("silent") = true,
           py::arg("num_threads") = 0,
           py::arg("use_gpu") = false
           );
