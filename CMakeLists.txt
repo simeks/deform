@@ -9,7 +9,7 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-option(DF_BUILD_TESTS "Build unit tests" ON)
+option(DF_BUILD_TESTS "Build unit tests" OFF)
 option(DF_BUILD_DOCS "Build Sphinx docs" OFF)
 option(DF_BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
 option(DF_USE_CUDA "Enables CUDA support" OFF)
