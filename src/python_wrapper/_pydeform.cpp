@@ -118,32 +118,42 @@ stk::Type get_stk_type(const py::array& a) {
  * @param spacing Vector of length 3, containing
  *                the (x, y,z) spacing of the
  *                volume.
+ * @param direction Vector of length 9, representing
+ *                  the cosine direction matrix in
+ *                  row-major order.
  * @return A volume representing the same image.
  */
 stk::Volume image_to_volume(
         const py::array image,
         const std::vector<double>& origin,
-        const std::vector<double>& spacing
+        const std::vector<double>& spacing,
+        const std::vector<double>& direction
         )
 {
     float3 origin_ {
-        static_cast<float>(origin[0]),
-        static_cast<float>(origin[1]),
-        static_cast<float>(origin[2]),
+        float(origin[0]),
+        float(origin[1]),
+        float(origin[2]),
     };
     float3 spacing_ {
-        static_cast<float>(spacing[0]),
-        static_cast<float>(spacing[1]),
-        static_cast<float>(spacing[2]),
+        float(spacing[0]),
+        float(spacing[1]),
+        float(spacing[2]),
     };
+    Matrix3x3f direction_ {{
+        {float(direction[0]), float(direction[1]), float(direction[2])},
+        {float(direction[3]), float(direction[4]), float(direction[5])},
+        {float(direction[6]), float(direction[7]), float(direction[8])},
+    }};
     dim3 size {
-        static_cast<std::uint32_t>(image.shape(2)),
-        static_cast<std::uint32_t>(image.shape(1)),
-        static_cast<std::uint32_t>(image.shape(0)),
+        std::uint32_t(image.shape(2)),
+        std::uint32_t(image.shape(1)),
+        std::uint32_t(image.shape(0)),
     };
     stk::Volume volume {size, get_stk_type(image), image.data()};
     volume.set_origin(origin_);
     volume.set_spacing(spacing_);
+    volume.set_direction(direction_);
     return volume;
 }
 
@@ -229,8 +239,12 @@ void add_logger(
  * @param fixed_spacing Vector of length 3, containing
  *                      the (x, y,z) spacing of the
  *                      fixed images.
+ * @param fixed_direction Vector of length 9, representing
+ *                        the cosine direction matrix in
+ *                        row-major order.
  * @param moving_origin Analogous to `fixed_origin`.
  * @param moving_spacing Analogous to `fixed_spacing`.
+ * @param moving_direction Analogous to `fixed_direction`.
  * @param fixed_landmarks A `n \times 3` numpy array, with
  *                        one row for each landmark point.
  * @param moving_landmarks A `n \times 3` numpy array, with
@@ -271,6 +285,8 @@ py::array registration_wrapper(
         const std::vector<double>& moving_origin,
         const std::vector<double>& fixed_spacing,
         const std::vector<double>& moving_spacing,
+        const std::vector<double>& fixed_direction,
+        const std::vector<double>& moving_direction,
         const py::object& fixed_landmarks,
         const py::object& moving_landmarks,
         const py::object& initial_displacement,
@@ -324,8 +340,14 @@ py::array registration_wrapper(
     // Convert fixed and moving images
     std::vector<stk::Volume> fixed_volumes, moving_volumes;
     for (size_t i = 0; i < fixed_images_.size(); ++i) {
-        fixed_volumes.push_back(image_to_volume(fixed_images_[i], fixed_origin, fixed_spacing));
-        moving_volumes.push_back(image_to_volume(moving_images_[i], moving_origin, moving_spacing));
+        fixed_volumes.push_back(image_to_volume(fixed_images_[i],
+                                                fixed_origin,
+                                                fixed_spacing,
+                                                fixed_direction));
+        moving_volumes.push_back(image_to_volume(moving_images_[i],
+                                                  moving_origin,
+                                                  moving_spacing,
+                                                  moving_direction));
     }
 
     // Convert optional arguments. Try to cast to the correct numeric
@@ -344,21 +366,24 @@ py::array registration_wrapper(
     if (!initial_displacement.is_none()) {
         initial_displacement_ = image_to_volume(py::cast<py::array_t<float>>(initial_displacement),
                                                 fixed_origin,
-                                                fixed_spacing);
+                                                fixed_spacing,
+                                                fixed_direction);
     }
 
     std::optional<stk::Volume> constraint_mask_;
     if (!constraint_mask.is_none()) {
         constraint_mask_ = image_to_volume(py::cast<py::array_t<unsigned char>>(constraint_mask),
                                            fixed_origin,
-                                           fixed_spacing);
+                                           fixed_spacing,
+                                           fixed_direction);
     }
 
     std::optional<stk::Volume> constraint_values_;
     if (!constraint_values.is_none()) {
         constraint_values_ = image_to_volume(py::cast<py::array_t<float>>(constraint_values),
                                              fixed_origin,
-                                             fixed_spacing);
+                                             fixed_spacing,
+                                             fixed_direction);
     }
 
     // Parse settings
@@ -419,6 +444,12 @@ fixed_spacing: Tuple[Int]
 
 moving_spacing: Tuple[Int]
     Spacing of the moving images.
+
+fixed_direction: Tuple[Int]
+    Cosine direction matrix of the fixed images.
+
+moving_direction: Tuple[Int]
+    Cosine direction matrix of the moving images.
 
 fixed_landmarks: np.ndarray
     Array of shape :math:`n \times 3`, with one row
@@ -486,8 +517,12 @@ np.ndarray
  *                     space (displacement).
  * @param fixed_spacing Vector of length 3, containing the (x, y,z)
  *                      spacing of the reference space (displacement).
+ * @param fixed_direction Vector of length 9, representing
+ *                        the cosine direction matrix in
+ *                        row-major order.
  * @param moving_origin Analogous to `fixed_origin`, for the moving image.
  * @param moving_spacing Analogous to `fixed_spacing`, for the moving image.
+ * @param moving_direction Analogous to `fixed_direction`.
  * @param interpolator Interpolator used in the resampling. The values are
  *                     exposed in Python as an enum class.
  *
@@ -503,11 +538,20 @@ py::array transform_wrapper(
         const std::vector<double>& moving_origin,
         const std::vector<double>& fixed_spacing,
         const std::vector<double>& moving_spacing,
+        const std::vector<double>& fixed_direction,
+        const std::vector<double>& moving_direction,
         const transform::Interp interpolator
         )
 {
-    const stk::Volume image_ = image_to_volume(image, moving_origin, moving_spacing);
-    const stk::Volume displacement_ = image_to_volume(displacement, fixed_origin, fixed_spacing);
+    const stk::Volume image_ = image_to_volume(image,
+                                               moving_origin,
+                                               moving_spacing,
+                                               moving_direction);
+
+    const stk::Volume displacement_ = image_to_volume(displacement,
+                                                      fixed_origin,
+                                                      fixed_spacing,
+                                                      fixed_direction);
 
     stk::Volume result = transform_volume(image_, displacement_, interpolator);
 
@@ -544,6 +588,12 @@ fixed_spacing: np.ndarray
 moving_spacing: np.ndarray
     Spacing of the moving image.
 
+fixed_direction: Tuple[Int]
+    Cosine direction matrix of the fixed images.
+
+moving_direction: Tuple[Int]
+    Cosine direction matrix of the moving images.
+
 interpolator: pydeform.Interpolator
     Interpolator used in the resampling process, either
     `pydeform.Interpolator.Linear` or
@@ -571,6 +621,8 @@ np.ndarray
  * @param origin Vector of length 3, containing the (x, y,z)
  *               coordinates of the origin.
  * @param spacing Vector of length 3, containing the (x, y,z) spacing.
+ * @param direction Vector of length 9, representing the cosine
+ *                  direction matrix in row-major order.
  *
  * @return A numpy array representing the Jacobian determinant (scalar map)
  *         size, origin, and spacing the input displacement.
@@ -580,11 +632,12 @@ np.ndarray
 py::array jacobian_wrapper(
         const py::array displacement,
         const std::vector<double>& origin,
-        const std::vector<double>& spacing
+        const std::vector<double>& spacing,
+        const std::vector<double>& direction
         )
 {
     // Compute Jacobian
-    auto jacobian = calculate_jacobian(image_to_volume(displacement, origin, spacing));
+    auto jacobian = calculate_jacobian(image_to_volume(displacement, origin, spacing, direction));
 
     auto shape = get_scalar_shape(displacement);
     return py::array_t<JAC_TYPE>(shape, reinterpret_cast<const JAC_TYPE*>(jacobian.ptr()));
@@ -612,6 +665,9 @@ origin: np.ndarray
 spacing: np.ndarray
     Spacing of the displacement field.
 
+direction: Tuple[Int]
+    Cosine direction matrix of the displacement field.
+
 Returns
 -------
 np.ndarray
@@ -637,6 +693,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("moving_origin") = py::make_tuple(0.0, 0.0, 0.0),
           py::arg("fixed_spacing") = py::make_tuple(1.0, 1.0, 1.0),
           py::arg("moving_spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("fixed_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+          py::arg("moving_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
           py::arg("fixed_landmarks") = py::none(),
           py::arg("moving_landmarks") = py::none(),
           py::arg("initial_displacement") = py::none(),
@@ -658,6 +716,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("moving_origin") = py::make_tuple(0.0, 0.0, 0.0),
           py::arg("fixed_spacing") = py::make_tuple(1.0, 1.0, 1.0),
           py::arg("moving_spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("fixed_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+          py::arg("moving_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
           py::arg("interpolator") = transform::Interp_Linear
           );
 
@@ -666,7 +726,8 @@ PYBIND11_MODULE(_pydeform, m)
           jacobian_docstring.c_str(),
           py::arg("displacement"),
           py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0)
+          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
          );
 
     // Translate relevant exception types. The exceptions not handled
