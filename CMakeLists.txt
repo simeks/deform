@@ -142,8 +142,6 @@ if(NOT WIN32)
     find_package(YAML-CPP QUIET)
 endif()
 
-set(STK_ITK_BRIDGE ${DF_ITK_BRIDGE})
-
 add_subdirectory(third_party)
 add_subdirectory(src)
 
