@@ -17,6 +17,7 @@ option(DF_USE_ISPC "Enables ISPC support" OFF)
 option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
 option(DF_BUILD_WITH_DEBUG_INFO "Includes debug info in release builds" OFF)
 option(DF_ENABLE_FAST_MATH "Enables fast math" OFF)
+option(DF_ITK_BRIDGE "Add support to interoperate with ITK" OFF)
 
 option(DF_ENABLE_MICROPROFILE "Enables microprofile profiler" OFF)
 option(DF_ENABLE_NVTOOLSEXT "Enables nvtoolsext profiler" OFF)
@@ -140,6 +141,8 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${EXTRA_LI
 if(NOT WIN32)
     find_package(YAML-CPP QUIET)
 endif()
+
+set(STK_ITK_BRIDGE ${DF_ITK_BRIDGE})
 
 add_subdirectory(third_party)
 add_subdirectory(src)

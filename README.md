@@ -13,6 +13,19 @@ If CMake cannot find the ISPC executable on your installation, it is possible
 to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
 full path to the executable with `-DISPC_EXECUTABLE`.
 
+## Build and install Python wrapper
+```
+# python setup.py install
+```
+
+Flags accepted by `setup.py`:
+* `--use-cuda`: build with CUDA support
+* `--use-ispc`: build with ISPC support
+* `--use-itk`: build with ITK support
+* `--debug`: build with debug symbols
+
+Additional flags starting with `-D` are also recognised and forwarded to CMake.
+
 ## Run
 To perform a registration
 `deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`

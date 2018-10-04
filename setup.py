@@ -4,24 +4,25 @@ import sysconfig
 import platform
 import subprocess
 
+from pprint import pprint
+
 from distutils.version import LooseVersion
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 
-DF_DEBUG = False
-if '--debug' in sys.argv:
-    sys.argv.remove('--debug')
-    DF_DEBUG = True
+# Parse command line flags
+flags = {k: 'OFF' for k in ['--debug', '--use-cuda', '--use-ispc', '--use-itk']}
+for flag in flags.keys():
+    if flag in sys.argv:
+        flags[flag] = 'ON'
+        sys.argv.remove(flag)
 
-DF_USE_CUDA = 'OFF'
-if '--use-cuda' in sys.argv:
-    sys.argv.remove('--use-cuda')
-    DF_USE_CUDA = 'ON'
-
-DF_USE_ISPC = 'OFF'
-if '--use-ispc' in sys.argv:
-    sys.argv.remove('--use-ispc')
-    DF_USE_ISPC = 'ON'
+# Command line flags forwarded to CMake
+cmake_cmd_args = []
+for f in sys.argv:
+    if f.startswith('-D'):
+        cmake_cmd_args.append(f)
+        sys.argv.remove(f)
 
 class CMakeExtension(Extension):
     def __init__(self, name, cmake_lists_dir=''):
@@ -42,7 +43,7 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
 
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        cfg = 'Debug' if DF_DEBUG else 'Release'
+        cfg = 'Debug' if flags['--debug'] == 'ON' else 'Release'
         build_args = ['--config', cfg]
 
         cmake_args = [
@@ -50,14 +51,18 @@ class CMakeBuild(build_ext):
             '-DDF_BUILD_TESTS=OFF',
             '-DF_BUILD_WITH_DEBUG_INFO=%s' % ('ON' if cfg == 'Debug' else 'OFF'),
             '-DCMAKE_BUILD_TYPE=%s' % cfg,
-            '-DDF_USE_CUDA=%s' % DF_USE_CUDA,
-            '-DDF_USE_ISPC=%s' % DF_USE_ISPC,
+            '-DDF_USE_CUDA=%s' % flags['--use-cuda'],
+            '-DDF_USE_ISPC=%s' % flags['--use-ispc'],
+            '-DDF_ITK_BRIDGE=%s' % flags['--use-itk'],
             '-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
         ]
 
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+
+        cmake_args += cmake_cmd_args
+        pprint(cmake_args)
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
