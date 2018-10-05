@@ -36,7 +36,7 @@
 #include "registration.h"
 
 /// name : Name for printout
-static void validate_volume_properties(
+void validate_volume_properties(
     const stk::Volume& vol,
     const stk::Volume& ref_vol,
     const std::string& name)

@@ -78,7 +78,7 @@ stk::GpuVolume shrink_volume_by_2(const stk::GpuVolume& src)
 
     stk::GpuVolume dest(new_dims, src.voxel_type());
     dest.copy_meta_from(src);
-    
+
     float3 old_spacing = src.spacing();
     float3 new_spacing {
         old_spacing.x * (old_dims.x / float(new_dims.x)),
@@ -125,7 +125,7 @@ namespace gpu {
     {
         ASSERT(vol.voxel_type() == stk::Type_Float);
         ASSERT(vol.usage() == stk::gpu::Usage_PitchedPointer);
-    
+
         float3 spacing = vol.spacing();
         float unit_sigma = std::min(spacing.x, std::min(spacing.y, spacing.z));
 
@@ -142,7 +142,7 @@ namespace gpu {
     {
         ASSERT(vol.voxel_type() == stk::Type_Float4);
         ASSERT(vol.usage() == stk::gpu::Usage_PitchedPointer);
-    
+
         float3 spacing = vol.spacing();
         float unit_sigma = std::min(spacing.x, std::min(spacing.y, spacing.z));
 
@@ -159,14 +159,14 @@ namespace gpu {
     {
         ASSERT(vol.voxel_type() == stk::Type_Float4); // No float3 in gpu volumes
         ASSERT(vol.usage() == stk::gpu::Usage_PitchedPointer);
-        
+
         dim3 old_dims = vol.size();
         float3 inv_scale{
             float(old_dims.x) / new_dims.x,
             float(old_dims.y) / new_dims.y,
             float(old_dims.z) / new_dims.z
         };
-        
+
         stk::GpuVolume out(new_dims, stk::Type_Float4, stk::gpu::Usage_PitchedPointer);
         out.copy_meta_from(vol);
 

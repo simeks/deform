@@ -19,19 +19,19 @@ TEST_CASE("gpu_gaussian_filter", "")
 {
     stk::VolumeFloat src({16,16,16});
 
-    for (int z = 0; z < (int)src.size().z; ++z) 
-    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int z = 0; z < (int)src.size().z; ++z)
+    for (int y = 0; y < (int)src.size().y; ++y)
     for (int x = 0; x < (int)src.size().x; ++x) {
-        
+
         int r = (x-7)*(x-7) + (y-7)*(y-7) + (z-7)*(z-7);
         if (r < 8*8) {
             src(x,y,z) = 1.0f;
         }
         else {
-            src(x,y,z) = 0.0f;            
+            src(x,y,z) = 0.0f;
         }
     }
-    
+
     // Use CPU-version as ground truth
     stk::VolumeFloat out = filters::gaussian_filter_3d(src, 2.5f);
 
@@ -46,8 +46,14 @@ TEST_CASE("gpu_gaussian_filter", "")
     CHECK(gpu_out.origin().y == Approx(out.origin().y));
     CHECK(gpu_out.origin().z == Approx(out.origin().z));
 
-    for (int z = 0; z < (int)src.size().z; ++z) 
-    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            CHECK(gpu_out.direction()(i, j) == Approx(out.direction()(i, j)));
+        }
+    }
+
+    for (int z = 0; z < (int)src.size().z; ++z)
+    for (int y = 0; y < (int)src.size().y; ++y)
     for (int x = 0; x < (int)src.size().x; ++x) {
         REQUIRE(gpu_out(x,y,z) == Approx(out(x,y,z)));
     }
@@ -57,16 +63,16 @@ TEST_CASE("gpu_downsample_gaussian", "")
 {
     stk::VolumeFloat src({16,16,16});
 
-    for (int z = 0; z < (int)src.size().z; ++z) 
-    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int z = 0; z < (int)src.size().z; ++z)
+    for (int y = 0; y < (int)src.size().y; ++y)
     for (int x = 0; x < (int)src.size().x; ++x) {
-        
+
         int r = (x-7)*(x-7) + (y-7)*(y-7) + (z-7)*(z-7);
         if (r < 8*8) {
             src(x,y,z) = 10.0f;
         }
         else {
-            src(x,y,z) = 1.0f;            
+            src(x,y,z) = 1.0f;
         }
     }
 
@@ -84,8 +90,14 @@ TEST_CASE("gpu_downsample_gaussian", "")
     CHECK(gpu_out.origin().y == Approx(out.origin().y));
     CHECK(gpu_out.origin().z == Approx(out.origin().z));
 
-    for (int z = 0; z < (int)out.size().z; ++z) 
-    for (int y = 0; y < (int)out.size().y; ++y) 
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            CHECK(gpu_out.direction()(i, j) == Approx(out.direction()(i, j)));
+        }
+    }
+
+    for (int z = 0; z < (int)out.size().z; ++z)
+    for (int y = 0; y < (int)out.size().y; ++y)
     for (int x = 0; x < (int)out.size().x; ++x) {
         REQUIRE(gpu_out(x,y,z) == Approx(out(x,y,z)));
     }
@@ -96,10 +108,10 @@ TEST_CASE("gpu_downsample_vectorfield", "")
     stk::VolumeFloat3 src({16,16,16});
     stk::VolumeFloat4 src4({16,16,16}); // CUDA do not support float3 so we add an empty channel
 
-    for (int z = 0; z < (int)src.size().z; ++z) 
-    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int z = 0; z < (int)src.size().z; ++z)
+    for (int y = 0; y < (int)src.size().y; ++y)
     for (int x = 0; x < (int)src.size().x; ++x) {
-        
+
         int r = (x-7)*(x-7) + (y-7)*(y-7) + (z-7)*(z-7);
         if (r < 6) {
             src(x,y,z) = {2.0f, 1.0f, 0.5f};
@@ -124,8 +136,14 @@ TEST_CASE("gpu_downsample_vectorfield", "")
     CHECK(gpu_out.origin().y == Approx(out.origin().y));
     CHECK(gpu_out.origin().z == Approx(out.origin().z));
 
-    for (int z = 0; z < (int)out.size().z; ++z) 
-    for (int y = 0; y < (int)out.size().y; ++y) 
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            CHECK(gpu_out.direction()(i, j) == Approx(out.direction()(i, j)));
+        }
+    }
+
+    for (int z = 0; z < (int)out.size().z; ++z)
+    for (int y = 0; y < (int)out.size().y; ++y)
     for (int x = 0; x < (int)out.size().x; ++x) {
         REQUIRE(gpu_out(x,y,z).x == Approx(out(x,y,z).x));
         REQUIRE(gpu_out(x,y,z).y == Approx(out(x,y,z).y));
@@ -139,8 +157,8 @@ TEST_CASE("gpu_upsample_vectorfield", "")
     stk::VolumeFloat3 src({8,8,8});
     stk::VolumeFloat4 src4({8,8,8}); // CUDA do not support float3 so we add an empty channel
 
-    for (int z = 0; z < (int)src.size().z; ++z) 
-    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int z = 0; z < (int)src.size().z; ++z)
+    for (int y = 0; y < (int)src.size().y; ++y)
     for (int x = 0; x < (int)src.size().x; ++x) {
         int r = (x-3)*(x-3) + (y-3)*(y-3) + (z-3)*(z-3);
         if (r < 6) {
@@ -166,8 +184,14 @@ TEST_CASE("gpu_upsample_vectorfield", "")
     CHECK(gpu_out.origin().y == Approx(out.origin().y));
     CHECK(gpu_out.origin().z == Approx(out.origin().z));
 
-    for (int z = 0; z < (int)out.size().z; ++z) 
-    for (int y = 0; y < (int)out.size().y; ++y) 
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            CHECK(gpu_out.direction()(i, j) == Approx(out.direction()(i, j)));
+        }
+    }
+
+    for (int z = 0; z < (int)out.size().z; ++z)
+    for (int y = 0; y < (int)out.size().y; ++y)
     for (int x = 0; x < (int)out.size().x; ++x) {
         REQUIRE(gpu_out(x,y,z).x == Approx(out(x,y,z).x));
         REQUIRE(gpu_out(x,y,z).y == Approx(out(x,y,z).y));
@@ -184,9 +208,15 @@ TEST_CASE("gpu_transform", "")
     src.set_spacing(float3{1.1f, 1.2f, 1.3f});
     stk::VolumeFloat3 def3({8,8,8}); // CUDA do not support float3 so we add an empty channel
     stk::VolumeFloat4 def4({8,8,8}); // CUDA do not support float3 so we add an empty channel
+    def3.set_direction({{
+            {0.999, 0.001, 0.00},
+            {0.001, 0.988, 0.00},
+            {0.000, 0.000, 0.99}
+    }});
+    def4.set_direction(def3.direction());
 
-    for (int z = 0; z < (int)src.size().z; ++z) 
-    for (int y = 0; y < (int)src.size().y; ++y) 
+    for (int z = 0; z < (int)src.size().z; ++z)
+    for (int y = 0; y < (int)src.size().y; ++y)
     for (int x = 0; x < (int)src.size().x; ++x) {
         int r = (x-3)*(x-3) + (y-3)*(y-3) + (z-3)*(z-3);
         if (r < 6) {
@@ -219,6 +249,12 @@ TEST_CASE("gpu_transform", "")
     CHECK(gpu_out_lin.origin().y == Approx(out_lin.origin().y));
     CHECK(gpu_out_lin.origin().z == Approx(out_lin.origin().z));
 
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            CHECK(gpu_out_lin.direction()(i, j) == Approx(gpu_def.direction()(i, j)));
+        }
+    }
+
     CHECK(gpu_out_nn.spacing().x == Approx(out_nn.spacing().x));
     CHECK(gpu_out_nn.spacing().y == Approx(out_nn.spacing().y));
     CHECK(gpu_out_nn.spacing().z == Approx(out_nn.spacing().z));
@@ -227,8 +263,14 @@ TEST_CASE("gpu_transform", "")
     CHECK(gpu_out_nn.origin().y == Approx(out_nn.origin().y));
     CHECK(gpu_out_nn.origin().z == Approx(out_nn.origin().z));
 
-    for (int z = 0; z < (int)out_nn.size().z; ++z) 
-    for (int y = 0; y < (int)out_nn.size().y; ++y) 
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            CHECK(gpu_out_nn.direction()(i, j) == Approx(gpu_def.direction()(i, j)));
+        }
+    }
+
+    for (int z = 0; z < (int)out_nn.size().z; ++z)
+    for (int y = 0; y < (int)out_nn.size().y; ++y)
     for (int x = 0; x < (int)out_nn.size().x; ++x) {
         REQUIRE(gpu_out_lin(x,y,z) == Approx(out_lin(x,y,z)));
         REQUIRE(gpu_out_nn(x,y,z) == Approx(out_nn(x,y,z)));

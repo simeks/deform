@@ -21,18 +21,7 @@ namespace
         dim3 dims = def.size();
 
         stk::VolumeHelper<TVoxelType> out(dims);
-        out.set_origin(def.origin());
-        out.set_spacing(def.spacing());
-
-        float3 fixed_origin = def.origin();
-        float3 moving_origin = src.origin();
-
-        float3 fixed_spacing = def.spacing();
-        float3 inv_moving_spacing{
-            1.0f / src.spacing().x,
-            1.0f / src.spacing().y,
-            1.0f / src.spacing().z
-        };
+        out.copy_meta_from(def);
 
         #define FAST_ROUND(x_) int(x_+0.5f)
 
@@ -41,10 +30,7 @@ namespace
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
                     // [fixed] -> [world] -> [moving]
-                    float3 world_p = float3{float(x), float(y), float(z)} * fixed_spacing
-                        + fixed_origin;
-                    float3 moving_p = (world_p + def(x,y,z) - moving_origin)
-                        * inv_moving_spacing;
+                    const float3 moving_p = src.point2index(def.index2point(int3({x, y, z})) + def(x, y, z));
 
                     out(x, y, z) = src.at(
                         int(FAST_ROUND(moving_p.x)),
@@ -76,9 +62,7 @@ namespace
         dim3 dims = def.size();
 
         stk::VolumeHelper<TVoxelType> out(dims);
-        out.set_origin(def.origin());
-        out.set_spacing(def.spacing());
-        out.set_direction(def.direction());
+        out.copy_meta_from(def);
 
         #pragma omp parallel for
         for (int z = 0; z < int(dims.z); ++z) {

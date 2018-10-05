@@ -35,8 +35,7 @@ struct NCCFunction_cube : public SubFunction
                 }
             }
         }
-        _fixed.set_origin(fixed.origin());
-        _fixed.set_spacing(fixed.spacing());
+        _fixed.copy_meta_from(fixed);
 
         // moving volume, zero-padding with thickness 1
         for (int z = 0; z < (int) moving.size().z; ++z) {
@@ -46,8 +45,7 @@ struct NCCFunction_cube : public SubFunction
                 }
             }
         }
-        _moving.set_origin(moving.origin());
-        _moving.set_spacing(moving.spacing());
+        _moving.copy_meta_from(moving);
     }
 
 

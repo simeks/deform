@@ -8,6 +8,17 @@
 #include <vector>
 
 /*!
+ * \brief Ensure that the input volume properties (size, origin,
+ *        spacing, direction) match the reference volume ones.
+ *
+ * @throws ValidationError
+ */
+void validate_volume_properties(
+    const stk::Volume& vol,
+    const stk::Volume& ref_vol,
+    const std::string& name);
+
+/*!
  * \brief Validate input and perform registration.
  *
  * This function validates the volumes and handles the registration

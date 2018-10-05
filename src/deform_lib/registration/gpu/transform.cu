@@ -104,6 +104,8 @@ static void run_nn_kernel(
     stk::GpuVolume& out
 )
 {
+    float3 inv_moving_spacing = float3{1.0f, 1.0f, 1.0f} / src.spacing();
+
     #define TRANSFORM_KERNEL_NN(type) \
             transform_kernel_nn<type><<<grid_size, block_size>>>( \
                 src, \
@@ -118,8 +120,6 @@ static void run_nn_kernel(
                 src.inverse_direction(), \
                 out \
             )
-
-    float3 inv_moving_spacing = float3{1.0f, 1.0f, 1.0f} / src.spacing();
 
     switch (type) {
     case stk::Type_Char:  TRANSFORM_KERNEL_NN(char);  break;
