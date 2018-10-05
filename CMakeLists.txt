@@ -17,6 +17,7 @@ option(DF_USE_ISPC "Enables ISPC support" OFF)
 option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
 option(DF_BUILD_WITH_DEBUG_INFO "Includes debug info in release builds" OFF)
 option(DF_ENABLE_FAST_MATH "Enables fast math" OFF)
+option(DF_ITK_BRIDGE "Add support to interoperate with ITK" OFF)
 
 option(DF_ENABLE_MICROPROFILE "Enables microprofile profiler" OFF)
 option(DF_ENABLE_NVTOOLSEXT "Enables nvtoolsext profiler" OFF)
