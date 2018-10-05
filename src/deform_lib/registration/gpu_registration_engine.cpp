@@ -207,7 +207,7 @@ stk::Volume GpuRegistrationEngine::execute()
         stk::GpuVolume base = _fixed_pyramids[0].volume(0);
 
         // TODO: Until we get a proper GpuVolume::fill()
-        stk::VolumeFloat4 initial(base.size(), float4{0});
+        stk::VolumeFloat4 initial(base.size(), float4{0, 0, 0, 0});
         initial.set_origin(base.origin());
         initial.set_spacing(base.spacing());
 

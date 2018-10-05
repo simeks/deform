@@ -6,7 +6,7 @@
 #include <stk/image/volume.h>
 
 
-VolumePyramid::VolumePyramid() : 
+VolumePyramid::VolumePyramid() :
     _levels(0)
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
     , _save_residuals(false)
@@ -21,7 +21,7 @@ void VolumePyramid::set_level_count(int levels)
     _levels = levels;
     _volumes.resize(_levels);
 }
-void VolumePyramid::build_from_base(const stk::Volume& base, 
+void VolumePyramid::build_from_base(const stk::Volume& base,
     DownsampleFn downsample_fn)
 {
     ASSERT(base.valid());
@@ -52,7 +52,7 @@ int VolumePyramid::levels() const
     return _levels;
 }
 #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-void VolumePyramid::build_from_base_with_residual(const stk::Volume& base, 
+void VolumePyramid::build_from_base_with_residual(const stk::Volume& base,
     DownsampleWithResidualFn downsample_fn)
 {
     ASSERT(base.valid());

@@ -10,7 +10,7 @@ namespace stk
 }
 
 /// Image pyramid representing a set of images each smaller than the other.
-/// I.e. 
+/// I.e.
 /// Level:                      Size [elements]:
 ///     3        | |            1
 ///     2       | | |           2
@@ -31,7 +31,7 @@ public:
     VolumePyramid();
     ~VolumePyramid();
 
-    /// Sets the size of the pyramid. 
+    /// Sets the size of the pyramid.
     /// This needs to be called before build_from_base, otherwise you'll need to rebuild the pyramid
     void set_level_count(int levels);
 
@@ -49,7 +49,7 @@ public:
     void build_from_base_with_residual(const stk::Volume& base, DownsampleWithResidualFn downsample_fn);
 #endif
 
-    /// Sets the volume at the given level without rebuilding any other levels of the pyramid. 
+    /// Sets the volume at the given level without rebuilding any other levels of the pyramid.
     void set_volume(int level, const stk::Volume& vol);
 
     /// Returns the volume at the specified level, 0 being the base volume.
@@ -73,7 +73,7 @@ private:
     bool _save_residuals;
 
     /// Residuals:
-    /// Index 0 holds the residual from downsampling pyramid level 0 to 1, index 1 holds 1 to 2, ... 
+    /// Index 0 holds the residual from downsampling pyramid level 0 to 1, index 1 holds 1 to 2, ...
     std::vector<stk::Volume> _residuals;
 #endif
 };

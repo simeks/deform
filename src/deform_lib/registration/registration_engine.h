@@ -19,8 +19,8 @@ public:
 
     void set_initial_deformation(const stk::Volume& def);
     void set_image_pair(
-        int i, 
-        const stk::Volume& fixed, 
+        int i,
+        const stk::Volume& fixed,
         const stk::Volume& moving);
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -34,7 +34,7 @@ public:
     /// Sets mask and values for constraints
     void set_voxel_constraints(const stk::VolumeUChar& mask, const stk::VolumeFloat3& values);
 
-    /// Runs the registration. 
+    /// Runs the registration.
     /// Returns the resulting deformation field or an invalid volume if registration failed.
     stk::Volume execute();
 
@@ -46,16 +46,16 @@ public:
 
     /// Returns the deformation field at the specified pyramid level
     stk::Volume deformation_field(int level);
-    
+
 private:
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
     /// Upsamples the deformation field at the given level and saves it
     void upsample_and_save(int level);
-    
+
     /// Saves the complete volume pyramids
     void save_volume_pyramid();
 #endif
-    
+
     Settings _settings;
 
     std::vector<VolumePyramid> _fixed_pyramids;

@@ -18,6 +18,8 @@
 #include <stk/filters/normalize.h>
 #include <stk/image/volume.h>
 #include <stk/io/io.h>
+#include <stk/math/math.h>
+#include <stk/math/matrix3x3f.h>
 
 #include <algorithm>
 #include <cmath>
@@ -36,42 +38,44 @@
 /// name : Name for printout
 static void validate_volume_properties(
     const stk::Volume& vol,
-    const dim3& expected_dims,
-    const float3& expected_origin,
-    const float3& expected_spacing,
+    const stk::Volume& ref_vol,
     const std::string& name)
 {
-    dim3 dims = vol.size();
-    float3 origin = vol.origin();
-    float3 spacing = vol.spacing();
     std::ostringstream osstr;
 
-    if (dims != expected_dims)
+    // Validate size
+    if (vol.size() != ref_vol.size())
     {
         osstr << "Dimension mismatch for " << name
-              << " (size: " << dims << ", expected: "
-              << expected_dims << ")";
+              << " (size: " << vol.size() << ", expected: "
+              << ref_vol.size() << ")";
         throw ValidationError(osstr.str());
     }
 
-    // arbitrary epsilon but should suffice
-    if (fabs(origin.x - expected_origin.x) > 0.0001f ||
-        fabs(origin.y - expected_origin.y) > 0.0001f ||
-        fabs(origin.z - expected_origin.z) > 0.0001f)
+    // Validate origin
+    if (stk::nonzero(vol.origin() - ref_vol.origin()))
     {
         osstr << "Origin mismatch for " << name
-              << " (origin: " << origin << ", expected: "
-              << expected_origin << ")";
+              << " (origin: " << vol.origin() << ", expected: "
+              << ref_vol.origin() << ")";
         throw ValidationError(osstr.str());
     }
 
-    if (fabs(spacing.x - expected_spacing.x) > 0.0001f ||
-        fabs(spacing.y - expected_spacing.y) > 0.0001f ||
-        fabs(spacing.z - expected_spacing.z) > 0.0001f)
+    // Validate spacing
+    if (stk::nonzero(vol.spacing() - ref_vol.spacing()))
     {
         osstr << "Spacing mismatch for " << name
-              << " (spacing: " << spacing << ", expected: "
-              << expected_spacing << ")";
+              << " (spacing: " << vol.spacing() << ", expected: "
+              << ref_vol.spacing() << ")";
+        throw ValidationError(osstr.str());
+    }
+
+    // Validate direction
+    if (stk::nonzero(vol.direction() - ref_vol.direction()))
+    {
+        osstr << "Direction mismatch for " << name
+              << " (direction: " << vol.direction() << ", expected: "
+              << ref_vol.direction() << ")";
         throw ValidationError(osstr.str());
     }
 }
@@ -138,10 +142,8 @@ stk::Volume registration(
             moving_ref = moving;
         }
         else {
-            validate_volume_properties(fixed, fixed_ref.size(),
-                    fixed_ref.origin(), fixed_ref.spacing(), fixed_id);
-            validate_volume_properties(moving, moving_ref.size(),
-                    moving_ref.origin(), moving_ref.spacing(), moving_id);
+            validate_volume_properties(fixed, fixed_ref, fixed_id);
+            validate_volume_properties(moving, moving_ref, moving_id);
         }
 
         auto& slot = settings.image_slots[i];
@@ -170,9 +172,7 @@ stk::Volume registration(
             throw ValidationError("Invalid initial deformation volume");
         }
 
-        validate_volume_properties(initial_deformation.value(), fixed_ref.size(),
-                fixed_ref.origin(), fixed_ref.spacing(), "initial deformation field");
-
+        validate_volume_properties(initial_deformation.value(), fixed_ref, "initial deformation field");
         engine.set_initial_deformation(initial_deformation.value());
     }
 
@@ -185,12 +185,8 @@ stk::Volume registration(
             throw ValidationError("Invalid constraint values volume");
         }
 
-        validate_volume_properties(constraint_mask.value(), fixed_ref.size(),
-                fixed_ref.origin(), fixed_ref.spacing(), "constraint mask");
-
-        validate_volume_properties(constraint_values.value(), fixed_ref.size(),
-                fixed_ref.origin(), fixed_ref.spacing(), "constraint values");
-
+        validate_volume_properties(constraint_mask.value(), fixed_ref, "constraint mask");
+        validate_volume_properties(constraint_values.value(), fixed_ref, "constraint values");
         engine.set_voxel_constraints(constraint_mask.value(), constraint_values.value());
     }
 
@@ -211,7 +207,8 @@ stk::Volume registration(
     stk::Volume def = engine.execute();
     auto t_end = high_resolution_clock::now();
     int elapsed = int(round(duration_cast<duration<double>>(t_end - t_start).count()));
-    LOG(Info) << "Registration completed in " << elapsed / 60 << ":" << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
+    LOG(Info) << "Registration completed in "
+              << elapsed / 60 << ":" << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
 
     return def;
 }

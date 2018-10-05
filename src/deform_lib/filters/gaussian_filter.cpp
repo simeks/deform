@@ -79,7 +79,7 @@ namespace
         }
 
         tmp.copy_from(result);
-        
+
         //Z dimension
         size = (int)ceil(3 * sigma / spacing_z);
         #pragma omp parallel for

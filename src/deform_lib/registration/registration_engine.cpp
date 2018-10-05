@@ -545,11 +545,10 @@ stk::Volume RegistrationEngine::execute()
     if (!_deformation_pyramid.volume(0).valid()) {
         // No initial deformation, create a field with all zeros
 
-        stk::Volume base = _fixed_pyramids[0].volume(0);
+        const stk::Volume& base = _fixed_pyramids[0].volume(0);
 
         stk::VolumeFloat3 initial(base.size(), float3{0, 0, 0});
-        initial.set_origin(base.origin());
-        initial.set_spacing(base.spacing());
+        initial.copy_meta_from(base);
         set_initial_deformation(initial);
     }
 

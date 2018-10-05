@@ -22,7 +22,7 @@ namespace
 
         stk::VolumeHelper<TVoxelType> dest(new_dims);
         dest.copy_meta_from(src);
-        
+
         float3 old_spacing = src.spacing();
         float3 new_spacing {
             old_spacing.x * (old_dims.x / float(new_dims.x)),
@@ -85,13 +85,13 @@ stk::Volume filters::downsample_vectorfield_by_2(const stk::Volume& field
         dim3 old_dims = field.size();
         stk::VolumeFloat3 src(field);
         stk::VolumeFloat3 tmp(old_dims);
-        
-    
+
+
         #pragma omp parallel for
         for (int z = 0; z < int(old_dims.z); ++z) {
             for (int y = 0; y < int(old_dims.y); ++y) {
                 for (int x = 0; x < int(old_dims.x); ++x) {
-                    tmp(x, y, z) = src(x, y, z) - 
+                    tmp(x, y, z) = src(x, y, z) -
                         result.linear_at(0.5f*x, 0.5f*y, 0.5f*z, stk::Border_Replicate);
                 }
             }
@@ -109,7 +109,7 @@ stk::Volume filters::upsample_vectorfield(const stk::Volume& vol, const dim3& ne
 {
     FATAL_IF(vol.voxel_type() != stk::Type_Float3)
         << "Unsupported voxel format";
-    
+
     if (vol.voxel_type() == stk::Type_Float3) {
         stk::VolumeFloat3 field(vol);
 
@@ -139,18 +139,18 @@ stk::Volume filters::upsample_vectorfield(const stk::Volume& vol, const dim3& ne
                 << "Unsupported voxel format";
 
             stk::VolumeFloat3 residual_float3(residual);
-            
+
             #pragma omp parallel for
             for (int z = 0; z < int(new_dims.z); ++z) {
                 for (int y = 0; y < int(new_dims.y); ++y) {
                     for (int x = 0; x < int(new_dims.x); ++x) {
                         float3 d = field.linear_at(
-                                    inv_scale.x*x, 
-                                    inv_scale.y*y, 
-                                    inv_scale.z*z, 
-                                    stk::Border_Replicate) 
+                                    inv_scale.x*x,
+                                    inv_scale.y*y,
+                                    inv_scale.z*z,
+                                    stk::Border_Replicate)
                             + residual_float3(x, y, z);
-                        out(x, y, z) = d; 
+                        out(x, y, z) = d;
                     }
                 }
             }
@@ -164,11 +164,11 @@ stk::Volume filters::upsample_vectorfield(const stk::Volume& vol, const dim3& ne
                 for (int y = 0; y < int(new_dims.y); ++y) {
                     for (int x = 0; x < int(new_dims.x); ++x) {
                         float3 d = field.linear_at(
-                            inv_scale.x*x, 
-                            inv_scale.y*y, 
-                            inv_scale.z*z, 
+                            inv_scale.x*x,
+                            inv_scale.y*y,
+                            inv_scale.z*z,
                             stk::Border_Replicate);
-                        out(x, y, z) = d; 
+                        out(x, y, z) = d;
                     }
                 }
             }
