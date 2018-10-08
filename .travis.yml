@@ -25,7 +25,7 @@ install:
 script:
 - mkdir build
 - cd build
-- cmake .. -DDF_BUILD_TESTS=1 -DCMAKE_BUILD_TYPE=${CONFIG} -DDF_BUILD_PYTHON_WRAPPER=ON -DDF_BUILD_DOCS=ON
+- cmake .. -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1 -DCMAKE_BUILD_TYPE=${CONFIG} -DDF_BUILD_PYTHON_WRAPPER=ON -DDF_BUILD_DOCS=ON
 - cmake --build . --config ${CONFIG}
 - ctest --output-on-failure
 - cd ..
