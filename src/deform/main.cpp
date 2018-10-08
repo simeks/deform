@@ -200,7 +200,7 @@ int run_registration(int argc, char* argv[])
                     #endif
                         );
     }
-    catch (ValidationError& e) {
+    catch (std::exception& e) {
         LOG(Error) << e.what();
         return 1;
     }
