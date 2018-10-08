@@ -30,7 +30,7 @@ namespace
         }
     }
 
-    void constrain_deformation_field(stk::VolumeFloat3& def, 
+    void constrain_deformation_field(stk::VolumeFloat3& def,
         const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
     {
         ASSERT(def.size() == mask.size() && def.size() == values.size());
@@ -48,14 +48,14 @@ namespace
 
     template<typename T>
     std::unique_ptr<SubFunction> ssd_function_factory(
-        const stk::Volume& fixed, 
+        const stk::Volume& fixed,
         const stk::Volume& moving,
         const std::map<std::string, std::string>& parameters
     )
     {
         if (!parameters.empty()) {
             throw std::invalid_argument("SSDFunction: unrecognised parameter "
-                                        "'" + parameters.begin()->first + "' with value '" 
+                                        "'" + parameters.begin()->first + "' with value '"
                                         + parameters.begin()->second + "'");
         }
 
@@ -66,7 +66,7 @@ namespace
 
     template<typename T>
     std::unique_ptr<SubFunction> ncc_function_factory(
-        const stk::Volume& fixed, 
+        const stk::Volume& fixed,
         const stk::Volume& moving,
         const std::map<std::string, std::string>& parameters
     )
@@ -80,7 +80,7 @@ namespace
             }
             else if (k == "window") {
                 if (v != "cube" && v != "sphere") {
-                    throw std::invalid_argument("NCCFunction: invalid value '" + v + 
+                    throw std::invalid_argument("NCCFunction: invalid value '" + v +
                                                 "' for parameter '" + k + "'");
                 }
                 window = v;
@@ -182,7 +182,7 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
 
     // Clone the def, because the current copy will be changed when executing the optimizer
     binary_fn.set_initial_displacement(_deformation_pyramid.volume(level).clone());
-        
+
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
             binary_fn.set_weight_map(_regularization_weight_map.volume(level));
@@ -451,14 +451,12 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             std::make_unique<LandmarksFunction>(
                 _fixed_landmarks,
                 _moving_landmarks,
-                fixed.origin(),
-                fixed.spacing(),
-                fixed.size()
+                fixed
             ),
             _settings.levels[level].landmarks_weight
         );
     }
- 
+
     if (_constraints_mask_pyramid.volume(level).valid()) {
         unary_fn.add_function(
             std::make_unique<SoftConstraintsFunction>(
@@ -500,18 +498,18 @@ void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 #endif
 }
 void RegistrationEngine::set_image_pair(
-    int i, 
-    const stk::Volume& fixed, 
+    int i,
+    const stk::Volume& fixed,
     const stk::Volume& moving)
 {
     ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
-    
+
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
-    
+
     // It's the only available fn for now
     auto downsample_fn = filters::downsample_volume_by_2;
-    
+
     _fixed_pyramids[i].build_from_base(fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(moving, downsample_fn);
 }
@@ -534,7 +532,7 @@ void RegistrationEngine::set_landmarks(
 void RegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
 {
     voxel_constraints::build_pyramids(
-        mask, 
+        mask,
         values,
         _settings.num_pyramid_levels,
         _constraints_mask_pyramid,
@@ -546,12 +544,11 @@ stk::Volume RegistrationEngine::execute()
 {
     if (!_deformation_pyramid.volume(0).valid()) {
         // No initial deformation, create a field with all zeros
-        
-        stk::Volume base = _fixed_pyramids[0].volume(0);
+
+        const stk::Volume& base = _fixed_pyramids[0].volume(0);
 
         stk::VolumeFloat3 initial(base.size(), float3{0, 0, 0});
-        initial.set_origin(base.origin());
-        initial.set_spacing(base.spacing());
+        initial.copy_meta_from(base);
         set_initial_deformation(initial);
     }
 
@@ -580,7 +577,7 @@ stk::Volume RegistrationEngine::execute()
                     _constraints_pyramid.volume(l)
                 );
             }
-            
+
             BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
                 _settings.levels[l].block_size,
                 _settings.levels[l].block_energy_epsilon,
@@ -592,7 +589,7 @@ stk::Volume RegistrationEngine::execute()
         else {
             LOG(Info) << "Skipping level " << l;
         }
-        
+
         if (l != 0) {
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
@@ -633,7 +630,7 @@ void RegistrationEngine::upsample_and_save(int level)
     dim3 dims = def.size();
 
     float factor = powf(0.5f, float(diff));
-    
+
     #pragma omp parallel for
     for (int z = 0; z < int(dims.z); ++z) {
         for (int y = 0; y < int(dims.y); ++y) {
@@ -647,7 +644,7 @@ void RegistrationEngine::upsample_and_save(int level)
     ss << "deformation_l" << level << ".vtk";
     std::string tmp = ss.str();
     stk::write_volume(tmp.c_str(), def);
-    
+
     ss.str("");
     ss << "deformation_low_l" << level << ".vtk";
     tmp = ss.str();
@@ -678,7 +675,7 @@ void RegistrationEngine::save_volume_pyramid()
 
             if (_moving_pyramids[i].levels() > 0) {
                 std::stringstream file;
-                file << "moving_pyramid_" << i << "_level_" << l << ".vtk";            
+                file << "moving_pyramid_" << i << "_level_" << l << ".vtk";
                 stk::write_volume(file.str().c_str(), _moving_pyramids[i].volume(l));
             }
         }

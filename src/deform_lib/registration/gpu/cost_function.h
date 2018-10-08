@@ -14,7 +14,7 @@ namespace stk { namespace cuda {
 
 struct GpuSubFunction
 {
-    // Costs are accumulated into the specified cost_acc volume (of type float2), 
+    // Costs are accumulated into the specified cost_acc volume (of type float2),
     //  where x is the cost before applying delta and y is the cost after.
     // offset       : Offset to region to compute terms in
     // dims         : Size of region
@@ -24,7 +24,7 @@ struct GpuSubFunction
     virtual void cost(
         stk::GpuVolume& df,
         const float3& delta,
-        float weight, 
+        float weight,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
@@ -34,7 +34,7 @@ struct GpuSubFunction
 
 struct GpuCostFunction_SSD : public GpuSubFunction
 {
-    GpuCostFunction_SSD(const stk::GpuVolume& fixed, 
+    GpuCostFunction_SSD(const stk::GpuVolume& fixed,
                         const stk::GpuVolume& moving) :
         _fixed(fixed),
         _moving(moving)
@@ -45,7 +45,7 @@ struct GpuCostFunction_SSD : public GpuSubFunction
     void cost(
         stk::GpuVolume& df,
         const float3& delta,
-        float weight, 
+        float weight,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
@@ -59,10 +59,10 @@ struct GpuCostFunction_SSD : public GpuSubFunction
 
 struct GpuCostFunction_NCC : public GpuSubFunction
 {
-    GpuCostFunction_NCC(const stk::GpuVolume& fixed, 
+    GpuCostFunction_NCC(const stk::GpuVolume& fixed,
                         const stk::GpuVolume& moving,
                         int radius) :
-        _fixed(fixed), 
+        _fixed(fixed),
         _moving(moving),
         _radius(radius)
     {
@@ -72,7 +72,7 @@ struct GpuCostFunction_NCC : public GpuSubFunction
     void cost(
         stk::GpuVolume& df,
         const float3& delta,
-        float weight, 
+        float weight,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
@@ -101,7 +101,7 @@ public:
     {
         _regularization_weight = weight;
     }
-    
+
     // cost_acc : Cost accumulator for unary term. float2 with E0 and E1.
     void operator()(
         stk::GpuVolume& df,
@@ -113,7 +113,7 @@ public:
     )
     {
         for (auto& fn : _functions) {
-            fn.function->cost(df, delta, (1.0f-_regularization_weight)*fn.weight, 
+            fn.function->cost(df, delta, (1.0f-_regularization_weight)*fn.weight,
                               offset, dims, cost_acc, stream);
         }
         // TODO: Maybe applying regularization as a separate pass?
@@ -134,7 +134,7 @@ private:
 class GpuBinaryFunction
 {
 public:
-    GpuBinaryFunction() : _weight(0.0f), _spacing{0} {}
+    GpuBinaryFunction() : _weight(0.0f), _spacing{0, 0, 0} {}
     ~GpuBinaryFunction() {}
 
     void set_regularization_weight(float weight)
@@ -147,7 +147,7 @@ public:
     }
 
     // Sets the initial displacement for this registration level. This will be
-    //  the reference when computing the regularization energy. Any displacement 
+    //  the reference when computing the regularization energy. Any displacement
     //  identical to the initial displacement will result in zero energy.
     void set_initial_displacement(const stk::GpuVolume& initial)
     {

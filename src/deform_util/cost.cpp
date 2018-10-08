@@ -1,6 +1,7 @@
 #include <deform_lib/arg_parser.h>
 #include <deform_lib/cost_functions/cost_function.h>
 #include <deform_lib/filters/resample.h>
+#include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/settings.h>
 
@@ -10,55 +11,11 @@
 #include <stk/image/volume.h>
 #include <stk/io/io.h>
 
-namespace {
-    /// name : Name for printout
-    bool validate_volume_properties(
-        const stk::Volume& vol, 
-        const dim3& expected_dims,
-        const float3& expected_origin, 
-        const float3& expected_spacing, 
-        const std::string& name)
-    {
-        dim3 dims = vol.size();
-        float3 origin = vol.origin();
-        float3 spacing = vol.spacing();
-        
-        if (dims != expected_dims)
-        {
-            LOG(Error) << "Dimension mismatch for " << name << " (size: " 
-                       << dims << ", expected: " << expected_dims << ")";
-            return false;
-        }
-
-        // arbitrary epsilon but should suffice
-        if (fabs(origin.x - expected_origin.x) > 0.0001f || 
-            fabs(origin.y - expected_origin.y) > 0.0001f ||
-            fabs(origin.z - expected_origin.z) > 0.0001f) 
-        {
-            LOG(Error) << "Origin mismatch for " << name 
-                       << " (origin: " << origin << ", expected: " 
-                       << expected_origin << ")";
-            return false;
-        }
-
-        if (fabs(spacing.x - expected_spacing.x) > 0.0001f || 
-            fabs(spacing.y - expected_spacing.y) > 0.0001f ||
-            fabs(spacing.z - expected_spacing.z) > 0.0001f)
-        {
-            LOG(Error) << "Spacing mismatch for " << name 
-                       << " (spacing: " << spacing << ", expected: " 
-                       << expected_spacing << ")";
-            return false;
-        }
-        return true;
-    }
-}
-
 int run_cost(int argc, char* argv[])
 {
     ArgParser args(argc, argv);
     args.add_positional("command", "registration, transform, regularize, jacobian");
-    
+
     args.add_group();
     args.add_option("param_file",   "-p",           "Path to the parameter file");
     args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image", true);
@@ -72,14 +29,14 @@ int run_cost(int argc, char* argv[])
     if (!args.parse()) {
         return 1;
     }
-    
+
     std::string param_file = args.get<std::string>("param_file", "");
 
     Settings settings; // Default settings
     if (!param_file.empty()) {
         if (!parse_registration_file(param_file, settings))
             return 1;
-    } 
+    }
     else {
         LOG(Info) << "Running with default settings.";
     }
@@ -106,20 +63,17 @@ int run_cost(int argc, char* argv[])
             LOG(Error) << "Mismatch in voxel type between pairs at index " << i;
             return 1;
         }
-        
+
         if (!fixed_ref.valid() || !moving_ref.valid()) {
             fixed_ref = fixed;
             moving_ref = moving;
         }
-        else {
-            if (!validate_volume_properties(fixed, fixed_ref.size(), 
-                    fixed_ref.origin(), fixed_ref.spacing(), fixed_id)) {
-                return 1;
-            }
-            if (!validate_volume_properties(moving, moving_ref.size(), 
-                    moving_ref.origin(), moving_ref.spacing(), moving_id)) {
-                return 1;
-            }
+        try {
+            validate_volume_properties(fixed, fixed_ref, fixed_id);
+            validate_volume_properties(moving, moving_ref, moving_id);
+        }
+        catch (const ValidationError&) {
+            return 1;
         }
 
         auto& slot = settings.image_slots[i];
@@ -145,27 +99,29 @@ int run_cost(int argc, char* argv[])
         LOG(Info) << "Fixed image [" << i << "]: '" << fixed_file << "'";
         LOG(Info) << "Moving image [" << i << "]: '" << moving_file << "'";
     }
-    
+
     std::string init_deform_file = args.get<std::string>("init_deform", "");
     if (!init_deform_file.empty()) {
         stk::Volume initial_deformation = stk::read_volume(init_deform_file.c_str());
         if (!initial_deformation.valid()) return 1;
 
-        if (!validate_volume_properties(initial_deformation, fixed_ref.size(), 
-                fixed_ref.origin(), fixed_ref.spacing(), "initial deformation field"))
+        try {
+            validate_volume_properties(initial_deformation, fixed_ref, "initial deformation field");
+        }
+        catch (const ValidationError&) {
             return 1;
+        }
 
         engine.set_initial_deformation(initial_deformation);
 
         LOG(Info) << "Initial deformation '" << init_deform_file << "'";
     }
     else {
-        // Set empty displacement field. Ugly hack because engine won't initialize 
+        // Set empty displacement field. Ugly hack because engine won't initialize
         //  deformation pyramid until the execution.
 
         stk::VolumeFloat3 initial(fixed_ref.size(), float3{0, 0, 0});
-        initial.set_origin(fixed_ref.origin());
-        initial.set_spacing(fixed_ref.spacing());
+        initial.copy_meta_from(fixed_ref);
         engine.set_initial_deformation(initial);
     }
 
@@ -181,12 +137,10 @@ int run_cost(int argc, char* argv[])
     stk::VolumeFloat3 def = engine.deformation_field(level);
 
     stk::VolumeDouble unary_cost(def.size(), 0.0);
-    unary_cost.set_origin(def.origin());
-    unary_cost.set_spacing(def.spacing());
-    
+    unary_cost.copy_meta_from(def);
+
     stk::VolumeDouble3 binary_cost(def.size(), double3{0.0, 0.0, 0.0});
-    binary_cost.set_origin(def.origin());
-    binary_cost.set_spacing(def.spacing());
+    binary_cost.copy_meta_from(def);
 
 
     dim3 dims = def.size();
@@ -219,10 +173,10 @@ int run_cost(int argc, char* argv[])
     std::string unary_out = args.get<std::string>("unary_out", "");
     std::string binary_out = args.get<std::string>("binary_out", "");
 
-    if (!unary_out.empty()) 
+    if (!unary_out.empty())
         stk::write_volume(unary_out.c_str(), unary_cost);
 
-    if (!binary_out.empty()) 
+    if (!binary_out.empty())
         stk::write_volume(binary_out.c_str(), binary_cost);
 
     return 0;

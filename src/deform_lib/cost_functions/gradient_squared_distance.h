@@ -17,17 +17,8 @@ struct GradientSSDFunction : public SubFunction
 
     float cost(const int3& p, const float3& def)
     {
-        float3 fixed_p{
-            float(p.x),
-            float(p.y),
-            float(p.z)
-        };
-        
         // [fixed] -> [world] -> [moving]
-        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
-
-        float3 moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
+        const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
@@ -36,6 +27,7 @@ struct GradientSSDFunction : public SubFunction
             return 0;
         }
 
+        float3 moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
         return stk::norm2(_fixed(p) - moving_v);
     }

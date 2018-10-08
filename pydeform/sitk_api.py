@@ -92,8 +92,10 @@ def register(
 
     fixed_origin = fixed_images[0].GetOrigin()
     fixed_spacing = fixed_images[0].GetSpacing()
+    fixed_direction = fixed_images[0].GetDirection()
     moving_origin = moving_images[0].GetOrigin()
     moving_spacing = moving_images[0].GetSpacing()
+    moving_direction = moving_images[0].GetDirection()
 
     # Get numpy view of the input
     fixed_images = [sitk.GetArrayViewFromImage(img) for img in fixed_images]
@@ -115,6 +117,8 @@ def register(
                             moving_origin=moving_origin,
                             fixed_spacing=fixed_spacing,
                             moving_spacing=moving_spacing,
+                            fixed_direction=fixed_direction,
+                            moving_direction=moving_direction,
                             fixed_landmarks=fixed_landmarks,
                             moving_landmarks=moving_landmarks,
                             initial_displacement=initial_displacement,
@@ -131,6 +135,7 @@ def register(
     displacement = sitk.GetImageFromArray(displacement)
     displacement.SetOrigin(fixed_origin)
     displacement.SetSpacing(fixed_spacing)
+    displacement.SetDirection(fixed_direction)
 
     return displacement
 

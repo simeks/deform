@@ -11,8 +11,8 @@ namespace stk {
 
 namespace gpu {
     stk::GpuVolume transform_volume(
-        const stk::GpuVolume& src, 
-        const stk::GpuVolume& def, 
+        const stk::GpuVolume& src,
+        const stk::GpuVolume& def,
         transform::Interp i = transform::Interp_Linear,
         const dim3& block_size = {32, 32, 1}
     );

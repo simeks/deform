@@ -19,15 +19,8 @@ struct NCCFunction_sphere : public SubFunction
 
     float cost(const int3& p, const float3& def)
     {
-        float3 fixed_p{
-            float(p.x),
-            float(p.y),
-            float(p.z)
-        }; 
-        
         // [fixed] -> [world] -> [moving]
-        float3 world_p = _fixed.origin() + fixed_p * _fixed.spacing();
-        float3 moving_p = (world_p + def - _moving.origin()) / _moving.spacing();
+        const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
@@ -52,7 +45,7 @@ struct NCCFunction_sphere : public SubFunction
                         continue;
 
                     int3 fp{p.x + dx, p.y + dy, p.z + dz};
-                    
+
                     if (!stk::is_inside(_fixed.size(), fp))
                         continue;
 
@@ -79,7 +72,7 @@ struct NCCFunction_sphere : public SubFunction
         sff -= (sf * sf / n);
         smm -= (sm * sm / n);
         sfm -= (sf * sm / n);
-        
+
         double d = sqrt(sff*smm);
 
         if(d > 1e-5) {
