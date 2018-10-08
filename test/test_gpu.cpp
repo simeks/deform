@@ -209,9 +209,9 @@ TEST_CASE("gpu_transform", "")
     stk::VolumeFloat3 def3({8,8,8}); // CUDA do not support float3 so we add an empty channel
     stk::VolumeFloat4 def4({8,8,8}); // CUDA do not support float3 so we add an empty channel
     def3.set_direction({{
-            {0.999, 0.001, 0.00},
-            {0.001, 0.988, 0.00},
-            {0.000, 0.000, 0.99}
+            {0.999f, 0.001f, 0.00f},
+            {0.001f, 0.988f, 0.00f},
+            {0.000f, 0.000f, 0.99f}
     }});
     def4.set_direction(def3.direction());
 
