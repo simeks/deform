@@ -4,7 +4,7 @@ if(ACTION STREQUAL FETCH)
     if (GIT_FOUND)
         execute_process(COMMAND
             "${GIT_EXECUTABLE}" log -1 --pretty=format:%H
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            WORKING_DIRECTORY "${WORKING_DIR}"
             OUTPUT_VARIABLE GIT_SHA1
             ERROR_QUIET
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -12,7 +12,7 @@ if(ACTION STREQUAL FETCH)
 
         execute_process(COMMAND
             "${GIT_EXECUTABLE}" log -1 --pretty=format:%h
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            WORKING_DIRECTORY "${WORKING_DIR}"
             OUTPUT_VARIABLE GIT_SHA1_SHORT
             ERROR_QUIET
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -20,7 +20,7 @@ if(ACTION STREQUAL FETCH)
         
         execute_process(COMMAND
             "${GIT_EXECUTABLE}" log -1 --format=%ad --date=local
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            WORKING_DIRECTORY "${WORKING_DIR}"
             OUTPUT_VARIABLE GIT_DATE
             ERROR_QUIET
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -28,7 +28,7 @@ if(ACTION STREQUAL FETCH)
         
         execute_process(COMMAND
             "${GIT_EXECUTABLE}" rev-parse --abbrev-ref HEAD
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            WORKING_DIRECTORY "${WORKING_DIR}"
             OUTPUT_VARIABLE GIT_BRANCH
             ERROR_QUIET
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -36,7 +36,7 @@ if(ACTION STREQUAL FETCH)
 
         execute_process(COMMAND
             "${GIT_EXECUTABLE}" status --porcelain
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            WORKING_DIRECTORY "${WORKING_DIR}"
             OUTPUT_VARIABLE GIT_STATUS
             ERROR_QUIET
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -64,6 +64,7 @@ else()
         COMMAND
             ${CMAKE_COMMAND}
             -DACTION=FETCH
+            -DWORKING_DIR=${CMAKE_CURRENT_SOURCE_DIR}
             -DDF_VERSION_FILE_IN=${DF_VERSION_FILE_IN}
             -DDF_VERSION_FILE_OUT=${DF_VERSION_FILE_OUT}
             -P "${CMAKE_CURRENT_LIST_FILE}"
