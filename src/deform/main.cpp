@@ -25,8 +25,11 @@
 #include <map>
 #include <omp.h>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
+
+#include <deform_lib/version.h>
 
 int run_jacobian(int argc, char* argv[]);
 int run_regularize(int argc, char* argv[]);
@@ -62,6 +65,18 @@ namespace
                   << "Regularizes a displacement field" << std::endl;
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "jacobian"
                   << "Computes the jacobian determinants of a displacement field" << std::endl;
+    }
+
+    std::string version_string()
+    {
+        std::stringstream ss;
+        ss << GIT_SHA1_SHORT << "@" << GIT_BRANCH << (GIT_DIRTY ? "+" : "") << " (" << GIT_DATE << ")";
+            
+        #ifdef _DEBUG
+            ss << " [DEBUG]";
+        #endif
+
+        return ss.str();
     }
 }
 
@@ -225,8 +240,7 @@ int run_registration(int argc, char* argv[])
 
 void print_version()
 {
-    // TODO:
-    std::cout << "VERSION 0" << std::endl;
+    std::cout << version_string() << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -239,16 +253,14 @@ int main(int argc, char* argv[])
 
     stk::log_add_file("deform_log.txt", stk::Info);
 
-    #ifdef _DEBUG
-        LOG(Warning) << "Running debug build!";
-    #endif
-
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             print_version();
             return 0;
         }
     }
+
+    LOG(Info) << "Version: " << version_string();
 
     if (argc >= 2 && strcmp(argv[1], "registration") == 0)
         return run_registration(argc, argv);

@@ -47,6 +47,7 @@ set(DEFORM_LIB_SRCS
     "deform_lib/jacobian.cpp"
     "deform_lib/jacobian.h"
     "deform_lib/regularize.cpp"
+    "deform_lib/version.h"
 )
 
 set(DEFORM_SRCS
@@ -92,6 +93,7 @@ if (DF_USE_CUDA)
 endif ()
 
 add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
+add_dependencies(deform_lib FetchGitVersion)
 
 if (DF_ENABLE_NVTOOLSEXT)
     target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})
@@ -115,6 +117,7 @@ endif()
 
 add_executable(deform ${DEFORM_SRCS})
 target_link_libraries(deform deform_lib)
+target_include_directories(deform PRIVATE "${CMAKE_BINARY_DIR}/src")
 
 add_executable(deform-util ${DEFORM_UTIL_SRCS})
 target_link_libraries(deform-util deform_lib)

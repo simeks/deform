@@ -9,6 +9,13 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+set(DF_VERSION_FILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/src/deform_lib/version.h.in")
+message(${DF_VERSION_FILE_IN})
+set(DF_VERSION_FILE_OUT "src/deform_lib/version.h")
+message(${DF_VERSION_FILE_OUT})
+
+include(ProjectVersion)
+
 option(DF_BUILD_TESTS "Build unit tests" OFF)
 option(DF_BUILD_DOCS "Build Sphinx docs" OFF)
 option(DF_BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
