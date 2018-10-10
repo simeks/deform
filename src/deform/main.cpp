@@ -10,6 +10,7 @@
 #include <deform_lib/registration/settings.h>
 #include <deform_lib/registration/transform.h>
 #include <deform_lib/registration/volume_pyramid.h>
+#include <deform_lib/registration/voxel_constraints.h>
 
 #include <stk/common/assert.h>
 #include <stk/common/log.h>
@@ -18,6 +19,7 @@
 #include <stk/io/io.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -29,14 +31,11 @@
 #include <string>
 #include <vector>
 
-#include <deform_lib/version.h>
-
-int run_jacobian(int argc, char* argv[]);
-int run_regularize(int argc, char* argv[]);
-int run_transform(int argc, char* argv[]);
+#include "deform/command.h"
 
 namespace
 {
+
     struct Args
     {
         const char* param_file;
@@ -67,180 +66,11 @@ namespace
                   << "Computes the jacobian determinants of a displacement field" << std::endl;
     }
 
-    std::string version_string()
-    {
-        std::stringstream ss;
-        ss << GIT_SHA1_SHORT << "@" << GIT_BRANCH << (GIT_DIRTY ? "+" : "") << " (" << GIT_DATE << ")";
-            
-        #ifdef _DEBUG
-            ss << " [DEBUG]";
-        #endif
-
-        return ss.str();
-    }
-}
-
-int run_registration(int argc, char* argv[])
-{
-    ArgParser args(argc, argv);
-    args.add_positional("command", "registration, transform, regularize, jacobian");
-
-    args.add_group();
-    args.add_option("param_file",   "-p",           "Path to the parameter file");
-    args.add_option("fixed{i}",     "-f{i}",        "Path to the i:th fixed image", true);
-    args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image", true);
-    args.add_option("output",       "-o, --output", "Path to the resulting displacement field");
-    args.add_group("Optional");
-    args.add_option("init_deform",  "-d0", "Path to the initial displacement field");
-    args.add_group();
-    args.add_option("fixed_points", "-fp, --fixed-points", "Path to the fixed landmark points");
-    args.add_option("moving_points", "-mp, --moving-points", "Path to the moving landmark points");
-    args.add_group();
-    args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
-    args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
-    args.add_group();
-    args.add_flag("do_jacobian", "-j, --jacobian",  "Enable output of the resulting jacobian");
-    args.add_flag("do_transform", "-t, --transform",  "Will output the transformed version of the first moving volume");
-    args.add_group();
-    args.add_option("num_threads", "--num-threads", "Maximum number of threads");
-
-#ifdef DF_USE_CUDA
-    args.add_group();
-    args.add_flag("use_gpu", "--gpu", "Enables GPU supported registration");
-#endif // DF_USE_CUDA
-
-    if (!args.parse()) {
-        return 1;
-    }
-
-    std::string param_file = args.get<std::string>("param_file", "");
-
-    Settings settings; // Default settings
-    if (!param_file.empty()) {
-        LOG(Info) << "Running with parameter file: '" << param_file << "'";
-        if (!parse_registration_file(param_file, settings))
-            return 1;
-    }
-    else {
-        LOG(Info) << "Running with default settings.";
-    }
-
-    std::vector<stk::Volume> fixed_volumes;
-    std::vector<stk::Volume> moving_volumes;
-
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-        std::string fixed_id = "fixed" + std::to_string(i);
-        std::string moving_id = "moving" + std::to_string(i);
-
-        std::string fixed_file = args.get<std::string>(fixed_id, "");
-        std::string moving_file = args.get<std::string>(moving_id, "");
-
-        if (fixed_file == "" || moving_file == "")
-            continue;
-
-        fixed_volumes.push_back(stk::read_volume(fixed_file));
-        moving_volumes.push_back(stk::read_volume(moving_file));
-
-        LOG(Info) << "Fixed image [" << i << "]: '" << fixed_file << "'";
-        LOG(Info) << "Moving image [" << i << "]: '" << moving_file << "'";
-    }
-
-    std::string out_file = args.get<std::string>("output", "result_def.vtk");
-    LOG(Info) << "Output displacement file: '" << out_file << "'";
-
-    std::string init_deform_file = args.get<std::string>("init_deform", "");
-    LOG(Info) << "Initial displacement: '" << init_deform_file << "'";
-
-    std::optional<stk::Volume> initial_displacement;
-    if (!init_deform_file.empty()) {
-        initial_displacement = stk::read_volume(init_deform_file.c_str());
-    }
-
-    std::string constraint_mask_file = args.get<std::string>("constraint_mask", "");
-    std::string constraint_values_file = args.get<std::string>("constraint_values", "");
-
-    LOG(Info) << "Constraint mask: '" << constraint_mask_file << "'";
-    LOG(Info) << "Constraint values: '" << constraint_values_file << "'";
-
-    std::optional<stk::Volume> constraint_mask;
-    std::optional<stk::Volume> constraint_values;
-    if (!constraint_mask_file.empty() && !constraint_values_file.empty()) {
-        constraint_mask = stk::read_volume(constraint_mask_file.c_str());
-        constraint_values = stk::read_volume(constraint_values_file.c_str());
-    }
-    else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
-        // Just a check to make sure the user didn't forget something
-        LOG(Error) << "No constraints used, to use constraints, specify both a mask and a vectorfield";
-        return 1;
-    }
-
-    std::string fixed_landmarks_file = args.get<std::string>("fixed_points", "");
-    std::string moving_landmarks_file = args.get<std::string>("moving_points", "");
-
-    LOG(Info) << "Fixed landmarks: '" << fixed_landmarks_file << "'";
-    LOG(Info) << "Moving landmarks: '" << moving_landmarks_file << "'";
-
-    std::optional<std::vector<float3>> fixed_landmarks;
-    std::optional<std::vector<float3>> moving_landmarks;
-    try{
-        if (!fixed_landmarks_file.empty()) {
-            fixed_landmarks = parse_landmarks_file(fixed_landmarks_file.c_str());
-        }
-        if (!moving_landmarks_file.empty()) {
-            moving_landmarks = parse_landmarks_file(moving_landmarks_file.c_str());
-        }
-    }
-    catch (ValidationError& e) {
-        LOG(Error) << e.what();
-        return 1;
-    }
-
-#ifdef DF_USE_CUDA
-    bool use_gpu = args.is_set("use_gpu");
-#endif
-
-    stk::Volume def;
-    try {
-        def = registration(settings,
-                        fixed_volumes,
-                        moving_volumes,
-                        fixed_landmarks,
-                        moving_landmarks,
-                        initial_displacement,
-                        constraint_mask,
-                        constraint_values,
-                        args.get<int>("num_threads", 0)
-                    #ifdef DF_USE_CUDA
-                        , use_gpu
-                    #endif
-                        );
-    }
-    catch (std::exception& e) {
-        LOG(Error) << e.what();
-        return 1;
-    }
-
-    LOG(Info) << "Writing displacement field to '" << out_file << "'";
-    stk::write_volume(out_file.c_str(), def);
-
-    if (args.is_set("do_jacobian")) {
-        LOG(Info) << "Writing jacobian to 'result_jac.vtk'";
-        stk::Volume jac = calculate_jacobian(def);
-        stk::write_volume("result_jac.vtk", jac);
-    }
-
-    if (args.is_set("do_transform")) {
-        LOG(Info) << "Writing transformed image to 'result.vtk'";
-        stk::Volume t = transform_volume(moving_volumes[0], def);
-        stk::write_volume("result.vtk", t);
-    }
-
-    return 0;
-}
+} // namespace
 
 void print_version()
 {
-    std::cout << version_string() << std::endl;
+    std::cout << deform::version_string() << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -252,33 +82,26 @@ int main(int argc, char* argv[])
         }
     }
 
-    std::function<void(int, char**)> command;
+    std::unique_ptr<DeformCommand> command;
     if (argc >= 2 && std::strcmp(argv[1], "registration") == 0) {
-        command = &run_registration;
+        command = std::make_unique<RegistrationCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "transform") == 0) {
-        command = &run_transform;
+        command = std::make_unique<TransformCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "regularize") == 0) {
-        command = &run_regularize;
+        command = std::make_unique<RegularisationCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "jacobian") == 0) {
-        command = &run_jacobian;
+        command = std::make_unique<RegistrationCommand>(argc, argv);
     }
     else {
         print_command_help(argv[0]);
         return 1;
     }
 
-    PROFILER_INIT();
-    defer{PROFILER_SHUTDOWN();};
-
-    stk::log_init();
-    defer{stk::log_shutdown();};
-    stk::log_add_file("deform_log.txt", stk::Info);
-    LOG(Info) << "Version: " << version_string();
-
-    command(argc, argv);
+    (*command)();
 
     return 0;
 }
+

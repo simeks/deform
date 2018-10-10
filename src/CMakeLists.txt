@@ -47,12 +47,16 @@ set(DEFORM_LIB_SRCS
     "deform_lib/jacobian.cpp"
     "deform_lib/jacobian.h"
     "deform_lib/regularize.cpp"
+    "deform_lib/version.cpp"
     "deform_lib/version.h"
 )
 
 set(DEFORM_SRCS
+    "deform/command.h"
     "deform/jacobian.cpp"
     "deform/main.cpp"
+    "deform/registration.cpp"
+    "deform/regularize.cpp"
     "deform/transform.cpp"
 )
 
@@ -94,6 +98,7 @@ endif ()
 
 add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 add_dependencies(deform_lib FetchGitVersion)
+target_include_directories(deform_lib PRIVATE "${CMAKE_BINARY_DIR}/src")
 
 if (DF_ENABLE_NVTOOLSEXT)
     target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})

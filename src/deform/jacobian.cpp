@@ -5,33 +5,32 @@
 #include "deform_lib/arg_parser.h"
 #include "deform_lib/jacobian.h"
 
+#include "deform/command.h"
+
 #include <iostream>
 
-int run_jacobian(int argc, char* argv[])
+bool JacobianCommand::parse_arguments(void)
 {
-    // Usage:
-    // ./deform jacobian <source> <deformation> <out>
+    _args.add_positional("command", "registration, transform, regularize, jacobian");
+    _args.add_positional("deformation", "Path to the deformation field");
+    _args.add_positional("output", "Path to the resulting file");
+    return _args.parse();
+}
 
-    ArgParser args(argc, argv);
-    args.add_positional("command", "registration, transform, regularize, jacobian");
-    args.add_positional("deformation", "Path to the deformation field");
-    args.add_positional("output", "Path to the resulting file");
-
-    if (!args.parse()) {
-        return 1;
-    }
-
+int JacobianCommand::logic(void)
+{
     LOG(Info) << "Computing jacobian.";
-    LOG(Info) << "Input: '" << args.positional("deformation") << "'";
+    LOG(Info) << "Input: '" << _args.positional("deformation") << "'";
 
-    stk::Volume def = stk::read_volume(args.positional("deformation").c_str());
+    stk::Volume def = stk::read_volume(_args.positional("deformation").c_str());
     if (!def.valid())
         return 1;
 
     stk::Volume jac = calculate_jacobian(def);
-    
-    LOG(Info) << "Writing to '" << args.positional("output") << "'";
-    stk::write_volume(args.positional("output").c_str(), jac);
-    
+
+    LOG(Info) << "Writing to '" << _args.positional("output") << "'";
+    stk::write_volume(_args.positional("output").c_str(), jac);
+
     return 0;
 }
+
