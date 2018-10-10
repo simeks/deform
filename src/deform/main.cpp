@@ -246,32 +246,39 @@ void print_version()
 int main(int argc, char* argv[])
 {
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
+        if (std::strcmp(argv[i], "-v") == 0 || std::strcmp(argv[i], "--version") == 0) {
             print_version();
             return 0;
         }
     }
 
-    stk::log_init();
-    defer{stk::log_shutdown();};
+    std::function<void(int, char**)> command;
+    if (argc >= 2 && std::strcmp(argv[1], "registration") == 0) {
+        command = &run_registration;
+    }
+    else if (argc >= 2 && std::strcmp(argv[1], "transform") == 0) {
+        command = &run_transform;
+    }
+    else if (argc >= 2 && std::strcmp(argv[1], "regularize") == 0) {
+        command = &run_regularize;
+    }
+    else if (argc >= 2 && std::strcmp(argv[1], "jacobian") == 0) {
+        command = &run_jacobian;
+    }
+    else {
+        print_command_help(argv[0]);
+        return 1;
+    }
 
     PROFILER_INIT();
     defer{PROFILER_SHUTDOWN();};
 
+    stk::log_init();
+    defer{stk::log_shutdown();};
     stk::log_add_file("deform_log.txt", stk::Info);
-
     LOG(Info) << "Version: " << version_string();
 
-    if (argc >= 2 && strcmp(argv[1], "registration") == 0)
-        return run_registration(argc, argv);
-    if (argc >= 2 && strcmp(argv[1], "transform") == 0)
-        return run_transform(argc, argv);
-    if (argc >= 2 && strcmp(argv[1], "regularize") == 0)
-        return run_regularize(argc, argv);
-    if (argc >= 2 && strcmp(argv[1], "jacobian") == 0)
-        return run_jacobian(argc, argv);
+    command(argc, argv);
 
-    print_command_help(argv[0]);
-
-    return 1;
+    return 0;
 }
