@@ -9,6 +9,13 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+set(DF_VERSION_FILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/src/deform_lib/version.h.in")
+message(${DF_VERSION_FILE_IN})
+set(DF_VERSION_FILE_OUT "src/deform_lib/version.h")
+message(${DF_VERSION_FILE_OUT})
+
+include(ProjectVersion)
+
 option(DF_BUILD_TESTS "Build unit tests" OFF)
 option(DF_BUILD_DOCS "Build Sphinx docs" OFF)
 option(DF_BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
@@ -65,7 +72,7 @@ if (MSVC)
         set(EXTRA_FLAGS "${extra_flags} /fp:fast")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(EXTRA_FLAGS "-Wall -march=native")
+    set(EXTRA_FLAGS "-Wall -Wextra -pedantic -march=native")
 
     if (DF_WARNINGS_ARE_ERRORS)
         set(EXTRA_FLAGS "${extra_flags} -Werror")
@@ -79,7 +86,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         set(EXTRA_FLAGS "${extra_flags} -ffast-math")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(EXTRA_FLAGS "-Wall -march=native")
+    set(EXTRA_FLAGS "-Wall -Wextra -pedantic -march=native")
 
     if (DF_WARNINGS_ARE_ERRORS)
         set(EXTRA_FLAGS "${extra_flags} -Werror")
@@ -137,6 +144,8 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${EXTRA_FLAGS_RELEASE}")
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${EXTRA_LINK_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${EXTRA_LINK_FLAGS_RELEASE}")
+
+include_directories(src)
 
 if(NOT WIN32)
     find_package(YAML-CPP QUIET)

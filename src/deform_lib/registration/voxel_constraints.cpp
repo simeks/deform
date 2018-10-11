@@ -9,7 +9,7 @@ stk::VolumeUChar voxel_constraints::downsample_mask_by_2(const stk::VolumeUChar&
 {
     /*
         Downsampling of mask volumes by a factor of 2. Designed specifically for binary masks.
-        Each resulting downsampled voxel takes the max value from the corresponding subvoxels 
+        Each resulting downsampled voxel takes the max value from the corresponding subvoxels
     */
 
     int3 subvoxels[] = {
@@ -37,7 +37,7 @@ stk::VolumeUChar voxel_constraints::downsample_mask_by_2(const stk::VolumeUChar&
         for (int y = 0; y < int(new_dims.y); ++y) {
             for (int x = 0; x < int(new_dims.x); ++x) {
                 int3 src_p{2*x, 2*y, 2*z};
-                
+
                 uint8_t max = 0;
                 for (int i = 0; i < 8; ++i) {
                     int3 p = 2 * src_p + subvoxels[i];
@@ -48,7 +48,7 @@ stk::VolumeUChar voxel_constraints::downsample_mask_by_2(const stk::VolumeUChar&
 
                     max = std::max(max, mask(src_p + subvoxels[i]));
                 }
-                result(x, y, z) = max; 
+                result(x, y, z) = max;
             }
         }
     }
@@ -60,9 +60,9 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
     /*
         Downsamples a constraint vector field.
         The value of each downsampled voxel is calculated as the mean of all subvoxels
-            that are flagged as constraints (1s in the mask). 
+            that are flagged as constraints (1s in the mask).
     */
-    
+
     ASSERT(mask.size() == values.size());
 
     int3 subvoxels[] = {
@@ -75,7 +75,7 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
         int3{1, 1, 0},
         int3{1, 1, 1}
     };
-    
+
     dim3 old_dims = mask.size();
     dim3 new_dims{
         uint32_t(ceil(old_dims.x * 0.5f)),
@@ -83,7 +83,7 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
         uint32_t(ceil(old_dims.z * 0.5f)),
     };
 
-    stk::VolumeFloat3 result(new_dims, float3{0});
+    stk::VolumeFloat3 result(new_dims, float3{});
 
     #pragma omp parallel for
     for (int z = 0; z < int(new_dims.z); ++z) {
@@ -92,7 +92,7 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
                 int3 src_p{2*x, 2*y, 2*z};
 
                 int nmask = 0;
-                float3 val{0};
+                float3 val{};
                 for (int i = 0; i < 8; ++i) {
                     int3 p = src_p + subvoxels[i];
                     if (p.x >= int(old_dims.x) ||
@@ -115,15 +115,15 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
 
 
 void voxel_constraints::build_pyramids(
-    const stk::VolumeUChar& mask, 
+    const stk::VolumeUChar& mask,
     const stk::VolumeFloat3& values,
-    int num_levels, 
-    VolumePyramid& mask_pyramid, 
+    int num_levels,
+    VolumePyramid& mask_pyramid,
     VolumePyramid& values_pyramid)
 {
     mask_pyramid.set_level_count(num_levels);
     values_pyramid.set_level_count(num_levels);
-    
+
     mask_pyramid.set_volume(0, mask);
     values_pyramid.set_volume(0, values);
 

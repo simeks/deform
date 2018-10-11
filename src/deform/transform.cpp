@@ -5,59 +5,58 @@
 #include "deform_lib/arg_parser.h"
 #include "deform_lib/registration/transform.h"
 
+#include "deform/command.h"
+
 #include <iostream>
 
-int run_transform(int argc, char* argv[])
+bool TransformCommand::_parse_arguments(void)
 {
-    // Usage:
-    // ./deform transform <src> <deformation> <out> [-i <nn/linear>]
+    _args.add_positional("command", "registration, transform, regularize, jacobian");
+    _args.add_positional("source", "Path to the image you want to transform");
+    _args.add_positional("deformation", "Path to the deformation field used to transform");
+    _args.add_positional("output", "Path to the resulting file");
 
-    ArgParser args(argc, argv);
-    args.add_positional("command", "registration, transform, regularize, jacobian");
-    args.add_positional("source", "Path to the image you want to transform");
-    args.add_positional("deformation", "Path to the deformation field used to transform");
-    args.add_positional("output", "Path to the resulting file");
+    _args.add_option("interp", "-i, --interp", "Interpolation to use, either 'nn' or 'linear' (default)");
 
-    args.add_option("interp", "-i, --interp", "Interpolation to use, either 'nn' or 'linear' (default)");
+    return _args.parse();
+}
 
-    if (!args.parse()) {
-        return 1;
-    }
-
+int TransformCommand::_execute(void)
+{
     LOG(Info) << "Transforming volume";
 
     transform::Interp interp = transform::Interp_Linear;
-    if (args.is_set("interp")) {
-        if (args.option("interp") == "nn") {
+    if (_args.is_set("interp")) {
+        if (_args.option("interp") == "nn") {
             interp = transform::Interp_NN;
         }
-        else if (args.option("interp") == "linear") {
+        else if (_args.option("interp") == "linear") {
             interp = transform::Interp_Linear;
         }
         else {
-            std::cout << "Unrecognized interpolation option ('" << args.option("interp") << "')" 
+            std::cout << "Unrecognized interpolation option ('" << _args.option("interp") << "')"
                 << std::endl << std::endl;
-            args.print_help();
+            _args.print_help();
             return 1;
         }
     }
 
     LOG(Info) << "Interpolation method: " << ((interp == transform::Interp_Linear) ? "linear" : "nn");
-    LOG(Info) << "Input: '" << args.positional("source") << "'";
-    LOG(Info) << "Deformation: '" << args.positional("deformation") << "'";
+    LOG(Info) << "Input: '" << _args.positional("source") << "'";
+    LOG(Info) << "Deformation: '" << _args.positional("deformation") << "'";
 
-    stk::Volume src = stk::read_volume(args.positional("source").c_str());
+    stk::Volume src = stk::read_volume(_args.positional("source").c_str());
     if (!src.valid())
         return 1;
 
-    stk::Volume def = stk::read_volume(args.positional("deformation").c_str());
+    stk::Volume def = stk::read_volume(_args.positional("deformation").c_str());
     if (!def.valid())
         return 1;
     ASSERT(def.voxel_type() == stk::Type_Float3);
 
     stk::Volume result = transform_volume(src, def, interp);
-    LOG(Info) << "Writing to '" << args.positional("output") << "'";
-    stk::write_volume(args.positional("output").c_str(), result);
-    
+    LOG(Info) << "Writing to '" << _args.positional("output") << "'";
+    stk::write_volume(_args.positional("output").c_str(), result);
+
     return 0;
 }
