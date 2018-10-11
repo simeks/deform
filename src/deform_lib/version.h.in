@@ -5,3 +5,10 @@
 #define GIT_DATE "@GIT_DATE@"
 #define GIT_BRANCH "@GIT_BRANCH@"
 #define GIT_DIRTY @GIT_DIRTY@
+
+#include <string>
+
+namespace deform {
+    std::string version_string(void);
+}
+
