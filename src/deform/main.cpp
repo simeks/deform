@@ -75,6 +75,9 @@ void print_version()
 
 int main(int argc, char* argv[])
 {
+    PROFILER_INIT();
+    defer{PROFILER_SHUTDOWN();};
+
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "-v") == 0 || std::strcmp(argv[i], "--version") == 0) {
             print_version();
@@ -100,7 +103,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    (*command)();
+    command->execute();
 
     return 0;
 }

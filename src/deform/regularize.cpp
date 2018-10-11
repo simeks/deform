@@ -11,7 +11,7 @@
 #include <chrono>
 #include <iomanip>
 
-bool RegularisationCommand::parse_arguments(void)
+bool RegularisationCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("deformation", "Path to the deformation field to regularize");
@@ -25,7 +25,7 @@ bool RegularisationCommand::parse_arguments(void)
     return _args.parse();
 }
 
-int RegularisationCommand::logic(void)
+int RegularisationCommand::_execute(void)
 {
     LOG(Info) << "Running regularization";
 

@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-bool JacobianCommand::parse_arguments(void)
+bool JacobianCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("deformation", "Path to the deformation field");
@@ -17,7 +17,7 @@ bool JacobianCommand::parse_arguments(void)
     return _args.parse();
 }
 
-int JacobianCommand::logic(void)
+int JacobianCommand::_execute(void)
 {
     LOG(Info) << "Computing jacobian.";
     LOG(Info) << "Input: '" << _args.positional("deformation") << "'";

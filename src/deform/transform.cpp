@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-bool TransformCommand::parse_arguments(void)
+bool TransformCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("source", "Path to the image you want to transform");
@@ -21,7 +21,7 @@ bool TransformCommand::parse_arguments(void)
     return _args.parse();
 }
 
-int TransformCommand::logic(void)
+int TransformCommand::_execute(void)
 {
     LOG(Info) << "Transforming volume";
 

@@ -9,7 +9,7 @@
 
 #include "deform/command.h"
 
-bool RegistrationCommand::parse_arguments(void)
+bool RegistrationCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
 
@@ -40,7 +40,7 @@ bool RegistrationCommand::parse_arguments(void)
     return _args.parse();
 }
 
-int RegistrationCommand::logic(void)
+int RegistrationCommand::_execute(void)
 {
     std::string param_file = _args.get<std::string>("param_file", "");
 
