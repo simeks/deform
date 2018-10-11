@@ -10,10 +10,14 @@
     // Older versions of GCC do not support push/pop
     #if GCC_VERSION > 40604 // 4.6.4
         #pragma GCC diagnostic push
-        //#pragma GCC diagnostic ignored "-Wdeprecated-register"
     #endif
 
     #pragma GCC diagnostic ignored "-Wparentheses"
+    #pragma GCC diagnostic ignored "-Woverflow"
+
+    #if defined(__clang__)
+        #pragma clang diagnostic ignored "-Wkeyword-macro"
+    #endif
 #else
     #pragma warning(push)
     #pragma warning(disable: 4512)

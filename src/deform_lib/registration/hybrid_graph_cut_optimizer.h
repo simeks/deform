@@ -16,7 +16,7 @@ class GpuUnaryFunction;
 class WorkerPool;
 class StreamPool;
 
-// Hybrid (CPU-GPU) graph-cut optimizer. 
+// Hybrid (CPU-GPU) graph-cut optimizer.
 //  Uses GPU to compute weights for graph and minimizes graph on CPU.
 class HybridGraphCutOptimizer
 {
@@ -62,8 +62,8 @@ private:
     void apply_displacement_delta(stk::cuda::Stream stream);
 
     void download_subvolume(
-        const stk::GpuVolume& src, 
-        stk::Volume& tgt, 
+        const stk::GpuVolume& src,
+        stk::Volume& tgt,
         const Block& block,
         bool pad, // Pad all axes by 1 in negative direction for binary cost
         stk::cuda::Stream stream
@@ -87,9 +87,9 @@ private:
 
     stk::VolumeFloat2 _unary_cost;
     stk::GpuVolume _gpu_unary_cost;
-    
+
     // Buffers for binary cost
-    
+
     stk::VolumeFloat4 _binary_cost_x;
     stk::VolumeFloat4 _binary_cost_y;
     stk::VolumeFloat4 _binary_cost_z;
@@ -99,7 +99,7 @@ private:
     stk::GpuVolume _gpu_binary_cost_z;
 
     // Labels from the minimization
-    
+
     stk::VolumeUChar _labels;
     stk::GpuVolume _gpu_labels;
 
