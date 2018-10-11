@@ -189,23 +189,23 @@ void HybridGraphCutOptimizer::execute()
 void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
 {
     _unary_cost = stk::Volume(size, stk::Type_Float2, nullptr, stk::Usage_Pinned);
-    _unary_cost.fill({0});
+    _unary_cost.fill({});
 
     _binary_cost_x = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
-    _binary_cost_x.fill({0});
+    _binary_cost_x.fill({});
 
     _binary_cost_y = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
-    _binary_cost_y.fill({0});
+    _binary_cost_y.fill({});
 
     _binary_cost_z = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
-    _binary_cost_z.fill({0});
+    _binary_cost_z.fill({});
 
     _gpu_unary_cost = stk::GpuVolume(size, stk::Type_Float2);
     _gpu_binary_cost_x = stk::GpuVolume(size, stk::Type_Float4);
     _gpu_binary_cost_y = stk::GpuVolume(size, stk::Type_Float4);
     _gpu_binary_cost_z = stk::GpuVolume(size, stk::Type_Float4);
 
-    _labels = stk::VolumeUChar(size, uint8_t{0});
+    _labels = stk::VolumeUChar(size, uint8_t{});
     _gpu_labels = stk::GpuVolume(size, stk::Type_UChar);
 }
 void HybridGraphCutOptimizer::reset_unary_cost()

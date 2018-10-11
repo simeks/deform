@@ -37,7 +37,7 @@ namespace
             {
                 for (int x = 0; x < int(dims.x); ++x)
                 {
-                    TVoxelType value{0};
+                    TVoxelType value{};
                     double norm = 0;
                     for (int t = -size; t < size + 1; t++)
                     {
@@ -63,7 +63,7 @@ namespace
             {
                 for (int y = 0; y < int(dims.y); ++y)
                 {
-                    TVoxelType value{0};
+                    TVoxelType value{};
                     double norm = 0;
                     for (int t = -size; t < size + 1; t++)
                     {
@@ -89,7 +89,7 @@ namespace
             {
                 for (int z = 0; z < int(dims.z); ++z)
                 {
-                    TVoxelType value{0};
+                    TVoxelType value{};
                     double norm = 0;
                     for (int t = -size; t < size + 1; t++)
                     {
