@@ -1,4 +1,4 @@
-#include "gpu/cost_function.h"
+#include "gpu/cost_functions/cost_function.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include <stk/cuda/cuda.h>
@@ -39,9 +39,9 @@ void HybridGraphCutOptimizer::apply_displacement_delta(cuda::Stream stream)
     };
 
     apply_displacement_delta_kernel<<<grid_size, block_size, 0, stream>>>(
-        _df, 
-        _gpu_labels, 
-        dims, 
+        _df,
+        _gpu_labels,
+        dims,
         float4{_current_delta.x, _current_delta.y, _current_delta.z, 0.0f}
     );
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
@@ -117,7 +117,7 @@ double HybridGraphCutOptimizer::calculate_energy()
 
     cuda::Stream& stream = stk::cuda::Stream::null();
     _unary_fn(_df, {0,0,0}, begin, end, _gpu_unary_cost, stream);
-    
+
     // Compute binary terms
     _binary_fn(
         _df,
@@ -142,7 +142,7 @@ double HybridGraphCutOptimizer::calculate_energy()
     float* d_block_sum;
     CUDA_CHECK_ERRORS(cudaMalloc(&d_block_sum, n_blocks*sizeof(float)));
 
-    reduce_total_energy<<<grid_size, block_size, 
+    reduce_total_energy<<<grid_size, block_size,
         uint32_t(sizeof(float)*1024)>>>
     (
         _gpu_unary_cost,

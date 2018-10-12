@@ -1,0 +1,108 @@
+#include "landmarks.h"
+
+namespace cuda = stk::cuda;
+
+template<typename T>
+__global__ void landmarks_kernel(
+    const float3 * const __restrict landmarks,
+    const float3 * const __restrict displacements,
+    const size_t landmark_count,
+    const cuda::VolumePtr<float4> df,
+    const float3 delta,
+    const float weight,
+    const int3 offset,
+    const int3 dims,
+    const float3 fixed_origin,
+    const float3 fixed_spacing,
+    const Matrix3x3f fixed_direction,
+    cuda::VolumePtr<float2> cost_acc,
+    const float epsilon = 1e-6f
+)
+{
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    int z = blockIdx.z*blockDim.z + threadIdx.z;
+
+    if (x >= dims.x ||
+        y >= dims.y ||
+        z >= dims.z)
+    {
+        return;
+    }
+
+    x += offset.x;
+    y += offset.y;
+    z += offset.z;
+
+    float3 d0 { df(x,y,z).x, df(x,y,z).y, df(x,y,z).z };
+    float3 d1 = d0 + delta;
+
+    float3 xyz = float3{float(x),float(y),float(z)};
+    float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
+
+    for (size_t i = 0; i < landmark_count; ++i) {
+        const float inv_den = 1.0f / (stk::norm2(landmarks[i] - world_p) + epsilon);
+        cost_acc(x,y,z).x += weight * stk::norm2(d0 - displacements[i]) * inv_den;
+        cost_acc(x,y,z).y += weight * stk::norm2(d1 - displacements[i]) * inv_den;
+    }
+}
+
+GpuCostFunction_Landmarks::GpuCostFunction_Landmarks(
+        const std::vector<float3>& fixed_landmarks,
+        const std::vector<float3>& moving_landmarks,
+        const stk::GpuVolume& fixed)
+    : _landmarks {fixed_landmarks}
+    , _displacements (fixed_landmarks.size())
+    , _fixed {fixed}
+{
+    ASSERT(fixed_landmarks.size() == moving_landmarks.size());
+    for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
+        _displacements[i] = moving_landmarks[i] - fixed_landmarks[i];
+    }
+}
+
+GpuCostFunction_Landmarks::~GpuCostFunction_Landmarks() {}
+
+void GpuCostFunction_Landmarks::cost(
+    stk::GpuVolume& df,
+    const float3& delta,
+    float weight,
+    const int3& offset,
+    const int3& dims,
+    stk::GpuVolume& cost_acc,
+    stk::cuda::Stream& stream
+)
+{
+    ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
+
+    dim3 block_size {32, 32, 1};
+
+    if (dims.x <= 16 || dims.y <= 16) {
+        block_size = {16, 16, 4};
+    }
+
+    dim3 grid_size {
+        (dims.x + block_size.x - 1) / block_size.x,
+        (dims.y + block_size.y - 1) / block_size.y,
+        (dims.z + block_size.z - 1) / block_size.z
+    };
+
+    landmarks_kernel<float><<<grid_size, block_size, 0, stream>>>(
+        thrust::raw_pointer_cast(_landmarks.data()),
+        thrust::raw_pointer_cast(_displacements.data()),
+        _landmarks.size(),
+        df,
+        delta,
+        weight,
+        offset,
+        dims,
+        _fixed.origin(),
+        _fixed.spacing(),
+        _fixed.direction(),
+        cost_acc
+    );
+
+    CUDA_CHECK_ERRORS(cudaPeekAtLastError());
+}
+

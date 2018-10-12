@@ -1,5 +1,5 @@
 #include "gpu_registration_engine.h"
-#include "gpu/cost_function.h"
+#include "gpu/cost_functions/cost_function.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include "../filters/gpu/resample.h"
@@ -108,6 +108,21 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
             }
         }
     }
+
+    if (_fixed_landmarks.size() > 0 && level >= _settings.landmarks_stop_level) {
+        ASSERT(_fixed_landmarks.size() == _moving_landmarks.size());
+
+        auto& fixed = _fixed_pyramids[0].volume(level);
+
+        unary_fn.add_function(
+            std::make_unique<GpuCostFunction_Landmarks>(
+                _fixed_landmarks,
+                _moving_landmarks,
+                fixed
+            ),
+            _settings.levels[level].landmarks_weight
+        );
+    }
 }
 void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& binary_fn)
 {
@@ -184,9 +199,9 @@ void GpuRegistrationEngine::set_regularization_weight_map(const stk::Volume& map
 void GpuRegistrationEngine::set_landmarks(const std::vector<float3>& fixed_landmarks,
                                           const std::vector<float3>& moving_landmarks)
 {
-    (void) fixed_landmarks; (void) moving_landmarks;
-
-    FATAL() << "Not implemented";
+    ASSERT(fixed_landmarks.size() == moving_landmarks.size());
+    _fixed_landmarks = fixed_landmarks;
+    _moving_landmarks = moving_landmarks;
 }
 
 void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,

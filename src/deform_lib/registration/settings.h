@@ -19,7 +19,7 @@ struct Settings
     //  a slot, so say we want to register fat and water:
     //      fixed_water <- moving_water
     //      fixed_fat <- moving_fat
-    //  then we have 2 slots, one for each modality 
+    //  then we have 2 slots, one for each modality
     struct ImageSlot
     {
         enum CostFunction
@@ -61,13 +61,13 @@ struct Settings
     struct Level
     {
         // Optimizer specific settings (Blocked graph cut):
-        
+
         // Block size, (0,0,0) is the same as using only a single large block
         int3 block_size;
 
         // Epsilon used for termination
         double block_energy_epsilon;
-        
+
         // Maximum number of iterations, -1 indicates an infinite number of iterations
         int max_iteration_count;
 
@@ -83,7 +83,7 @@ struct Settings
 
         // Only applicable to landmark registration
         float landmarks_weight;
-        
+
         Level() :
             block_size(int3{12, 12, 12}),
             block_energy_epsilon(1e-7f),
@@ -106,7 +106,7 @@ struct Settings
 
     // Last level for which landmarks are used
     int landmarks_stop_level;
-    
+
     ImageSlot image_slots[DF_MAX_IMAGE_PAIR_COUNT];
 
     Settings() :
