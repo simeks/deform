@@ -7,8 +7,6 @@
 
 #include <stk/image/volume.h>
 
-#include <vector>
-
 namespace stk { namespace cuda {
     class Stream;
 }}
@@ -23,8 +21,8 @@ public:
 
     void set_initial_deformation(const stk::Volume& def);
     void set_image_pair(
-        int i, 
-        const stk::Volume& fixed, 
+        int i,
+        const stk::Volume& fixed,
         const stk::Volume& moving
     );
 
@@ -39,10 +37,10 @@ public:
     /// Sets mask and values for constraints
     void set_voxel_constraints(const stk::VolumeUChar& mask, const stk::VolumeFloat3& values);
 
-    /// Runs the registration. 
+    /// Runs the registration.
     /// Returns the resulting deformation field or an invalid volume if registration failed.
     stk::Volume execute();
-    
+
 private:
     /// Builds a unary function for the specified pyramid level
     void build_unary_function(int level, GpuUnaryFunction& unary_fn);
@@ -55,6 +53,9 @@ private:
     std::vector<GpuVolumePyramid> _fixed_pyramids;
     std::vector<GpuVolumePyramid> _moving_pyramids;
     GpuVolumePyramid _deformation_pyramid;
+
+    std::vector<float3> _fixed_landmarks;
+    std::vector<float3> _moving_landmarks;
 
     WorkerPool _worker_pool;
     std::vector<stk::cuda::Stream> _stream_pool;

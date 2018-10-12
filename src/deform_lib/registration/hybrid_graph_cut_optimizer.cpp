@@ -1,5 +1,5 @@
 #include "block_change_flags.h"
-#include "gpu/cost_function.h"
+#include "gpu/cost_functions/cost_function.h"
 #include "hybrid_graph_cut_optimizer.h"
 #include "worker_pool.h"
 
