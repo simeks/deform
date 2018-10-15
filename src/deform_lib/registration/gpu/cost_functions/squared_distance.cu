@@ -1,11 +1,15 @@
 #include "squared_distance.h"
 
+#include <float.h>
+
 namespace cuda = stk::cuda;
 
 template<typename T>
 __global__ void ssd_kernel(
     cuda::VolumePtr<T> fixed,
     cuda::VolumePtr<T> moving,
+    cuda::VolumePtr<T> fixed_mask,
+    cuda::VolumePtr<T> moving_mask,
     cuda::VolumePtr<float4> df,
     float3 delta,
     float weight,
@@ -32,27 +36,41 @@ __global__ void ssd_kernel(
         return;
     }
 
+    // Check if the fixed voxel is masked out
+    if (fixed_mask(x, y, z) <= FLT_EPSILON) {
+        return;
+    }
+
     x += offset.x;
     y += offset.y;
     z += offset.z;
 
-    float3 d0 { df(x,y,z).x, df(x,y,z).y, df(x,y,z).z };
-    float3 d1 = d0 + delta;
+    const float3 d0 { df(x,y,z).x, df(x,y,z).y, df(x,y,z).z };
+    const float3 d1 = d0 + delta;
 
-    float3 xyz = float3{float(x),float(y),float(z)};
-    float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
+    const float3 xyz = float3{float(x),float(y),float(z)};
+    const float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
 
-    float3 moving_p0 = (inv_moving_direction * (world_p + d0 - moving_origin)) * inv_moving_spacing;
-    float3 moving_p1 = (inv_moving_direction * (world_p + d1 - moving_origin)) * inv_moving_spacing;
+    const float3 moving_p0 = (inv_moving_direction * (world_p + d0 - moving_origin)) * inv_moving_spacing;
+    const float3 moving_p1 = (inv_moving_direction * (world_p + d1 - moving_origin)) * inv_moving_spacing;
 
-    float f0 = fixed(x,y,z) - cuda::linear_at_border<float>(
-        moving, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
+    // Check if the moving voxels are masked out
+    const float mask_value_0 = cuda::linear_at_border<float>(
+            moving_mask, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
+    const float mask_value_1 = cuda::linear_at_border<float>(
+            moving_mask, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
 
-    float f1 = fixed(x,y,z) - cuda::linear_at_border<float>(
-        moving, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
+    if (mask_value_0 >= FLT_EPSILON) {
+        const float f0 = fixed(x,y,z) - cuda::linear_at_border<float>(
+            moving, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
+        cost_acc(x,y,z).x += mask_value_0 * weight * f0*f0;
+    }
 
-    cost_acc(x,y,z).x += weight*f0*f0;
-    cost_acc(x,y,z).y += weight*f1*f1;
+    if (mask_value_1 >= FLT_EPSILON) {
+        const float f1 = fixed(x,y,z) - cuda::linear_at_border<float>(
+            moving, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
+        cost_acc(x,y,z).y += mask_value_1 * weight * f1*f1;
+    }
 }
 
 void GpuCostFunction_SSD::cost(
@@ -68,10 +86,15 @@ void GpuCostFunction_SSD::cost(
     ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(_fixed_mask.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(_moving_mask.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
-    FATAL_IF(_fixed.voxel_type() != stk::Type_Float || _moving.voxel_type() != stk::Type_Float)
-        << "Unsupported format";
+    FATAL_IF(_fixed.voxel_type() != stk::Type_Float ||
+             _moving.voxel_type() != stk::Type_Float ||
+             _fixed_mask.voxel_type() != stk::Type_Float ||
+             _moving_mask.voxel_type() != stk::Type_Float)
+        << "Unsupported pixel type";
 
     dim3 block_size {32, 32, 1};
 
@@ -94,6 +117,8 @@ void GpuCostFunction_SSD::cost(
     ssd_kernel<float><<<grid_size, block_size, 0, stream>>>(
         _fixed,
         _moving,
+        _fixed_mask,
+        _moving_mask,
         df,
         delta,
         weight,

@@ -10,15 +10,23 @@ struct GradientSSDFunction : public SubFunction
 {
     GradientSSDFunction(const stk::VolumeHelper<T>& fixed,
                         const stk::VolumeHelper<T>& moving,
+                        const stk::VolumeFloat& moving_mask,
                         const float sigma) :
         _fixed(stk::sobel(stk::gaussian_filter_3d(fixed, sigma))),
-        _moving(stk::sobel(stk::gaussian_filter_3d(moving, sigma)))
+        _moving(stk::sobel(stk::gaussian_filter_3d(moving, sigma))),
+        _moving_mask(moving_mask)
     {}
 
     float cost(const int3& p, const float3& def)
     {
         // [fixed] -> [world] -> [moving]
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
+
+        // Check whether the point is masked out
+        const float mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
+        if (mask_value <= std::numeric_limits<float>::epsilon()) {
+            return 0.0f;
+        }
 
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
@@ -29,10 +37,11 @@ struct GradientSSDFunction : public SubFunction
 
         float3 moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
-        return stk::norm2(_fixed(p) - moving_v);
+        return mask_value * stk::norm2(_fixed(p) - moving_v);
     }
 
     stk::VolumeHelper<float3> _fixed;
     stk::VolumeHelper<float3> _moving;
+    stk::VolumeFloat _moving_mask;
 };
 

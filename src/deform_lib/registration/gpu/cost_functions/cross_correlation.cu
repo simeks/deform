@@ -1,11 +1,15 @@
 #include "cross_correlation.h"
 
+#include <float.h>
+
 namespace cuda = stk::cuda;
 
 template<typename T>
 __global__ void ncc_kernel(
     cuda::VolumePtr<T> fixed,
     cuda::VolumePtr<T> moving,
+    const cuda::VolumePtr<T> fixed_mask,
+    const cuda::VolumePtr<T> moving_mask,
     cuda::VolumePtr<float4> df,
     float3 delta,
     float weight,
@@ -34,18 +38,33 @@ __global__ void ncc_kernel(
         return;
     }
 
+    // Check if the fixed voxel is masked out
+    if (fixed_mask(x, y, z) <= FLT_EPSILON) {
+        return;
+    }
+
     x += offset.x;
     y += offset.y;
     z += offset.z;
 
-    float3 d0 { df(x,y,z).x, df(x, y, z).y, df(x, y, z).z };
-    float3 d1 = d0 + delta;
+    const float3 d0 { df(x,y,z).x, df(x, y, z).y, df(x, y, z).z };
+    const float3 d1 = d0 + delta;
 
-    float3 xyz = float3{float(x),float(y),float(z)};
-    float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
+    const float3 xyz = float3{float(x),float(y),float(z)};
+    const float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
 
-    float3 moving_p0 = (inv_moving_direction * (world_p + d0 - moving_origin)) * inv_moving_spacing;
-    float3 moving_p1 = (inv_moving_direction * (world_p + d1 - moving_origin)) * inv_moving_spacing;
+    const float3 moving_p0 = (inv_moving_direction * (world_p + d0 - moving_origin)) * inv_moving_spacing;
+    const float3 moving_p1 = (inv_moving_direction * (world_p + d1 - moving_origin)) * inv_moving_spacing;
+
+    // Check if the moving voxels are masked out
+    const float mask_value_0 = cuda::linear_at_border<float>(
+            moving_mask, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
+    const float mask_value_1 = cuda::linear_at_border<float>(
+            moving_mask, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
+
+    if (mask_value_0 < FLT_EPSILON && mask_value_1 < FLT_EPSILON) {
+        return;
+    }
 
     float sff = 0.0f;
     float sf = 0.0f;
@@ -118,17 +137,17 @@ __global__ void ncc_kernel(
     if (moving_p0.x >= 0 && moving_p0.x < moving_dims.x &&
         moving_p0.y >= 0 && moving_p0.y < moving_dims.y &&
         moving_p0.z >= 0 && moving_p0.z < moving_dims.z &&
-        denom0 > 1e-5)
+        denom0 > 1e-5 && mask_value_0 >= FLT_EPSILON)
     {
-        cost_acc(x,y,z).x += weight * 0.5f * (1.0f-float(sfm0 / denom0));
+        cost_acc(x,y,z).x += mask_value_0 * weight * 0.5f * (1.0f-float(sfm0 / denom0));
     }
 
     if (moving_p1.x >= 0 && moving_p1.x < moving_dims.x &&
         moving_p1.y >= 0 && moving_p1.y < moving_dims.y &&
         moving_p1.z >= 0 && moving_p1.z < moving_dims.z &&
-        denom1 > 1e-5)
+        denom1 > 1e-5 && mask_value_1 >= FLT_EPSILON)
     {
-        cost_acc(x,y,z).y += weight * 0.5f * (1.0f-float(sfm1 / denom1));
+        cost_acc(x,y,z).y += mask_value_1 * weight * 0.5f * (1.0f-float(sfm1 / denom1));
     }
 }
 
@@ -145,10 +164,15 @@ void GpuCostFunction_NCC::cost(
     ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(_fixed_mask.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(_moving_mask.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
-    FATAL_IF(_fixed.voxel_type() != stk::Type_Float || _moving.voxel_type() != stk::Type_Float)
-        << "Unsupported format";
+    FATAL_IF(_fixed.voxel_type() != stk::Type_Float ||
+             _moving.voxel_type() != stk::Type_Float ||
+             _fixed_mask.voxel_type() != stk::Type_Float ||
+             _moving_mask.voxel_type() != stk::Type_Float)
+        << "Unsupported pixel type";
 
     dim3 block_size {32, 32, 1};
 
@@ -171,6 +195,8 @@ void GpuCostFunction_NCC::cost(
     ncc_kernel<float><<<grid_size, block_size, 0, stream>>>(
         _fixed,
         _moving,
+        _fixed_mask,
+        _moving_mask,
         df,
         delta,
         weight,

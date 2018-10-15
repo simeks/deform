@@ -10,9 +10,11 @@ struct NCCFunction_sphere : public SubFunction
      */
     NCCFunction_sphere(const stk::VolumeHelper<T>& fixed,
                 const stk::VolumeHelper<T>& moving,
+                const stk::VolumeFloat& moving_mask,
                 const int radius) :
         _fixed(fixed),
         _moving(moving),
+        _moving_mask(moving_mask),
         _radius(radius)
     {}
 
@@ -21,6 +23,12 @@ struct NCCFunction_sphere : public SubFunction
     {
         // [fixed] -> [world] -> [moving]
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
+
+        // Check whether the point is masked out
+        const float mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
+        if (mask_value <= std::numeric_limits<float>::epsilon()) {
+            return 0.0f;
+        }
 
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
@@ -76,13 +84,14 @@ struct NCCFunction_sphere : public SubFunction
         double d = sqrt(sff*smm);
 
         if(d > 1e-5) {
-            return float(0.5*(1.0-sfm / d));
+            return mask_value * float(0.5*(1.0-sfm / d));
         }
         return 0.0f;
     }
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
+    stk::VolumeFloat _moving_mask;
     const int _radius;
 };
 

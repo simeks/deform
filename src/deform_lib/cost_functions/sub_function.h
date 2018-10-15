@@ -4,6 +4,8 @@
 #include <stk/math/int3.h>
 #include <stk/image/volume.h>
 
+#include <limits>
+
 struct SubFunction
 {
     /*!

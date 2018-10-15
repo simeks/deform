@@ -27,6 +27,10 @@ public:
     void set_regularization_weight_map(const stk::Volume& map);
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
+    /// Set masks.
+    void set_fixed_mask(const stk::VolumeFloat& fixed_mask);
+    void set_moving_mask(const stk::VolumeFloat& moving_mask);
+
     /// Sets fixed and moving landmarks.
     void set_landmarks(const std::vector<float3>& fixed_landmarks,
                        const std::vector<float3>& moving_landmarks);
@@ -61,6 +65,9 @@ private:
     std::vector<VolumePyramid> _fixed_pyramids;
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
+
+    stk::VolumeFloat _fixed_mask;
+    stk::VolumeFloat _moving_mask;
 
     std::vector<float3> _fixed_landmarks;
     std::vector<float3> _moving_landmarks;

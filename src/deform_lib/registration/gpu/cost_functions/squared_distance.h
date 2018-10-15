@@ -5,9 +5,14 @@
 struct GpuCostFunction_SSD : public GpuSubFunction
 {
     GpuCostFunction_SSD(const stk::GpuVolume& fixed,
-                        const stk::GpuVolume& moving) :
+                        const stk::GpuVolume& moving,
+                        const stk::GpuVolume& fixed_mask,
+                        const stk::GpuVolume& moving_mask
+                        ) :
         _fixed(fixed),
-        _moving(moving)
+        _moving(moving),
+        _fixed_mask(fixed_mask),
+        _moving_mask(moving_mask)
     {
     }
     ~GpuCostFunction_SSD() {}
@@ -24,5 +29,7 @@ struct GpuCostFunction_SSD : public GpuSubFunction
 
     stk::GpuVolume _fixed;
     stk::GpuVolume _moving;
+    stk::GpuVolume _fixed_mask;
+    stk::GpuVolume _moving_mask;
 };
 

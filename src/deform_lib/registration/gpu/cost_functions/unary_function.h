@@ -15,6 +15,7 @@ public:
     // TODO: Weights, regularization term, etc
 
     GpuUnaryFunction() : _regularization_weight(0.0f) {}
+
     ~GpuUnaryFunction() {}
 
     void set_regularization_weight(float weight)

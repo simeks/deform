@@ -6,9 +6,13 @@ struct GpuCostFunction_NCC : public GpuSubFunction
 {
     GpuCostFunction_NCC(const stk::GpuVolume& fixed,
                         const stk::GpuVolume& moving,
+                        const stk::GpuVolume& fixed_mask,
+                        const stk::GpuVolume& moving_mask,
                         int radius) :
         _fixed(fixed),
         _moving(moving),
+        _fixed_mask(fixed_mask),
+        _moving_mask(moving_mask),
         _radius(radius)
     {
     }
@@ -26,6 +30,8 @@ struct GpuCostFunction_NCC : public GpuSubFunction
 
     stk::GpuVolume _fixed;
     stk::GpuVolume _moving;
+    stk::GpuVolume _fixed_mask;
+    stk::GpuVolume _moving_mask;
     int _radius;
 };
 

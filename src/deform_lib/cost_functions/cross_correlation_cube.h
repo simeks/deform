@@ -16,6 +16,7 @@ struct NCCFunction_cube : public SubFunction
      */
     NCCFunction_cube(const stk::VolumeHelper<T>& fixed,
                      const stk::VolumeHelper<T>& moving,
+                     const stk::VolumeFloat& moving_mask,
                      const int radius) :
         _fixed({fixed.size().x + 2*radius,
                 fixed.size().y + 2*radius,
@@ -25,6 +26,7 @@ struct NCCFunction_cube : public SubFunction
                  moving.size().y + 2,
                  moving.size().z + 2},
                 0.0f),
+        _moving_mask(moving_mask),
         _radius(radius)
     {
         // fixed volume, zero-padding with thickness `radius`
@@ -54,6 +56,12 @@ struct NCCFunction_cube : public SubFunction
         // [fixed] -> [world] -> [moving]
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
+        // Check whether the point is masked out
+        const float mask_value = _moving_mask.linear_at(moving_p, stk::Boder_Constant);
+        if (mask_value <= std::numeric_limits<float>::epsilon()) {
+            return 0.0f;
+        }
+
         // [Filip]: Addition for partial-body registrations
         // NOTE: _moving.size() includes padding
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x - 2 ||
@@ -79,11 +87,12 @@ struct NCCFunction_cube : public SubFunction
         const float *moving = (const float*) _moving.ptr();
 
         // Evaluate the ispc kernel
-        return ispc::ncc(_radius, fp, mp, fixed, moving, fs, ms);
+        return mask_value * ispc::ncc(_radius, fp, mp, fixed, moving, fs, ms);
     }
 
     stk::VolumeHelper<float> _fixed;
     stk::VolumeHelper<float> _moving;
+    stk::VolumeFloat _moving_mask;
     const int _radius;
 };
 
@@ -94,6 +103,7 @@ struct NCCFunction_cube : public SubFunction
 {
     NCCFunction_cube(const stk::VolumeHelper<T>& /* fixed */,
                      const stk::VolumeHelper<T>& /* moving */,
+                     const stk::VolumeFloat& /* moving_mask */,
                      const int /* radius */)
     {
         throw std::runtime_error("deform_lib must be built with ISPC support "

@@ -50,6 +50,7 @@ namespace
     std::unique_ptr<SubFunction> ssd_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -60,7 +61,7 @@ namespace
         }
 
         return std::make_unique<SquaredDistanceFunction<T>>(
-            fixed, moving
+            fixed, moving, moving_mask
         );
     }
 
@@ -68,6 +69,7 @@ namespace
     std::unique_ptr<SubFunction> ncc_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -93,12 +95,12 @@ namespace
 
         if ("sphere" == window) {
             return std::make_unique<NCCFunction_sphere<T>>(
-                fixed, moving, radius
+                fixed, moving, moving_mask, radius
             );
         }
         else if ("cube" == window) {
             return std::make_unique<NCCFunction_cube<T>>(
-                fixed, moving, radius
+                fixed, moving, moving_mask, radius
             );
         }
         else {
@@ -110,6 +112,7 @@ namespace
     std::unique_ptr<SubFunction> mi_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -146,7 +149,7 @@ namespace
         }
 
         return std::make_unique<MIFunction<T>>(
-            fixed, moving, bins, sigma, update_interval, interpolator
+            fixed, moving, moving_mask, bins, sigma, update_interval, interpolator
         );
     }
 
@@ -154,6 +157,7 @@ namespace
     std::unique_ptr<SubFunction> gradient_ssd_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -170,7 +174,7 @@ namespace
         }
 
         return std::make_unique<GradientSSDFunction<T>>(
-            fixed, moving, sigma
+            fixed, moving, moving_mask, sigma
         );
     }
 }
@@ -194,6 +198,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
         const stk::Volume&,
         const stk::Volume&,
+        const stk::VolumeFloat&,
         const std::map<std::string, std::string>&
     );
 
@@ -371,6 +376,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         nullptr // Type_Double4
     };
 
+    unary_fn.set_fixed_mask(_fixed_mask);
     unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -395,7 +401,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
                 FactoryFn factory = ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -407,7 +413,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -419,7 +425,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = mi_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -431,7 +437,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = gradient_ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -485,6 +491,14 @@ RegistrationEngine::RegistrationEngine(const Settings& settings) :
 }
 RegistrationEngine::~RegistrationEngine()
 {
+}
+void RegistrationEngine::set_fixed_mask(const stk::VolumeFloat& fixed_mask)
+{
+    _fixed_mask = fixed_mask;
+}
+void RegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
+{
+    _moving_mask = moving_mask;
 }
 void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 {

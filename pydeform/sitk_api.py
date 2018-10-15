@@ -7,17 +7,19 @@ def register(
         fixed_images,
         moving_images,
         *,
-        fixed_landmarks = None,
-        moving_landmarks = None,
-        initial_displacement = None,
-        constraint_mask = None,
-        constraint_values = None,
-        settings = None,
-        log = None,
-        silent = True,
-        num_threads = 0,
-        subprocess = False,
-        use_gpu = False,
+        fixed_mask=None,
+        moving_mask=None,
+        fixed_landmarks=None,
+        moving_landmarks=None,
+        initial_displacement=None,
+        constraint_mask=None,
+        constraint_values=None,
+        settings=None,
+        log=None,
+        silent=True,
+        num_threads=0,
+        subprocess=False,
+        use_gpu=False,
         ):
     R""" Perform deformable registration.
 
@@ -28,6 +30,12 @@ def register(
 
     moving_images: Union[sitk.Image, List[sitk.Image]]
         Moving image, or list of moving images.
+
+    fixed_mask: np.ndarray
+        Fixed mask.
+
+    moving_mask: np.ndarray
+        Moving mask.
 
     fixed_landmarks: np.ndarray
         Array of shape :math:`n \times 3`, containing

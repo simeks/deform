@@ -81,7 +81,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                 }
 
                 unary_fn.add_function(
-                    std::make_unique<GpuCostFunction_SSD>(fixed, moving),
+                    std::make_unique<GpuCostFunction_SSD>(fixed, moving, _fixed_mask, _moving_mask),
                     fn.weight
                 );
             }
@@ -99,7 +99,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                 }
 
                 unary_fn.add_function(
-                    std::make_unique<GpuCostFunction_NCC>(fixed, moving, radius),
+                    std::make_unique<GpuCostFunction_NCC>(fixed, moving, _fixed_mask, _moving_mask, radius),
                     fn.weight
                 );
             }
@@ -202,6 +202,16 @@ void GpuRegistrationEngine::set_landmarks(const std::vector<float3>& fixed_landm
     ASSERT(fixed_landmarks.size() == moving_landmarks.size());
     _fixed_landmarks = fixed_landmarks;
     _moving_landmarks = moving_landmarks;
+}
+
+void GpuRegistrationEngine::set_fixed_mask(const stk::VolumeFloat& fixed_mask)
+{
+    _fixed_mask = fixed_mask;
+}
+
+void GpuRegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
+{
+    _moving_mask = moving_mask;
 }
 
 void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,

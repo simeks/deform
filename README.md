@@ -32,8 +32,10 @@ To perform a registration
 
 | Argument                    |                                                |
 | --------------------------- | ---------------------------------------------- |
-| `-f<i> <file>`              | Filename of the i:th fixed image (i &lt; 8)*.  |
-| `-m<i> <file>`              | Filename of the i:th moving image (i &lt; 8)*. |
+| `-f<i> <file>`              | Filename of the i:th fixed image (i &lt; 8).†  |
+| `-m<i> <file>`              | Filename of the i:th moving image (i &lt; 8).† |
+| `-fm <file>`                | Filename of the fixed mask.‡                   |
+| `-mm <file>`                | Filename of the moving mask.‡                  |
 | `-fp <file>`                | Filename for the fixed landmarks.              |
 | `-mp <file>`                | Filename for the moving landmarks.             |
 | `-d0 <file>`                | Filename for initial deformation field.        |
@@ -43,7 +45,10 @@ To perform a registration
 | `-o <file>`                 | Filename of the resulting deformation field    |
 | `--gpu`                     | Enables GPU assisted registration.             |
 
-* Requires a matching number of fixed and moving images.
+† Requires a matching number of fixed and moving images.
+
+‡ Fuzzy masks in floating point format, whose values denote the confidence on
+  the image intensity at each point.
 
 ### Parameter file example
 

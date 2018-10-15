@@ -30,6 +30,8 @@ stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
+        const std::optional<stk::Volume> fixed_mask,
+        const std::optional<stk::Volume> moving_mask,
         const std::optional<std::vector<float3>> fixed_landmarks,
         const std::optional<std::vector<float3>> moving_landmarks,
         const std::optional<stk::Volume> initial_deformation,

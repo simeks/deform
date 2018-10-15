@@ -108,7 +108,7 @@ private:
     const int _bins;           /*!< Number of bins. */
     const double _sigma;       /*!< Kernel standard deviation. */
     std::vector<double> _data; /*!< Binned data. */
-    T _min, _max;               /*!< Intensity extrema. */
+    T _min, _max;              /*!< Intensity extrema. */
     T _inv_bin_width;          /*!< Inverse of the bin width. */
 
     /*!
@@ -338,12 +338,14 @@ struct MIFunction : public SubFunction
 {
     MIFunction(const stk::VolumeHelper<T>& fixed,
                const stk::VolumeHelper<T>& moving,
+               const stk::VolumeFloat& moving_mask,
                const int bins,
                const double sigma,
                const int update_interval,
                const transform::Interp interpolator) :
         _fixed(fixed),
         _moving(moving),
+        _moving_mask(moving_mask),
         _bins(bins),
         _sigma(sigma),
         _update_interval(update_interval),
@@ -374,11 +376,17 @@ struct MIFunction : public SubFunction
         // [fixed] -> [world] -> [moving]
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
+        // Check whether the point is masked out
+        const float mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
+        if (mask_value <= std::numeric_limits<float>::epsilon()) {
+            return 0.0f;
+        }
+
         const T i1 = _fixed(p);
         const T i2 = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // NOTE: the sign is inverted (minimising negated MI)
-        return _voxel_count * static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
+        return mask_value * _voxel_count * static_cast<float>(_entropy(i2) - _joint_entropy(i1, i2));
     }
 
     /*!
@@ -403,6 +411,7 @@ struct MIFunction : public SubFunction
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
+    stk::VolumeFloat _moving_mask;
     const int _bins;
     const double _sigma;
     const int _update_interval;

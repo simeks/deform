@@ -245,6 +245,8 @@ void add_logger(
  * @param moving_origin Analogous to `fixed_origin`.
  * @param moving_spacing Analogous to `fixed_spacing`.
  * @param moving_direction Analogous to `fixed_direction`.
+ * @param fixed_mask Fixed mask.
+ * @param moving_mask Moving mask.
  * @param fixed_landmarks A `n \times 3` numpy array, with
  *                        one row for each landmark point.
  * @param moving_landmarks A `n \times 3` numpy array, with
@@ -287,6 +289,8 @@ py::array registration_wrapper(
         const std::vector<double>& moving_spacing,
         const std::vector<double>& fixed_direction,
         const std::vector<double>& moving_direction,
+        const py::object& fixed_mask,
+        const py::object& moving_mask,
         const py::object& fixed_landmarks,
         const py::object& moving_landmarks,
         const py::object& initial_displacement,
@@ -352,6 +356,23 @@ py::array registration_wrapper(
 
     // Convert optional arguments. Try to cast to the correct numeric
     // type if possible.
+
+    std::optional<stk::VolumeFloat> fixed_mask_;
+    if (!fixed_mask.is_none()) {
+        fixed_mask_ = image_to_volume(py::cast<py::array_t<float>>(fixed_mask),
+                                      fixed_origin,
+                                      fixed_spacing,
+                                      fixed_direction);
+    }
+
+    std::optional<stk::VolumeFloat> moving_mask_;
+    if (!moving_mask.is_none()) {
+        moving_mask_ = image_to_volume(py::cast<py::array_t<float>>(moving_mask),
+                                       moving_origin,
+                                       moving_spacing,
+                                       moving_direction);
+    }
+
     std::optional<std::vector<float3>> fixed_landmarks_;
     if (!fixed_landmarks.is_none()) {
         fixed_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(fixed_landmarks));
@@ -399,6 +420,8 @@ py::array registration_wrapper(
     stk::Volume displacement = registration(settings_,
                                             fixed_volumes,
                                             moving_volumes,
+                                            fixed_mask_,
+                                            moving_mask_,
                                             fixed_landmarks_,
                                             moving_landmarks_,
                                             initial_displacement_,
@@ -450,6 +473,12 @@ fixed_direction: Tuple[Int]
 
 moving_direction: Tuple[Int]
     Cosine direction matrix of the moving images.
+
+fixed_mask: np.ndarray
+    Fixed mask.
+
+moving_mask: np.ndarray
+    Moving mask.
 
 fixed_landmarks: np.ndarray
     Array of shape :math:`n \times 3`, with one row
@@ -695,6 +724,8 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("moving_spacing") = py::make_tuple(1.0, 1.0, 1.0),
           py::arg("fixed_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
           py::arg("moving_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+          py::arg("fixed_mask") = py::none(),
+          py::arg("moving_mask") = py::none(),
           py::arg("fixed_landmarks") = py::none(),
           py::arg("moving_landmarks") = py::none(),
           py::arg("initial_displacement") = py::none(),
