@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
         command = std::make_unique<RegularisationCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "jacobian") == 0) {
-        command = std::make_unique<RegistrationCommand>(argc, argv);
+        command = std::make_unique<JacobianCommand>(argc, argv);
     }
     else {
         print_command_help(argv[0]);
