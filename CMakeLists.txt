@@ -25,6 +25,7 @@ option(DF_WARNINGS_ARE_ERRORS "Warnings are treated as errors" OFF)
 option(DF_BUILD_WITH_DEBUG_INFO "Includes debug info in release builds" OFF)
 option(DF_ENABLE_FAST_MATH "Enables fast math" OFF)
 option(DF_ITK_BRIDGE "Add support to interoperate with ITK" OFF)
+option(DF_STACK_TRACE "Print a stack trace on errors" OFF)
 
 option(DF_ENABLE_MICROPROFILE "Enables microprofile profiler" OFF)
 option(DF_ENABLE_NVTOOLSEXT "Enables nvtoolsext profiler" OFF)
@@ -36,6 +37,10 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting default build type: 'Release'")
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+if(DF_STACK_TRACE)
+    set(DF_BUILD_WITH_DEBUG_INFO ON)
 endif()
 
 project(deform)
@@ -79,7 +84,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     endif()
 
     if (DF_BUILD_WITH_DEBUG_INFO)
-        set(EXTRA_FLAGS_RELEASE "-g1")
+        set(EXTRA_FLAGS_RELEASE "-g1 -rdynamic")
     endif()
 
     if (DF_ENABLE_FAST_MATH)
@@ -93,7 +98,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif()
 
     if (DF_BUILD_WITH_DEBUG_INFO)
-        set(EXTRA_FLAGS_RELEASE "-g1")
+        set(EXTRA_FLAGS_RELEASE "-g1 -rdynamic")
     endif()
 
     if (DF_ENABLE_FAST_MATH)
