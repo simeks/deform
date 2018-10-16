@@ -4,7 +4,7 @@
 
 namespace cuda = stk::cuda;
 
-template<typename T>
+template<typename T, bool use_fixed_mask, bool use_moving_mask>
 __global__ void ssd_kernel(
     cuda::VolumePtr<T> fixed,
     cuda::VolumePtr<T> moving,
@@ -37,8 +37,10 @@ __global__ void ssd_kernel(
     }
 
     // Check if the fixed voxel is masked out
-    if (fixed_mask(x, y, z) <= FLT_EPSILON) {
-        return;
+    if (use_fixed_mask) {
+        if (fixed_mask(x, y, z) <= FLT_EPSILON) {
+            return;
+        }
     }
 
     x += offset.x;
@@ -55,10 +57,14 @@ __global__ void ssd_kernel(
     const float3 moving_p1 = (inv_moving_direction * (world_p + d1 - moving_origin)) * inv_moving_spacing;
 
     // Check if the moving voxels are masked out
-    const float mask_value_0 = cuda::linear_at_border<float>(
-            moving_mask, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
-    const float mask_value_1 = cuda::linear_at_border<float>(
-            moving_mask, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
+    float mask_value_0 = 1.0f;
+    float mask_value_1 = 1.0f;
+    if (use_moving_mask) {
+        mask_value_0 = cuda::linear_at_border<float>(
+                moving_mask, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
+        mask_value_1 = cuda::linear_at_border<float>(
+                moving_mask, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
+    }
 
     if (mask_value_0 >= FLT_EPSILON) {
         const float f0 = fixed(x,y,z) - cuda::linear_at_border<float>(
@@ -114,7 +120,25 @@ void GpuCostFunction_SSD::cost(
         1.0f / _moving.spacing().z
     };
 
-    ssd_kernel<float><<<grid_size, block_size, 0, stream>>>(
+    auto (*kernel) = &ssd_kernel<float, false, false>;
+    if (_fixed_mask.valid()) {
+        if (_moving_mask.valid()) {
+            kernel = &ssd_kernel<float, true, true>;
+        }
+        else {
+            kernel = &ssd_kernel<float, true, false>;
+        }
+    }
+    else {
+        if (_moving_mask.valid()) {
+            kernel = &ssd_kernel<float, false, true>;
+        }
+        else {
+            kernel = &ssd_kernel<float, false, false>;
+        }
+    }
+
+    kernel<<<grid_size, block_size, 0, stream>>>(
         _fixed,
         _moving,
         _fixed_mask,

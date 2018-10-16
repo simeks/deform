@@ -9,7 +9,7 @@
 #include <vector>
 
 struct Regularizer;
-struct UnaryFunction;
+template<bool> struct UnaryFunction;
 
 class RegistrationEngine
 {
@@ -46,7 +46,8 @@ public:
     void build_regularizer(int level, Regularizer& binary_fn);
 
     /// Builds a unary function for the specified pyramid level
-    void build_unary_function(int level, UnaryFunction& unary_fn);
+    template<typename Unary>
+    void build_unary_function(int level, Unary& unary_fn);
 
     /// Returns the deformation field at the specified pyramid level
     stk::Volume deformation_field(int level);

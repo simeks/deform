@@ -60,9 +60,13 @@ namespace
                                         + parameters.begin()->second + "'");
         }
 
-        return std::make_unique<SquaredDistanceFunction<T>>(
-            fixed, moving, moving_mask
-        );
+        if (moving_mask.valid()) {
+            return std::make_unique<SquaredDistanceFunction<T, true>>(fixed, moving, moving_mask);
+        }
+        else {
+            return std::make_unique<SquaredDistanceFunction<T, false>>(fixed, moving, moving_mask);
+        }
+
     }
 
     template<typename T>
@@ -94,14 +98,20 @@ namespace
         }
 
         if ("sphere" == window) {
-            return std::make_unique<NCCFunction_sphere<T>>(
-                fixed, moving, moving_mask, radius
-            );
+            if (moving_mask.valid()) {
+                return std::make_unique<NCCFunction_sphere<T, true>>(fixed, moving, moving_mask, radius);
+            }
+            else {
+                return std::make_unique<NCCFunction_sphere<T, false>>(fixed, moving, moving_mask, radius);
+            }
         }
         else if ("cube" == window) {
-            return std::make_unique<NCCFunction_cube<T>>(
-                fixed, moving, moving_mask, radius
-            );
+            if (moving_mask.valid()) {
+                return std::make_unique<NCCFunction_cube<T, true>>(fixed, moving, moving_mask, radius);
+            }
+            else {
+                return std::make_unique<NCCFunction_cube<T, false>>(fixed, moving, moving_mask, radius);
+            }
         }
         else {
             throw std::runtime_error("NCCFunction: there is a bug in the selection of the window.");
@@ -148,9 +158,14 @@ namespace
             }
         }
 
-        return std::make_unique<MIFunction<T>>(
-            fixed, moving, moving_mask, bins, sigma, update_interval, interpolator
-        );
+        if (moving_mask.valid()) {
+            return std::make_unique<MIFunction<T, true>>(
+                    fixed, moving, moving_mask, bins, sigma, update_interval, interpolator);
+        }
+        else {
+            return std::make_unique<MIFunction<T, false>>(
+                    fixed, moving, moving_mask, bins, sigma, update_interval, interpolator);
+        }
     }
 
     template<typename T>
@@ -173,9 +188,12 @@ namespace
             }
         }
 
-        return std::make_unique<GradientSSDFunction<T>>(
-            fixed, moving, moving_mask, sigma
-        );
+        if (moving_mask.valid()) {
+            return std::make_unique<GradientSSDFunction<T, true>>(fixed, moving, moving_mask, sigma);
+        }
+        else {
+            return std::make_unique<GradientSSDFunction<T, false>>(fixed, moving, moving_mask, sigma);
+        }
     }
 }
 
@@ -193,7 +211,8 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
     #endif
 }
 
-void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
+template<typename Unary>
+void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
 {
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
         const stk::Volume&,
@@ -576,9 +595,6 @@ stk::Volume RegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            UnaryFunction unary_fn;
-            build_unary_function(l, unary_fn);
-
             Regularizer binary_fn;
             build_regularizer(l, binary_fn);
 
@@ -592,13 +608,28 @@ stk::Volume RegistrationEngine::execute()
                 );
             }
 
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.levels[l].block_size,
-                _settings.levels[l].block_energy_epsilon,
-                _settings.levels[l].max_iteration_count
-            );
+            // Perform optimisation with or without mask
 
-            optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            #define OPTIMISE(use_mask) \
+                    { \
+                        UnaryFunction<use_mask> unary_fn; \
+                        build_unary_function(l, unary_fn); \
+                        BlockedGraphCutOptimizer<UnaryFunction<use_mask>, Regularizer> optimizer( \
+                            _settings.levels[l].block_size, \
+                            _settings.levels[l].block_energy_epsilon, \
+                            _settings.levels[l].max_iteration_count \
+                        ); \
+                        optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def); \
+                    }
+
+            if (_fixed_mask.valid()) {
+                OPTIMISE(true);
+            }
+            else {
+                OPTIMISE(false);
+            }
+
+            #undef OPTIMISE
         }
         else {
             LOG(Info) << "Skipping level " << l;

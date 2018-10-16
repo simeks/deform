@@ -3,6 +3,7 @@
 #include "sub_function.h"
 
 
+template<bool use_mask>
 struct UnaryFunction
 {
     struct WeightedFunction {
@@ -42,6 +43,12 @@ struct UnaryFunction
 
     inline double operator()(const int3& p, const float3& def)
     {
+        if constexpr (use_mask) {
+            if (_fixed_mask(p) <= std::numeric_limits<float>::epsilon()) {
+                return 0.0f;
+            }
+        }
+
         double sum = 0.0f;
         for (auto& fn : _functions) {
             sum += fn.weight * fn.function->cost(p, def);
@@ -53,7 +60,11 @@ struct UnaryFunction
             w = _regularization_weight_map(p);
 #endif
 
-        return (1.0f - w) * _fixed_mask(p) * sum;
+        if constexpr (use_mask) {
+            sum *= _fixed_mask(p);
+        }
+
+        return (1.0f - w) * sum;
     }
 
     void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def) {

@@ -6,7 +6,7 @@
 
 #include <ispc_lib.h>
 
-template<typename T>
+template<typename T, bool use_mask>
 struct NCCFunction_cube : public SubFunction
 {
     /*!
@@ -57,9 +57,12 @@ struct NCCFunction_cube : public SubFunction
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
         // Check whether the point is masked out
-        const float mask_value = _moving_mask.linear_at(moving_p, stk::Boder_Constant);
-        if (mask_value <= std::numeric_limits<float>::epsilon()) {
-            return 0.0f;
+        float mask_value = 1.0f;
+        if constexpr (use_mask) {
+            mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
+            if (mask_value <= std::numeric_limits<float>::epsilon()) {
+                return 0.0f;
+            }
         }
 
         // [Filip]: Addition for partial-body registrations
@@ -98,7 +101,7 @@ struct NCCFunction_cube : public SubFunction
 
 #else // DF_USE_ISPC
 
-template<typename T>
+template<typename T, bool use_mask>
 struct NCCFunction_cube : public SubFunction
 {
     NCCFunction_cube(const stk::VolumeHelper<T>& /* fixed */,
