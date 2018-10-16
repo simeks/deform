@@ -70,7 +70,7 @@ struct JacobianCommand : public DeformCommand
 {
     JacobianCommand(int argc, char* argv[]) : DeformCommand(argc, argv, "") {}
 protected:
-    virtual bool _parse_arguments(void) = 0;
-    virtual int _execute(void) = 0;
+    virtual bool _parse_arguments(void);
+    virtual int _execute(void);
 };
 
