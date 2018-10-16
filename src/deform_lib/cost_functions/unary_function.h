@@ -12,7 +12,7 @@ struct UnaryFunction
     };
 
     UnaryFunction(
-            const stk::VolumeFloat fixed_mask = stk::Volume(),
+            const stk::VolumeFloat fixed_mask = stk::VolumeFloat(),
             const float regularization_weight = 0.0f
             )
         : _fixed_mask (fixed_mask)

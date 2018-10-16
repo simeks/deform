@@ -395,13 +395,18 @@ void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
         nullptr // Type_Double4
     };
 
-    unary_fn.set_fixed_mask(_fixed_mask);
+    if (_fixed_mask_pyramid.levels() > 0) {
+        unary_fn.set_fixed_mask(_fixed_mask_pyramid.volume(level));
+    }
     unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
             binary_fn.set_weight_map(_regularization_weight_map.volume(l));
     #endif
+
+    auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
+                                                                : stk::VolumeFloat();
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         stk::Volume fixed;
@@ -420,7 +425,7 @@ void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
                 FactoryFn factory = ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -432,7 +437,7 @@ void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -444,7 +449,7 @@ void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
             {
                 FactoryFn factory = mi_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -456,7 +461,7 @@ void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
             {
                 FactoryFn factory = gradient_ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, _moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -513,11 +518,13 @@ RegistrationEngine::~RegistrationEngine()
 }
 void RegistrationEngine::set_fixed_mask(const stk::VolumeFloat& fixed_mask)
 {
-    _fixed_mask = fixed_mask;
+    _fixed_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _fixed_mask_pyramid.build_from_base(fixed_mask, filters::downsample_volume_by_2);
 }
 void RegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
 {
-    _moving_mask = moving_mask;
+    _moving_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _moving_mask_pyramid.build_from_base(moving_mask, filters::downsample_volume_by_2);
 }
 void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 {
@@ -622,7 +629,7 @@ stk::Volume RegistrationEngine::execute()
                         optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def); \
                     }
 
-            if (_fixed_mask.valid()) {
+            if (_fixed_mask_pyramid.levels() > 0) {
                 OPTIMISE(true);
             }
             else {

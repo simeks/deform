@@ -58,8 +58,8 @@ private:
     std::vector<GpuVolumePyramid> _moving_pyramids;
     GpuVolumePyramid _deformation_pyramid;
 
-    stk::VolumeFloat _fixed_mask;
-    stk::VolumeFloat _moving_mask;
+    GpuVolumePyramid _fixed_mask_pyramid;
+    GpuVolumePyramid _moving_mask_pyramid;
 
     std::vector<float3> _fixed_landmarks;
     std::vector<float3> _moving_landmarks;

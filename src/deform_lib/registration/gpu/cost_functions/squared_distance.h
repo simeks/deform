@@ -29,7 +29,7 @@ struct GpuCostFunction_SSD : public GpuSubFunction
 
     stk::GpuVolume _fixed;
     stk::GpuVolume _moving;
-    stk::GpuVolume _fixed_mask;
-    stk::GpuVolume _moving_mask;
+    const stk::GpuVolume _fixed_mask;
+    const stk::GpuVolume _moving_mask;
 };
 

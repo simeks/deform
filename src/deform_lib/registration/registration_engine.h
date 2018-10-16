@@ -67,8 +67,8 @@ private:
     std::vector<VolumePyramid> _moving_pyramids;
     VolumePyramid _deformation_pyramid;
 
-    stk::VolumeFloat _fixed_mask;
-    stk::VolumeFloat _moving_mask;
+    VolumePyramid _fixed_mask_pyramid;
+    VolumePyramid _moving_mask_pyramid;
 
     std::vector<float3> _fixed_landmarks;
     std::vector<float3> _moving_landmarks;

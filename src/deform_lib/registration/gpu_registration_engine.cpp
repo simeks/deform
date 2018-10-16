@@ -71,6 +71,11 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
         ASSERT(fixed.voxel_type() == stk::Type_Float);
         ASSERT(moving.voxel_type() == stk::Type_Float);
 
+        auto const& fixed_mask = _fixed_mask_pyramid.levels() > 0 ? _fixed_mask_pyramid.volume(level)
+                                                                  : stk::GpuVolume();
+        auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
+                                                                    : stk::GpuVolume();
+
         ASSERT(fixed.voxel_type() == moving.voxel_type());
         for (auto& fn : _settings.image_slots[i].cost_functions) {
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
@@ -81,7 +86,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                 }
 
                 unary_fn.add_function(
-                    std::make_unique<GpuCostFunction_SSD>(fixed, moving, _fixed_mask, _moving_mask),
+                    std::make_unique<GpuCostFunction_SSD>(fixed, moving, fixed_mask, moving_mask),
                     fn.weight
                 );
             }
@@ -99,7 +104,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                 }
 
                 unary_fn.add_function(
-                    std::make_unique<GpuCostFunction_NCC>(fixed, moving, _fixed_mask, _moving_mask, radius),
+                    std::make_unique<GpuCostFunction_NCC>(fixed, moving, fixed_mask, moving_mask, radius),
                     fn.weight
                 );
             }
@@ -206,12 +211,14 @@ void GpuRegistrationEngine::set_landmarks(const std::vector<float3>& fixed_landm
 
 void GpuRegistrationEngine::set_fixed_mask(const stk::VolumeFloat& fixed_mask)
 {
-    _fixed_mask = fixed_mask;
+    _fixed_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _fixed_mask_pyramid.build_from_base(fixed_mask, filters::gpu::downsample_volume_by_2);
 }
 
 void GpuRegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
 {
-    _moving_mask = moving_mask;
+    _moving_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _moving_mask_pyramid.build_from_base(moving_mask, filters::gpu::downsample_volume_by_2);
 }
 
 void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,

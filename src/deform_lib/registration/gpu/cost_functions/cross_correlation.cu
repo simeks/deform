@@ -8,8 +8,8 @@ template<typename T, bool use_fixed_mask, bool use_moving_mask>
 __global__ void ncc_kernel(
     cuda::VolumePtr<T> fixed,
     cuda::VolumePtr<T> moving,
-    const cuda::VolumePtr<T> fixed_mask,
-    const cuda::VolumePtr<T> moving_mask,
+    const cuda::VolumePtr<float> fixed_mask,
+    const cuda::VolumePtr<float> moving_mask,
     cuda::VolumePtr<float4> df,
     float3 delta,
     float weight,
@@ -170,14 +170,14 @@ void GpuCostFunction_NCC::cost(
     ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
-    ASSERT(_fixed_mask.usage() == stk::gpu::Usage_PitchedPointer);
-    ASSERT(_moving_mask.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(!_fixed_mask.valid() || _fixed_mask.usage() == stk::gpu::Usage_PitchedPointer);
+    ASSERT(!_moving_mask.valid() || _moving_mask.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
     FATAL_IF(_fixed.voxel_type() != stk::Type_Float ||
              _moving.voxel_type() != stk::Type_Float ||
-             _fixed_mask.voxel_type() != stk::Type_Float ||
-             _moving_mask.voxel_type() != stk::Type_Float)
+             _fixed_mask.valid() && _fixed_mask.voxel_type() != stk::Type_Float ||
+             _moving_mask.valid() && _moving_mask.voxel_type() != stk::Type_Float)
         << "Unsupported pixel type";
 
     dim3 block_size {32, 32, 1};
@@ -219,8 +219,8 @@ void GpuCostFunction_NCC::cost(
     kernel<<<grid_size, block_size, 0, stream>>>(
         _fixed,
         _moving,
-        _fixed_mask,
-        _moving_mask,
+        _fixed_mask.valid() ? _fixed_mask : cuda::VolumePtr<float>::null_ptr(),
+        _moving_mask.valid() ? _moving_mask : cuda::VolumePtr<float>::null_ptr(),
         df,
         delta,
         weight,
