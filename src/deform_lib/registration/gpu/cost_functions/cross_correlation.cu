@@ -219,8 +219,8 @@ void GpuCostFunction_NCC::cost(
     kernel<<<grid_size, block_size, 0, stream>>>(
         _fixed,
         _moving,
-        _fixed_mask.valid() ? _fixed_mask : cuda::VolumePtr<float>::null_ptr(),
-        _moving_mask.valid() ? _moving_mask : cuda::VolumePtr<float>::null_ptr(),
+        _fixed_mask,
+        _moving_mask,
         df,
         delta,
         weight,

@@ -6,12 +6,10 @@ template<typename T, bool use_mask>
 struct SquaredDistanceFunction : public SubFunction
 {
     SquaredDistanceFunction(const stk::VolumeHelper<T>& fixed,
-                            const stk::VolumeHelper<T>& moving,
-                            const stk::VolumeFloat& moving_mask
+                            const stk::VolumeHelper<T>& moving
                             ) :
         _fixed(fixed),
-        _moving(moving),
-        _moving_mask(moving_mask)
+        _moving(moving)
     {}
 
     float cost(const int3& p, const float3& def)
@@ -45,6 +43,5 @@ struct SquaredDistanceFunction : public SubFunction
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
-    stk::VolumeFloat _moving_mask;
 };
 

@@ -16,7 +16,6 @@ struct NCCFunction_cube : public SubFunction
      */
     NCCFunction_cube(const stk::VolumeHelper<T>& fixed,
                      const stk::VolumeHelper<T>& moving,
-                     const stk::VolumeFloat& moving_mask,
                      const int radius) :
         _fixed({fixed.size().x + 2*radius,
                 fixed.size().y + 2*radius,
@@ -26,7 +25,6 @@ struct NCCFunction_cube : public SubFunction
                  moving.size().y + 2,
                  moving.size().z + 2},
                 0.0f),
-        _moving_mask(moving_mask),
         _radius(radius)
     {
         // fixed volume, zero-padding with thickness `radius`
@@ -95,7 +93,6 @@ struct NCCFunction_cube : public SubFunction
 
     stk::VolumeHelper<float> _fixed;
     stk::VolumeHelper<float> _moving;
-    stk::VolumeFloat _moving_mask;
     const int _radius;
 };
 
@@ -106,7 +103,6 @@ struct NCCFunction_cube : public SubFunction
 {
     NCCFunction_cube(const stk::VolumeHelper<T>& /* fixed */,
                      const stk::VolumeHelper<T>& /* moving */,
-                     const stk::VolumeFloat& /* moving_mask */,
                      const int /* radius */)
     {
         throw std::runtime_error("deform_lib must be built with ISPC support "

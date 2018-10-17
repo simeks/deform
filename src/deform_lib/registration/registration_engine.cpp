@@ -60,13 +60,16 @@ namespace
                                         + parameters.begin()->second + "'");
         }
 
+        std::unique_ptr<SubFunction> function;
         if (moving_mask.valid()) {
-            return std::make_unique<SquaredDistanceFunction<T, true>>(fixed, moving, moving_mask);
+            function = std::make_unique<SquaredDistanceFunction<T, true>>(fixed, moving);
+            function->set_moving_mask(moving_mask);
         }
         else {
-            return std::make_unique<SquaredDistanceFunction<T, false>>(fixed, moving, moving_mask);
+            function = std::make_unique<SquaredDistanceFunction<T, false>>(fixed, moving);
         }
 
+        return function;
     }
 
     template<typename T>
@@ -97,25 +100,30 @@ namespace
             }
         }
 
+        std::unique_ptr<SubFunction> function;
         if ("sphere" == window) {
             if (moving_mask.valid()) {
-                return std::make_unique<NCCFunction_sphere<T, true>>(fixed, moving, moving_mask, radius);
+                function = std::make_unique<NCCFunction_sphere<T, true>>(fixed, moving, radius);
+                function->set_moving_mask(moving_mask);
             }
             else {
-                return std::make_unique<NCCFunction_sphere<T, false>>(fixed, moving, moving_mask, radius);
+                function = std::make_unique<NCCFunction_sphere<T, false>>(fixed, moving, radius);
             }
         }
         else if ("cube" == window) {
             if (moving_mask.valid()) {
-                return std::make_unique<NCCFunction_cube<T, true>>(fixed, moving, moving_mask, radius);
+                function = std::make_unique<NCCFunction_cube<T, true>>(fixed, moving, radius);
+                function->set_moving_mask(moving_mask);
             }
             else {
-                return std::make_unique<NCCFunction_cube<T, false>>(fixed, moving, moving_mask, radius);
+                function = std::make_unique<NCCFunction_cube<T, false>>(fixed, moving, radius);
             }
         }
         else {
             throw std::runtime_error("NCCFunction: there is a bug in the selection of the window.");
         }
+
+        return function;
     }
 
     template<typename T>
@@ -158,14 +166,18 @@ namespace
             }
         }
 
+        std::unique_ptr<SubFunction> function;
         if (moving_mask.valid()) {
-            return std::make_unique<MIFunction<T, true>>(
-                    fixed, moving, moving_mask, bins, sigma, update_interval, interpolator);
+            function = std::make_unique<MIFunction<T, true>>(
+                    fixed, moving, bins, sigma, update_interval, interpolator);
+            function->set_moving_mask(moving_mask);
         }
         else {
-            return std::make_unique<MIFunction<T, false>>(
-                    fixed, moving, moving_mask, bins, sigma, update_interval, interpolator);
+            function = std::make_unique<MIFunction<T, false>>(
+                    fixed, moving, bins, sigma, update_interval, interpolator);
         }
+
+        return function;
     }
 
     template<typename T>
@@ -188,12 +200,16 @@ namespace
             }
         }
 
+        std::unique_ptr<SubFunction> function;
         if (moving_mask.valid()) {
-            return std::make_unique<GradientSSDFunction<T, true>>(fixed, moving, moving_mask, sigma);
+            function = std::make_unique<GradientSSDFunction<T, true>>(fixed, moving, sigma);
+            function->set_moving_mask(moving_mask);
         }
         else {
-            return std::make_unique<GradientSSDFunction<T, false>>(fixed, moving, moving_mask, sigma);
+            function = std::make_unique<GradientSSDFunction<T, false>>(fixed, moving, sigma);
         }
+
+        return function;
     }
 }
 

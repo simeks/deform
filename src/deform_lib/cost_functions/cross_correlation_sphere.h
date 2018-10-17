@@ -10,11 +10,9 @@ struct NCCFunction_sphere : public SubFunction
      */
     NCCFunction_sphere(const stk::VolumeHelper<T>& fixed,
                 const stk::VolumeHelper<T>& moving,
-                const stk::VolumeFloat& moving_mask,
                 const int radius) :
         _fixed(fixed),
         _moving(moving),
-        _moving_mask(moving_mask),
         _radius(radius)
     {}
 
@@ -94,7 +92,6 @@ struct NCCFunction_sphere : public SubFunction
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
-    stk::VolumeFloat _moving_mask;
     const int _radius;
 };
 

@@ -10,11 +10,9 @@ struct GradientSSDFunction : public SubFunction
 {
     GradientSSDFunction(const stk::VolumeHelper<T>& fixed,
                         const stk::VolumeHelper<T>& moving,
-                        const stk::VolumeFloat& moving_mask,
                         const float sigma) :
         _fixed(stk::sobel(stk::gaussian_filter_3d(fixed, sigma))),
-        _moving(stk::sobel(stk::gaussian_filter_3d(moving, sigma))),
-        _moving_mask(moving_mask)
+        _moving(stk::sobel(stk::gaussian_filter_3d(moving, sigma)))
     {}
 
     float cost(const int3& p, const float3& def)
@@ -45,6 +43,5 @@ struct GradientSSDFunction : public SubFunction
 
     stk::VolumeHelper<float3> _fixed;
     stk::VolumeHelper<float3> _moving;
-    stk::VolumeFloat _moving_mask;
 };
 

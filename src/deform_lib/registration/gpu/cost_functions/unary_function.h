@@ -41,7 +41,7 @@ public:
         //       Would make sense for regularization weight maps.
     }
 
-    void add_function(std::unique_ptr<GpuSubFunction> fn, float weight)
+    void add_function(std::unique_ptr<GpuSubFunction>& fn, float weight)
     {
         _functions.push_back({weight, std::move(fn)});
     }

@@ -338,14 +338,12 @@ struct MIFunction : public SubFunction
 {
     MIFunction(const stk::VolumeHelper<T>& fixed,
                const stk::VolumeHelper<T>& moving,
-               const stk::VolumeFloat& moving_mask,
                const int bins,
                const double sigma,
                const int update_interval,
                const transform::Interp interpolator) :
         _fixed(fixed),
         _moving(moving),
-        _moving_mask(moving_mask),
         _bins(bins),
         _sigma(sigma),
         _update_interval(update_interval),
@@ -414,7 +412,6 @@ struct MIFunction : public SubFunction
 
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
-    stk::VolumeFloat _moving_mask;
     const int _bins;
     const double _sigma;
     const int _update_interval;

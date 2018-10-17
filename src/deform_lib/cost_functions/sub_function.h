@@ -26,5 +26,16 @@ struct SubFunction
         (void) iteration;
         (void) def;
     }
+
+    /*!
+     * \brief Set the moving mask.
+     * \param moving_mask A float volume representing a fuzzy mask of the moving image.
+     */
+    void set_moving_mask(const stk::VolumeFloat& moving_mask)
+    {
+        _moving_mask = moving_mask;
+    }
+
+    stk::VolumeFloat _moving_mask;
 };
 

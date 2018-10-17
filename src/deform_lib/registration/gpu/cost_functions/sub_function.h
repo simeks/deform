@@ -31,5 +31,18 @@ struct GpuSubFunction
         stk::GpuVolume& cost_acc,
         stk::cuda::Stream& stream
     ) = 0;
+
+    void set_fixed_mask(const stk::GpuVolume& fixed_mask)
+    {
+        _fixed_mask = fixed_mask;
+    }
+
+    void set_moving_mask(const stk::GpuVolume& moving_mask)
+    {
+        _moving_mask = moving_mask;
+    }
+
+    stk::GpuVolume _fixed_mask;
+    stk::GpuVolume _moving_mask;
 };
 
