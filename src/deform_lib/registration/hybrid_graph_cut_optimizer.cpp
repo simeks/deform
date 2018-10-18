@@ -9,6 +9,8 @@
 #include <stk/cuda/stream.h>
 #include <stk/image/gpu_volume.h>
 
+#include <iomanip>
+
 namespace {
     const int _neighbor_count = 6;
     int3 _neighbors[] = {
@@ -178,6 +180,10 @@ void HybridGraphCutOptimizer::execute()
         }
 
         done = num_blocks_changed == 0;
+
+        LOG_LAZY(Debug, "Iteration " << num_iterations << ", " <<
+                        "Energy " << std::fixed << std::setprecision(9)
+                                  << calculate_energy());
 
         ++num_iterations;
 

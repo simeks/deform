@@ -85,9 +85,13 @@ int main(int argc, char* argv[])
         }
     }
 
+    const char * const log_file_p = std::getenv("DF_LOG_FILE");
+    const std::string log_file {log_file_p ? log_file_p : "deform_log.txt"};
+    const stk::LogLevel log_level = stk::log_level_from_str(std::getenv("DF_LOG_LEVEL"));
+
     std::unique_ptr<DeformCommand> command;
     if (argc >= 2 && std::strcmp(argv[1], "registration") == 0) {
-        command = std::make_unique<RegistrationCommand>(argc, argv);
+        command = std::make_unique<RegistrationCommand>(argc, argv, log_level, log_file);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "transform") == 0) {
         command = std::make_unique<TransformCommand>(argc, argv);
