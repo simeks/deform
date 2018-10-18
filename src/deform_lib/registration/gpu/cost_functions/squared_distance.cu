@@ -36,16 +36,16 @@ __global__ void ssd_kernel(
         return;
     }
 
+    x += offset.x;
+    y += offset.y;
+    z += offset.z;
+
     // Check if the fixed voxel is masked out
     if (use_fixed_mask) {
         if (fixed_mask(x, y, z) <= FLT_EPSILON) {
             return;
         }
     }
-
-    x += offset.x;
-    y += offset.y;
-    z += offset.z;
 
     const float3 d0 { df(x,y,z).x, df(x,y,z).y, df(x,y,z).z };
     const float3 d1 = d0 + delta;
