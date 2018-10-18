@@ -168,6 +168,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
         done = num_blocks_changed == 0;
 
         LOG_LAZY(Debug, "Iteration " << num_iterations << ", " <<
+                        "Changed " << num_blocks_changed << " blocks, " <<
                         "Energy: " << std::fixed << std::setprecision(9)
                                    << calculate_energy(unary_fn, binary_fn, def));
 
