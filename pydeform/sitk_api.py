@@ -16,6 +16,7 @@ def register(
         constraint_values=None,
         settings=None,
         log=None,
+        log_level=pydeform.LogLevel.Info,
         silent=True,
         num_threads=0,
         subprocess=False,
@@ -64,6 +65,9 @@ def register(
 
     log: Union[StringIO, str]
         Output for the log, either a StringIO or a filename.
+
+    log_level: pydeform.LogLevel
+        Minimum level for log messages to be reported.
 
     silent: bool
         If `True`, do not write output to screen.
@@ -134,6 +138,7 @@ def register(
                             constraint_values=constraint_values,
                             settings=settings,
                             log=log,
+                            log_level=log_level,
                             silent=silent,
                             num_threads=num_threads,
                             use_gpu=use_gpu,

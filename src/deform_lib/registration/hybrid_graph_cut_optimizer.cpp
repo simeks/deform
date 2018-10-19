@@ -181,17 +181,17 @@ void HybridGraphCutOptimizer::execute()
 
         done = num_blocks_changed == 0;
 
-        LOG_LAZY(Debug, "Iteration " << num_iterations << ", " <<
-                        "Changed " << num_blocks_changed << " blocks, " <<
-                        "Energy " << std::fixed << std::setprecision(9)
-                                  << calculate_energy());
+        LOG(Verbose) << "Iteration " << num_iterations << ", "
+                     << "Changed " << num_blocks_changed << " blocks, "
+                     << "Energy " << std::fixed << std::setprecision(9)
+                                  << calculate_energy();
 
         ++num_iterations;
 
         PROFILER_FLIP();
     }
-    LOG(Info) << "Energy: " << calculate_energy()
-        << ", Iterations: " << num_iterations;
+    LOG(Info) << "Energy: " << calculate_energy() << ", "
+              << "Iterations: " << num_iterations;
 }
 void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
 {

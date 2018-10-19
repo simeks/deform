@@ -172,7 +172,7 @@ int RegistrationCommand::_execute(void)
     }
     catch (std::exception& e) {
         LOG(Error) << e.what();
-        return 1;
+        return EXIT_FAILURE;
     }
 
     LOG(Info) << "Writing displacement field to '" << out_file << "'";
@@ -190,6 +190,6 @@ int RegistrationCommand::_execute(void)
         stk::write_volume("result.vtk", t);
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 

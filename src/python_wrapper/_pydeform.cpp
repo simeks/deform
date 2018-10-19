@@ -196,6 +196,7 @@ std::vector<float3> convert_landmarks(const py::array_t<float> landmarks_array)
  */
 void add_logger(
         const py::object& log,
+        const stk::LogLevel level,
         std::unique_ptr<py::detail::pythonbuf>& buffer,
         std::unique_ptr<std::ostream>& out_stream
         )
@@ -205,13 +206,13 @@ void add_logger(
     }
 
     try {
-        stk::log_add_file(py::cast<std::string>(log).c_str(), stk::Info);
+        stk::log_add_file(py::cast<std::string>(log).c_str(), level);
     }
     catch (py::cast_error &) {
         try {
             buffer = std::make_unique<py::detail::pythonbuf>(log);
             out_stream = std::make_unique<std::ostream>(buffer.get());
-            stk::log_add_stream(out_stream.get(), stk::Info);
+            stk::log_add_stream(out_stream.get(), level);
         }
         catch (...) {
             throw std::invalid_argument("Invalid log object!");
@@ -298,6 +299,7 @@ py::array registration_wrapper(
         const py::object& constraint_values,
         const py::object& settings,
         const py::object& log,
+        const stk::LogLevel log_level,
         const bool silent,
         const int num_threads,
         const bool use_gpu
@@ -317,7 +319,7 @@ py::array registration_wrapper(
     std::unique_ptr<py::detail::pythonbuf> buffer;
     std::unique_ptr<std::ostream> out_stream;
     stk::log_init(silent);
-    add_logger(log, buffer, out_stream);
+    add_logger(log, log_level, buffer, out_stream);
 
     // Handle single images passed as objects, without a container
     std::vector<py::array> fixed_images_;
@@ -713,6 +715,14 @@ PYBIND11_MODULE(_pydeform, m)
         .value("Linear", transform::Interp_Linear, "Trilinear interpolation")
         .export_values();
 
+    py::enum_<stk::LogLevel>(m, "LogLevel", "Level for the logger")
+        .value("Verbose", stk::LogLevel::Verbose, "Lowest level, report all messages")
+        .value("Info", stk::LogLevel::Info, "Report informative messages, warnings and errors")
+        .value("Warning", stk::LogLevel::Warning, "Report warnings and errors")
+        .value("Error", stk::LogLevel::Error, "Report only errors")
+        .value("Fatal", stk::LogLevel::Fatal, "Report only fatal errors")
+        .export_values();
+
     m.def("register",
           &registration_wrapper,
           registration_docstring.c_str(),
@@ -733,6 +743,7 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("constraint_values") = py::none(),
           py::arg("settings") = py::none(),
           py::arg("log") = py::none(),
+          py::arg("log_level") = stk::LogLevel::Info,
           py::arg("silent") = true,
           py::arg("num_threads") = 0,
           py::arg("use_gpu") = false
