@@ -1,6 +1,12 @@
 add_subdirectory(deform_lib)
-add_subdirectory(deform)
-add_subdirectory(deform_util)
+
+if(DF_BUILD_EXECUTABLE)
+    add_subdirectory(deform)
+endif()
+
+if(DF_BUILD_UTILS)
+    add_subdirectory(deform_util)
+endif()
 
 if(DF_BUILD_PYTHON_WRAPPER)
     add_subdirectory(python_wrapper)

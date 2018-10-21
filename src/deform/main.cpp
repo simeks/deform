@@ -81,13 +81,13 @@ int main(int argc, char* argv[])
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "-v") == 0 || std::strcmp(argv[i], "--version") == 0) {
             print_version();
-            return 0;
+            return EXIT_SUCCESS;
         }
     }
 
     std::unique_ptr<DeformCommand> command;
     if (argc >= 2 && std::strcmp(argv[1], "registration") == 0) {
-        command = std::make_unique<RegistrationCommand>(argc, argv);
+        command = std::make_unique<RegistrationCommand>(argc, argv, true);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "transform") == 0) {
         command = std::make_unique<TransformCommand>(argc, argv);
@@ -100,11 +100,9 @@ int main(int argc, char* argv[])
     }
     else {
         print_command_help(argv[0]);
-        return 1;
+        return EXIT_FAILURE;
     }
 
-    command->execute();
-
-    return 0;
+    return command->execute();
 }
 

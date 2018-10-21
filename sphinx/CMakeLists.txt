@@ -23,4 +23,4 @@ add_custom_target(docs ALL
         "${SPHINX_HTML_DIR}"
     COMMENT "Building HTML docs with Sphinx")
 
-add_dependencies(docs deform_lib)
+add_dependencies(docs _pydeform)

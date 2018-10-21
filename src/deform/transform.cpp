@@ -37,7 +37,7 @@ int TransformCommand::_execute(void)
             std::cout << "Unrecognized interpolation option ('" << _args.option("interp") << "')"
                 << std::endl << std::endl;
             _args.print_help();
-            return 1;
+            return EXIT_FAILURE;
         }
     }
 
@@ -47,16 +47,16 @@ int TransformCommand::_execute(void)
 
     stk::Volume src = stk::read_volume(_args.positional("source").c_str());
     if (!src.valid())
-        return 1;
+        return EXIT_FAILURE;
 
     stk::Volume def = stk::read_volume(_args.positional("deformation").c_str());
     if (!def.valid())
-        return 1;
+        return EXIT_FAILURE;
     ASSERT(def.voxel_type() == stk::Type_Float3);
 
     stk::Volume result = transform_volume(src, def, interp);
     LOG(Info) << "Writing to '" << _args.positional("output") << "'";
     stk::write_volume(_args.positional("output").c_str(), result);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

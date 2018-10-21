@@ -135,5 +135,5 @@ int RegularisationCommand::_execute(void)
     LOG(Info) << "Writing to '" << output_file << "'";
     stk::write_volume(output_file.c_str(), deformation_pyramid.volume(0));
 
-    return 0;
+    return EXIT_SUCCESS;
 }
