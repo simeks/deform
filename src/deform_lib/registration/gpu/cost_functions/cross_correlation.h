@@ -11,6 +11,8 @@ struct GpuCostFunction_NCC : public GpuSubFunction
         _moving(moving),
         _radius(radius)
     {
+        ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
+        ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     }
     ~GpuCostFunction_NCC() {}
 

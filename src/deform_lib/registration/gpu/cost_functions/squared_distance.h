@@ -8,6 +8,8 @@ struct GpuCostFunction_SSD : public GpuSubFunction
         _fixed(fixed),
         _moving(moving)
     {
+        ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
+        ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     }
     ~GpuCostFunction_SSD() {}
 
