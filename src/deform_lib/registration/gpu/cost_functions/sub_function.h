@@ -34,11 +34,13 @@ struct GpuSubFunction
 
     void set_fixed_mask(const stk::GpuVolume& fixed_mask)
     {
+        ASSERT(fixed_mask.usage() == stk::gpu::Usage_PitchedPointer);
         _fixed_mask = fixed_mask;
     }
 
     void set_moving_mask(const stk::GpuVolume& moving_mask)
     {
+        ASSERT(moving_mask.usage() == stk::gpu::Usage_PitchedPointer);
         _moving_mask = moving_mask;
     }
 
