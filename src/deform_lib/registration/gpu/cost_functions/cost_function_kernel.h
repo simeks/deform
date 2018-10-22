@@ -4,6 +4,9 @@
 #include <stk/cuda/stream.h>
 #include <stk/cuda/volume.h>
 #include <stk/image/gpu_volume.h>
+#include <stk/math/matrix3x3f.h>
+
+#include <cfloat>
 
 namespace cuda = stk::cuda;
 
@@ -11,6 +14,8 @@ namespace cuda = stk::cuda;
 template<typename TImpl>
 struct CostFunctionKernel
 {
+    using VoxelType = typename TImpl::VoxelType;
+
     CostFunctionKernel(
         const TImpl& impl,
         const stk::GpuVolume& fixed,
@@ -33,7 +38,7 @@ struct CostFunctionKernel
         _fixed_spacing(fixed.spacing()),
         _fixed_direction(fixed.direction()),
         _moving_origin(moving.origin()),
-        _inv_moving_spacing({1.0f / moving.spacing().x, 1.0f / moving.spacing().y, 1.0f / moving.spacing().z}),
+        _inv_moving_spacing(float3{1.0f, 1.0f, 1.0f} / moving.spacing()),
         _inv_moving_direction(moving.inverse_direction()),
         _weight(weight),
         _cost(cost)
@@ -63,7 +68,7 @@ struct CostFunctionKernel
 
         const float3 xyz = float3{float(x),float(y),float(z)};
         const float3 world_p = _fixed_origin + _fixed_direction * (xyz * _fixed_spacing);
-        const float3 moving_p = (_inv_moving_direction * (world_p + d0 - _moving_origin)) 
+        const float3 moving_p = (_inv_moving_direction * (world_p + d0 - _moving_origin))
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
@@ -76,7 +81,7 @@ struct CostFunctionKernel
                 return;
             }
         }
-        
+
         float c = _impl(
             _fixed,
             _moving,
@@ -86,13 +91,13 @@ struct CostFunctionKernel
             moving_p
         );
 
-        reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += _weight * mask_value * c; 
+        reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += _weight * mask_value * c;
     }
 
     TImpl _impl;
 
-    cuda::VolumePtr<TImpl::VoxelType> _fixed;
-    cuda::VolumePtr<TImpl::VoxelType> _moving;
+    cuda::VolumePtr<VoxelType> _fixed;
+    cuda::VolumePtr<VoxelType> _moving;
     dim3 _fixed_dims;
     dim3 _moving_dims;
 
@@ -115,8 +120,8 @@ struct CostFunctionKernel
 
 template<typename TKernel>
 __global__ void cost_function_kernel(
-    TKernel kernel, 
-    int3 offset, 
+    TKernel kernel,
+    int3 offset,
     int3 dims,
     float3 delta,
     int cost_offset)

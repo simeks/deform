@@ -1,8 +1,6 @@
 #include "cost_function_kernel.h"
 #include "cross_correlation.h"
 
-#include <float.h>
-
 namespace cuda = stk::cuda;
 
 template<typename T>
@@ -108,7 +106,7 @@ void GpuCostFunction_NCC::cost(
         << "Unsupported pixel type";
 
     auto kernel = CostFunctionKernel<NCCImpl<float>>(
-        NCCImpl<float>(2),
+        NCCImpl<float>(_radius),
         _fixed,
         _moving,
         _fixed_mask,

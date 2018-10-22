@@ -1,8 +1,6 @@
 #include "cost_function_kernel.h"
 #include "squared_distance.h"
 
-#include <float.h>
-
 namespace cuda = stk::cuda;
 
 template<typename T>
