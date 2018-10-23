@@ -17,7 +17,9 @@ struct DeformCommand
     {}
 
     ~DeformCommand() {
-        stk::log_shutdown();
+        if (_log_to_file) {
+            stk::log_shutdown();
+        }
     }
 
     int execute(void) {
@@ -56,7 +58,7 @@ protected:
     virtual int _execute(void) = 0;
 
     ArgParser _args;
-    bool _log_to_file;
+    const bool _log_to_file;
 };
 
 
