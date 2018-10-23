@@ -54,8 +54,10 @@ struct CostFunctionKernel
     __device__ void operator()(int x, int y, int z, float3 delta, int cost_offset)
     {
         // Check if the fixed voxel is masked out
+        float fixed_mask_value = 1.0f;
         if (_fixed_mask.ptr) {
-            if (_fixed_mask(x, y, z) <= FLT_EPSILON) {
+            fixed_mask_value = _fixed_mask(x, y, z);
+            if (fixed_mask_value <= FLT_EPSILON) {
                 return;
             }
         }
@@ -72,26 +74,20 @@ struct CostFunctionKernel
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
-        float mask_value = 1.0f;
+        float moving_mask_value = 1.0f;
         if (_moving_mask.ptr) {
-            mask_value = cuda::linear_at_border<float>(
+            moving_mask_value = cuda::linear_at_border<float>(
                     _moving_mask, _moving_dims, moving_p.x, moving_p.y, moving_p.z);
 
-            if (mask_value <= FLT_EPSILON) {
+            if (moving_mask_value <= FLT_EPSILON) {
                 return;
             }
         }
 
-        float c = _impl(
-            _fixed,
-            _moving,
-            _fixed_dims,
-            _moving_dims,
-            int3{x,y,z},
-            moving_p
-        );
+        float c = _impl(_fixed, _moving, _fixed_dims, _moving_dims, int3{x,y,z}, moving_p);
+        c *= _weight * fixed_mask_value * moving_mask_value;
 
-        reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += _weight * mask_value * c;
+        reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += c;
     }
 
     TImpl _impl;
