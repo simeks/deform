@@ -19,8 +19,11 @@ struct SSDImpl
         const float3& moving_p
     )
     {
-        return fixed(fixed_p.x, fixed_p.y, fixed_p.z) - cuda::linear_at_border<float>(
-            moving, moving_dims, moving_p.x, moving_p.y, moving_p.z);
+        auto const lab = cuda::linear_at_border<float>;
+        const T val_fixed = fixed(fixed_p.x, fixed_p.y, fixed_p.z);
+        const T val_moving = lab(moving, moving_dims, moving_p.x, moving_p.y, moving_p.z);
+        const T diff = val_fixed - val_moving;
+        return diff * diff;
     }
 };
 
