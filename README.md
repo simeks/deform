@@ -13,6 +13,25 @@ If CMake cannot find the ISPC executable on your installation, it is possible
 to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
 full path to the executable with `-DISPC_EXECUTABLE`.
 
+### Build options
+
+The build can be configured with the following CMake boolean options:
+
++ `DF_BUILD_TESTS`: Build unit tests (default: `OFF`)
++ `DF_BUILD_DOCS`: Build Sphinx docs (default: `OFF`)
++ `DF_BUILD_EXECUTABLE`: Build registration executable (default: `ON`)
++ `DF_BUILD_UTILS`: Build utils executable (default: `ON`)
++ `DF_BUILD_PYTHON_WRAPPER`: Build Python wrapper (default: `OFF`)
++ `DF_USE_CUDA`: Enable CUDA support (default: `OFF`)
++ `DF_USE_ISPC`: Enable ISPC support (default: `OFF`)
++ `DF_WARNINGS_ARE_ERRORS`: Warnings are treated as errors (default: `OFF`)
++ `DF_BUILD_WITH_DEBUG_INFO`: Include debug info in release builds (default: `OFF`)
++ `DF_ENABLE_FAST_MATH`: Enable fast math (default: `OFF`)
++ `DF_ITK_BRIDGE`: Add support to interoperate with ITK (default: `OFF`)
++ `DF_STACK_TRACE`: Print a stack trace on errors (default: `OFF`)
++ `DF_ENABLE_MICROPROFILE`: Enable `microprofile` profiler (default: `OFF`)
++ `DF_ENABLE_NVTOOLSEXT`: Enable `nvtoolsext` profiler (default: `OFF`)
+
 ## Build and install Python wrapper
 ```
 # python setup.py install
@@ -99,9 +118,17 @@ image_slots:
     cost_function: ssd
 ```
 
-First two parameters, `pyramid_levels` and `pyramid_stop_level`, defines the size of the pyramid and at which level to stop the registration. Each level halves the resolution of the input volumes. Setting `pyramid_stop_level` to > 0 specifies that the registration should not be run on the original resolution (level 0).
+First two parameters, `pyramid_levels` and `pyramid_stop_level`, defines the
+size of the pyramid and at which level to stop the registration. Each level
+halves the resolution of the input volumes. Setting `pyramid_stop_level` to > 0
+specifies that the registration should not be run on the original resolution
+(level 0).
 
-`constraints_weight` sets the weight that is applied for constrained voxels. A really high value means hard constraints while a lower value may allow constraints to move a certain amount. Cost for constrained voxels are applied as constraint_weight * squared_distance, where squared_distance is the distance from the constraint target. See cost function for more info.
+`constraints_weight` sets the weight that is applied for constrained voxels. A
+really high value means hard constraints while a lower value may allow
+constraints to move a certain amount. Cost for constrained voxels are applied
+as constraint_weight * squared_distance, where squared_distance is the distance
+from the constraint target. See cost function for more info.
 
 `landmarks_weight` sets the weight for the landmark cost term when performing
 landmark-based registration.  In order to perform landmark-based registration,
@@ -112,23 +139,35 @@ displacement and the landmark displacement. It is possible to limit the usage
 of the landmarks up to a certain height of the resolution pyramid by assigning
 to `landmarks_stop_level` a value greater than zero.
 
-`block_size` size of the block (in voxels) for the block-wise solver. A block size of (0,0,0) will result in a single block for the whole volume.
+`block_size` size of the block (in voxels) for the block-wise solver. A block
+size of (0,0,0) will result in a single block for the whole volume.
 
-`block_energy_epsilon`, minimum percentage decrease of the block energy required to accept a solution. Higher epsilon will result in lower run time but also lower quality.
+`block_energy_epsilon`, minimum percentage decrease of the block energy
+required to accept a solution. Higher epsilon will result in lower run time but
+also lower quality.
 
-`max_iteration_count`, maximum number of iterations run on each registration level. Setting this to -1 (default) allows an unlimited number of iterations.
+`max_iteration_count`, maximum number of iterations run on each registration
+level. Setting this to -1 (default) allows an unlimited number of iterations.
 
 `step_size`, this is the step size in `mm` that the solver will use. Can be a
 single `float` value, in that case the same step size will be used in all
 directions, or a sequence `[sx, sy, sz]` of three `float` specifying the size
 for each direction.
 
-`regularization_weight`, value between 0 and 1 used as weight for the regularization term. Cost function is specified as `cost = (1-a)*D + a*R`, where `D` is the data term, `R` is the regularization term, and `a` is the regularization weight.
+`regularization_weight`, value between 0 and 1 used as weight for the
+regularization term. Cost function is specified as `cost = (1-a)*D + a*R`,
+where `D` is the data term, `R` is the regularization term, and `a` is the
+regularization weight.
 
-`levels`, specifies parameters on a per-level basis. The key indicates which level the parameters apply to, where 0 is the bottom of the resolution pyramid (last level). The level identifier can not exceed `pyramid_levels`. Parameters available on a per-level basis are: `constraints_weight`, `landmarks_weight`, `block_size`, `block_energy_epsilon`, `max_iteration_count`, `step_size`, and `regularization_weight`.
+`levels`, specifies parameters on a per-level basis. The key indicates which
+level the parameters apply to, where 0 is the bottom of the resolution pyramid
+(last level). The level identifier can not exceed `pyramid_levels`. Parameters
+available on a per-level basis are: `constraints_weight`, `landmarks_weight`,
+`block_size`, `block_energy_epsilon`, `max_iteration_count`, `step_size`, and
+`regularization_weight`.
 
 `image_slots`, specifies how to use the input images. `resampler` only supports
-'gaussian' for now, `normalize` specifies whether the volumes should be
+`gaussian` for now, `normalize` specifies whether the volumes should be
 normalized before the registration, and `cost_function` allows to provide one
 or more cost functions to use. Its value can be the name of a single function
 (`ssd` for squared distance, `ncc` for normalized cross correlation, `mi` for
@@ -168,10 +207,55 @@ The parameters available for each function are:
 
 ### GPU
 
-GPU assisted registration is supported on newer CUDA supported hardware. First step to enable GPU registration is to compile with the `DF_USE_CUDA=1` flag, this is set when generating the project with CMake. When both these prerequisites are met, you simply add the `--gpu` flag to the command-line.
+GPU assisted registration is supported on newer CUDA supported hardware. First
+step to enable GPU registration is to compile with the `DF_USE_CUDA=1` flag,
+this is set when generating the project with CMake. When both these
+prerequisites are met, you simply add the `--gpu` flag to the command-line.
 
-As for now the GPU implementation is considered a pre-release and not all cost functions and features from the original registration implementation are supported. Currently the only two supported cost functions are `ssd` and `ncc`.
+As for now the GPU implementation is considered a pre-release and not all cost
+functions and features from the original registration implementation are
+supported. Currently the only two supported cost functions are `ssd` and `ncc`.
+
+### Logging
+
+The file name for the log file can be specified through the environment
+variable `DF_LOG_FILE`. The minimum level for log messages to be reported can
+be set through the environment variable `DF_LOG_LEVEL`, and the possible values
+are `Verbose`, `Info`, `Warning`, `Error`, and `Fatal`.
+
+### Masks
+
+It is possible to optionally specify fuzzy masks for the fixed and moving image
+space. The two masks can be set independently, and it is possible to use no
+mask, only one of the two (either fixed or moving) or both. The masks should be
+given in floating point format, and they denote the level of confidence on
+image intensity at each voxel. If the mask value `m(x, y, z)` at a certain
+location `(x, y, z)` is lesser than or equal to zero, then samples taken at
+that location will not contribute to the matching cost. If `m(x, y, z)` is
+greater than zero, then the sample will contribute and its cost given at that
+location by the image metric will by multiplied by `m(x, y, z)`.
+
+The fixed mask allows to denote a ROI in reference space, formed by all voxels
+with strictly positive mask values; for all samples outside such ROI the cost
+function will not be computed at all, having the side effect of making the
+registration process faster. If a sample belongs to a valid region, then its
+mapping through the displacement will be computed and, if a mask for the moving
+image is specified, the sample will contribute only if it falls within a valid
+ROI in the moving image space, otherwise it will be discarded. The
+regularisation term is not weighted by the masks, and it will be always
+computed over all the volume, regardless of the mask values.
+
+The moving mask should be used carefully because it can affect the quality of
+the result, since there is no penalty for mapping from valid samples in
+reference space to regions outside of the moving image mask.
 
 ## References
-+ <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih: *Visual correspondence using energy minimization and mutual information.* Proceedings of the Ninth IEEE International Conference on Computer Vision, 1033-1040, 2003.
-+ <a id="2"></a>[2] Herve Lombaert, Yiyong Sun, Farida Cheriet: *Landmark-based non-rigid registration via graph cuts*, International Conference Image Analysis and Recognition, 166–175, 2007
+
++ <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih:
+  *Visual correspondence using energy minimization and mutual information.*
+  Proceedings of the Ninth IEEE International Conference on Computer Vision,
+  1033-1040, 2003.
+
++ <a id="2"></a>[2] Herve Lombaert, Yiyong Sun, Farida Cheriet:
+  *Landmark-based non-rigid registration via graph cuts*,
+  International Conference Image Analysis and Recognition, 166–175, 2007
