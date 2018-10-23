@@ -119,6 +119,10 @@ def register(
         constraint_mask = sitk.GetArrayViewFromImage(constraint_mask)
     if constraint_values:
         constraint_values = sitk.GetArrayViewFromImage(constraint_values)
+    if fixed_mask:
+        fixed_mask = sitk.GetArrayViewFromImage(fixed_mask)
+    if moving_mask:
+        moving_mask = sitk.GetArrayViewFromImage(moving_mask)
 
     register = interruptible.register if subprocess else pydeform.register
 
@@ -131,6 +135,8 @@ def register(
                             moving_spacing=moving_spacing,
                             fixed_direction=fixed_direction,
                             moving_direction=moving_direction,
+                            fixed_mask=fixed_mask,
+                            moving_mask=moving_mask,
                             fixed_landmarks=fixed_landmarks,
                             moving_landmarks=moving_landmarks,
                             initial_displacement=initial_displacement,
