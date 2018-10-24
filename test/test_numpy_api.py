@@ -1,7 +1,5 @@
 import os
 import random
-import sys
-import time
 import unittest
 
 import numpy as np
@@ -20,14 +18,6 @@ def set_seed():
     np.random.seed(seed)
     random.seed(seed)
     return seed
-
-
-def blob(size=(200, 200, 200), mu=(100, 100, 100), sigma=20, gamma=1):
-    x = np.linspace(0, size[0], size[0])
-    y = np.linspace(0, size[0], size[0])
-    z = np.linspace(0, size[0], size[0])
-    x, y, z = np.meshgrid(x, y, z, indexing='ij', sparse=True)
-    return gamma * np.exp(-((x-mu[0])/sigma)**2 - ((y-mu[1])/sigma)**2 - ((z-mu[2])/sigma)**2)
 
 
 def gauss3(size=(200, 200, 200), mu=(100, 100, 100), sigma=20, gamma=1):
@@ -74,7 +64,6 @@ class Test_Numpy_API(unittest.TestCase):
         with self.assertRaises(ValueError):
             pydeform.register(fixed, moving)
 
-
         fixed = (gauss3(size=(40, 50, 60), mu=(20, 25, 30), sigma=8) > 0.3).astype(np.float32)
         moving = (gauss3(size=(40, 50, 60), mu=(30, 20, 25), sigma=8) > 0.3).astype(np.float32)
 
@@ -82,8 +71,7 @@ class Test_Numpy_API(unittest.TestCase):
 
         res = pydeform.transform(moving, d, interpolator=pydeform.Interpolator.NearestNeighbour)
 
-        self.assertGreater(jaccard(res>0.1, fixed>0.1), 0.98)
-
+        self.assertGreater(jaccard(res > 0.1, fixed > 0.1), 0.98)
 
     def test_transform(self):
         for _ in range(100):
@@ -130,8 +118,7 @@ class Test_Numpy_API(unittest.TestCase):
                                      )
 
             np.testing.assert_almost_equal(res, res_sitk, decimal=4,
-                    err_msg='Mismatch between `transform` and sitk, seed %d' % seed)
-
+                                           err_msg='Mismatch between `transform` and sitk, seed %d' % seed)
 
     def test_jacobian(self):
         for _ in range(100):
@@ -144,7 +131,6 @@ class Test_Numpy_API(unittest.TestCase):
             shape_no_pad = [randint(50, 80) for i in range(3)]
             d = 5 * (2.0 * rand(*shape_no_pad, 3) - 1.0)
             d = np.pad(d, 3 * [(pad, pad)] + [(0, 0)], 'constant')
-            shape = [x + 2*pad for x in shape_no_pad]
 
             # SimpleITK oracle
             d_sitk = sitk.GetImageFromArray(d)
@@ -156,8 +142,9 @@ class Test_Numpy_API(unittest.TestCase):
             # Compute Jacobian
             jacobian = pydeform.jacobian(d, origin, spacing)
 
-            np.testing.assert_almost_equal(jacobian, jacobian_sitk, decimal=3,
-                    err_msg='Mismatch between `jacobian` and sitk, seed %d' % seed)
+            np.testing.assert_almost_equal(jacobian, jacobian_sitk, decimal=2,
+                                           err_msg='Mismatch between `jacobian` and sitk, seed %d' % seed)
+
 
 if __name__ == '__main__':
     unittest.main()

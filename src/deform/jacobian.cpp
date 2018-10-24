@@ -23,14 +23,15 @@ int JacobianCommand::_execute(void)
     LOG(Info) << "Input: '" << _args.positional("deformation") << "'";
 
     stk::Volume def = stk::read_volume(_args.positional("deformation").c_str());
-    if (!def.valid())
-        return 1;
+    if (!def.valid()) {
+        return EXIT_FAILURE;
+    }
 
     stk::Volume jac = calculate_jacobian(def);
 
     LOG(Info) << "Writing to '" << _args.positional("output") << "'";
     stk::write_volume(_args.positional("output").c_str(), jac);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 

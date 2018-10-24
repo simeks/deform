@@ -6,7 +6,7 @@
 
 #include <ispc_lib.h>
 
-template<typename T>
+template<typename T, bool use_mask>
 struct NCCFunction_cube : public SubFunction
 {
     /*!
@@ -54,6 +54,15 @@ struct NCCFunction_cube : public SubFunction
         // [fixed] -> [world] -> [moving]
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
+        // Check whether the point is masked out
+        float mask_value = 1.0f;
+        if constexpr (use_mask) {
+            mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
+            if (mask_value <= std::numeric_limits<float>::epsilon()) {
+                return 0.0f;
+            }
+        }
+
         // [Filip]: Addition for partial-body registrations
         // NOTE: _moving.size() includes padding
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x - 2 ||
@@ -79,7 +88,7 @@ struct NCCFunction_cube : public SubFunction
         const float *moving = (const float*) _moving.ptr();
 
         // Evaluate the ispc kernel
-        return ispc::ncc(_radius, fp, mp, fixed, moving, fs, ms);
+        return mask_value * ispc::ncc(_radius, fp, mp, fixed, moving, fs, ms);
     }
 
     stk::VolumeHelper<float> _fixed;
@@ -89,7 +98,7 @@ struct NCCFunction_cube : public SubFunction
 
 #else // DF_USE_ISPC
 
-template<typename T>
+template<typename T, bool use_mask>
 struct NCCFunction_cube : public SubFunction
 {
     NCCFunction_cube(const stk::VolumeHelper<T>& /* fixed */,

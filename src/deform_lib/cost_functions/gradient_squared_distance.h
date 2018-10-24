@@ -5,7 +5,7 @@
 
 #include "sub_function.h"
 
-template<typename T>
+template<typename T, bool use_mask>
 struct GradientSSDFunction : public SubFunction
 {
     GradientSSDFunction(const stk::VolumeHelper<T>& fixed,
@@ -20,6 +20,15 @@ struct GradientSSDFunction : public SubFunction
         // [fixed] -> [world] -> [moving]
         const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
 
+        // Check whether the point is masked out
+        float mask_value = 1.0f;
+        if constexpr (use_mask) {
+            mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
+            if (mask_value <= std::numeric_limits<float>::epsilon()) {
+                return 0.0f;
+            }
+        }
+
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
             moving_p.y < 0 || moving_p.y >= _moving.size().y ||
@@ -29,7 +38,7 @@ struct GradientSSDFunction : public SubFunction
 
         float3 moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
-        return stk::norm2(_fixed(p) - moving_v);
+        return mask_value * stk::norm2(_fixed(p) - moving_v);
     }
 
     stk::VolumeHelper<float3> _fixed;

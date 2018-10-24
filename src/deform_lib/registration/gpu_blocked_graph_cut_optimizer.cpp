@@ -170,6 +170,6 @@ void GpuBlockedGraphCutOptimizer::execute(
 
         PROFILER_FLIP();
     }
-    // LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) 
-    //     << ", Iterations: " << num_iterations;
+    // LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) << ", "
+    //           << "Iterations: " << num_iterations);
 }

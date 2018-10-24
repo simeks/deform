@@ -1,13 +1,11 @@
-import os, sys
-import re
-import sysconfig
+import os
+import sys
 import platform
 import subprocess
 
 from pprint import pprint
 
-from distutils.version import LooseVersion
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
 # Parse command line flags
@@ -24,6 +22,7 @@ for f in sys.argv:
         cmake_cmd_args.append(f)
         sys.argv.remove(f)
 
+
 class CMakeExtension(Extension):
     def __init__(self, name, cmake_lists_dir=''):
         Extension.__init__(self, name, sources=[])
@@ -33,7 +32,7 @@ class CMakeExtension(Extension):
 class CMakeBuild(build_ext):
     def run(self):
         try:
-            out = subprocess.check_output(['cmake', '--version'])
+            subprocess.check_output(['cmake', '--version'])
         except OSError:
             raise RuntimeError('Cannot find CMake executable')
 
@@ -48,8 +47,10 @@ class CMakeBuild(build_ext):
 
         cmake_args = [
             '-DDF_BUILD_PYTHON_WRAPPER=ON',
+            '-DDF_BUILD_EXECUTABLE=OFF',
+            '-DDF_BUILD_UTILS=OFF',
             '-DDF_BUILD_TESTS=OFF',
-            '-DF_BUILD_WITH_DEBUG_INFO=%s' % ('ON' if cfg == 'Debug' else 'OFF'),
+            '-DDF_BUILD_WITH_DEBUG_INFO=%s' % ('ON' if cfg == 'Debug' else 'OFF'),
             '-DCMAKE_BUILD_TYPE=%s' % cfg,
             '-DDF_USE_CUDA=%s' % flags['--use-cuda'],
             '-DDF_USE_ISPC=%s' % flags['--use-ispc'],
@@ -69,6 +70,7 @@ class CMakeBuild(build_ext):
 
         subprocess.check_call(['cmake', ext.cmake_lists_dir] + cmake_args, cwd=self.build_temp)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+
 
 setup(
     name='pydeform',

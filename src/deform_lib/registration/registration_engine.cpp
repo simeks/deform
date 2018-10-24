@@ -50,6 +50,7 @@ namespace
     std::unique_ptr<SubFunction> ssd_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -59,15 +60,23 @@ namespace
                                         + parameters.begin()->second + "'");
         }
 
-        return std::make_unique<SquaredDistanceFunction<T>>(
-            fixed, moving
-        );
+        std::unique_ptr<SubFunction> function;
+        if (moving_mask.valid()) {
+            function = std::make_unique<SquaredDistanceFunction<T, true>>(fixed, moving);
+            function->set_moving_mask(moving_mask);
+        }
+        else {
+            function = std::make_unique<SquaredDistanceFunction<T, false>>(fixed, moving);
+        }
+
+        return function;
     }
 
     template<typename T>
     std::unique_ptr<SubFunction> ncc_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -91,25 +100,37 @@ namespace
             }
         }
 
+        std::unique_ptr<SubFunction> function;
         if ("sphere" == window) {
-            return std::make_unique<NCCFunction_sphere<T>>(
-                fixed, moving, radius
-            );
+            if (moving_mask.valid()) {
+                function = std::make_unique<NCCFunction_sphere<T, true>>(fixed, moving, radius);
+                function->set_moving_mask(moving_mask);
+            }
+            else {
+                function = std::make_unique<NCCFunction_sphere<T, false>>(fixed, moving, radius);
+            }
         }
         else if ("cube" == window) {
-            return std::make_unique<NCCFunction_cube<T>>(
-                fixed, moving, radius
-            );
+            if (moving_mask.valid()) {
+                function = std::make_unique<NCCFunction_cube<T, true>>(fixed, moving, radius);
+                function->set_moving_mask(moving_mask);
+            }
+            else {
+                function = std::make_unique<NCCFunction_cube<T, false>>(fixed, moving, radius);
+            }
         }
         else {
             throw std::runtime_error("NCCFunction: there is a bug in the selection of the window.");
         }
+
+        return function;
     }
 
     template<typename T>
     std::unique_ptr<SubFunction> mi_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -145,15 +166,25 @@ namespace
             }
         }
 
-        return std::make_unique<MIFunction<T>>(
-            fixed, moving, bins, sigma, update_interval, interpolator
-        );
+        std::unique_ptr<SubFunction> function;
+        if (moving_mask.valid()) {
+            function = std::make_unique<MIFunction<T, true>>(
+                    fixed, moving, bins, sigma, update_interval, interpolator);
+            function->set_moving_mask(moving_mask);
+        }
+        else {
+            function = std::make_unique<MIFunction<T, false>>(
+                    fixed, moving, bins, sigma, update_interval, interpolator);
+        }
+
+        return function;
     }
 
     template<typename T>
     std::unique_ptr<SubFunction> gradient_ssd_function_factory(
         const stk::Volume& fixed,
         const stk::Volume& moving,
+        const stk::VolumeFloat& moving_mask,
         const std::map<std::string, std::string>& parameters
     )
     {
@@ -169,9 +200,16 @@ namespace
             }
         }
 
-        return std::make_unique<GradientSSDFunction<T>>(
-            fixed, moving, sigma
-        );
+        std::unique_ptr<SubFunction> function;
+        if (moving_mask.valid()) {
+            function = std::make_unique<GradientSSDFunction<T, true>>(fixed, moving, sigma);
+            function->set_moving_mask(moving_mask);
+        }
+        else {
+            function = std::make_unique<GradientSSDFunction<T, false>>(fixed, moving, sigma);
+        }
+
+        return function;
     }
 }
 
@@ -189,11 +227,13 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
     #endif
 }
 
-void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
+template<typename Unary>
+void RegistrationEngine::build_unary_function(int level, Unary& unary_fn)
 {
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
         const stk::Volume&,
         const stk::Volume&,
+        const stk::VolumeFloat&,
         const std::map<std::string, std::string>&
     );
 
@@ -371,12 +411,18 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         nullptr // Type_Double4
     };
 
+    if (_fixed_mask_pyramid.levels() > 0) {
+        unary_fn.set_fixed_mask(_fixed_mask_pyramid.volume(level));
+    }
     unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
             binary_fn.set_weight_map(_regularization_weight_map.volume(l));
     #endif
+
+    auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
+                                                                : stk::VolumeFloat();
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         stk::Volume fixed;
@@ -395,7 +441,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
                 FactoryFn factory = ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -407,7 +453,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -419,7 +465,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = mi_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -431,7 +477,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = gradient_ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -485,6 +531,16 @@ RegistrationEngine::RegistrationEngine(const Settings& settings) :
 }
 RegistrationEngine::~RegistrationEngine()
 {
+}
+void RegistrationEngine::set_fixed_mask(const stk::VolumeFloat& fixed_mask)
+{
+    _fixed_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _fixed_mask_pyramid.build_from_base(fixed_mask, filters::downsample_volume_by_2);
+}
+void RegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
+{
+    _moving_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _moving_mask_pyramid.build_from_base(moving_mask, filters::downsample_volume_by_2);
 }
 void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 {
@@ -562,9 +618,6 @@ stk::Volume RegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            UnaryFunction unary_fn;
-            build_unary_function(l, unary_fn);
-
             Regularizer binary_fn;
             build_regularizer(l, binary_fn);
 
@@ -578,13 +631,28 @@ stk::Volume RegistrationEngine::execute()
                 );
             }
 
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.levels[l].block_size,
-                _settings.levels[l].block_energy_epsilon,
-                _settings.levels[l].max_iteration_count
-            );
+            // Perform optimisation with or without mask
 
-            optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            #define OPTIMISE(use_mask) \
+                    { \
+                        UnaryFunction<use_mask> unary_fn; \
+                        build_unary_function(l, unary_fn); \
+                        BlockedGraphCutOptimizer<UnaryFunction<use_mask>, Regularizer> optimizer( \
+                            _settings.levels[l].block_size, \
+                            _settings.levels[l].block_energy_epsilon, \
+                            _settings.levels[l].max_iteration_count \
+                        ); \
+                        optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def); \
+                    }
+
+            if (_fixed_mask_pyramid.levels() > 0) {
+                OPTIMISE(true);
+            }
+            else {
+                OPTIMISE(false);
+            }
+
+            #undef OPTIMISE
         }
         else {
             LOG(Info) << "Skipping level " << l;

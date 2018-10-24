@@ -7,22 +7,46 @@
 
 #include <deform_lib/profiler/profiler.h>
 
+#include <iostream>
+
 struct DeformCommand
 {
-    DeformCommand(int argc, char* argv[], const std::string& log_file)
-        : _log_file{log_file}
-        , _args(argc, argv)
-        {}
+    DeformCommand(int argc, char* argv[], bool log_to_file = false)
+        : _args(argc, argv)
+        , _log_to_file{log_to_file}
+    {}
+
+    ~DeformCommand() {
+        if (_log_to_file) {
+            stk::log_shutdown();
+        }
+    }
 
     int execute(void) {
         if (!_parse_arguments()) {
             return -1;
         }
 
-        if (_log_file != "") {
+        if (_log_to_file) {
             stk::log_init();
-            defer{stk::log_shutdown();};
-            stk::log_add_file(_log_file.c_str(), stk::Info);
+
+            const char * const log_file_p = std::getenv("DF_LOG_FILE");
+            const std::string log_file {log_file_p ? log_file_p : "deform_log.txt"};
+
+            const char * const log_level_p = std::getenv("DF_LOG_LEVEL");
+            stk::LogLevel log_level = stk::LogLevel::Info;
+            if (log_level_p) {
+                try {
+                    log_level = stk::log_level_from_str(log_level_p);
+                }
+                catch (const std::runtime_error&) {
+                    LOG(Error) << "Invalid value for the environment variable " <<
+                                  "DF_LOG_LEVEL=' " << std::string(log_level_p);
+                    return EXIT_FAILURE;
+                }
+            }
+
+            stk::log_add_file(log_file.c_str(), log_level);
             LOG(Info) << "Version: " << deform::version_string();
         }
 
@@ -33,15 +57,14 @@ protected:
     virtual bool _parse_arguments(void) = 0;
     virtual int _execute(void) = 0;
 
-    std::string _log_file;
     ArgParser _args;
+    const bool _log_to_file;
 };
 
 
 struct RegistrationCommand : public DeformCommand
 {
-    RegistrationCommand(int argc, char* argv[], const std::string& log_file="deform_log.txt")
-        : DeformCommand(argc, argv, log_file) {};
+    using DeformCommand::DeformCommand;
 protected:
     virtual bool _parse_arguments(void);
     virtual int _execute(void);
@@ -50,7 +73,7 @@ protected:
 
 struct TransformCommand : public DeformCommand
 {
-    TransformCommand(int argc, char* argv[]) : DeformCommand(argc, argv, "") {}
+    using DeformCommand::DeformCommand;
 protected:
     virtual bool _parse_arguments(void);
     virtual int _execute(void);
@@ -59,7 +82,7 @@ protected:
 
 struct RegularisationCommand : public DeformCommand
 {
-    RegularisationCommand(int argc, char* argv[]) : DeformCommand(argc, argv, "") {}
+    using DeformCommand::DeformCommand;
 protected:
     virtual bool _parse_arguments(void);
     virtual int _execute(void);
@@ -68,7 +91,7 @@ protected:
 
 struct JacobianCommand : public DeformCommand
 {
-    JacobianCommand(int argc, char* argv[]) : DeformCommand(argc, argv, "") {}
+    using DeformCommand::DeformCommand;
 protected:
     virtual bool _parse_arguments(void);
     virtual int _execute(void);

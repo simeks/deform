@@ -7,17 +7,20 @@ def register(
         fixed_images,
         moving_images,
         *,
-        fixed_landmarks = None,
-        moving_landmarks = None,
-        initial_displacement = None,
-        constraint_mask = None,
-        constraint_values = None,
-        settings = None,
-        log = None,
-        silent = True,
-        num_threads = 0,
-        subprocess = False,
-        use_gpu = False,
+        fixed_mask=None,
+        moving_mask=None,
+        fixed_landmarks=None,
+        moving_landmarks=None,
+        initial_displacement=None,
+        constraint_mask=None,
+        constraint_values=None,
+        settings=None,
+        log=None,
+        log_level=pydeform.LogLevel.Info,
+        silent=True,
+        num_threads=0,
+        subprocess=False,
+        use_gpu=False,
         ):
     R""" Perform deformable registration.
 
@@ -28,6 +31,12 @@ def register(
 
     moving_images: Union[sitk.Image, List[sitk.Image]]
         Moving image, or list of moving images.
+
+    fixed_mask: np.ndarray
+        Fixed mask.
+
+    moving_mask: np.ndarray
+        Moving mask.
 
     fixed_landmarks: np.ndarray
         Array of shape :math:`n \times 3`, containing
@@ -56,6 +65,9 @@ def register(
 
     log: Union[StringIO, str]
         Output for the log, either a StringIO or a filename.
+
+    log_level: pydeform.LogLevel
+        Minimum level for log messages to be reported.
 
     silent: bool
         If `True`, do not write output to screen.
@@ -107,6 +119,10 @@ def register(
         constraint_mask = sitk.GetArrayViewFromImage(constraint_mask)
     if constraint_values:
         constraint_values = sitk.GetArrayViewFromImage(constraint_values)
+    if fixed_mask:
+        fixed_mask = sitk.GetArrayViewFromImage(fixed_mask)
+    if moving_mask:
+        moving_mask = sitk.GetArrayViewFromImage(moving_mask)
 
     register = interruptible.register if subprocess else pydeform.register
 
@@ -119,6 +135,8 @@ def register(
                             moving_spacing=moving_spacing,
                             fixed_direction=fixed_direction,
                             moving_direction=moving_direction,
+                            fixed_mask=fixed_mask,
+                            moving_mask=moving_mask,
                             fixed_landmarks=fixed_landmarks,
                             moving_landmarks=moving_landmarks,
                             initial_displacement=initial_displacement,
@@ -126,6 +144,7 @@ def register(
                             constraint_values=constraint_values,
                             settings=settings,
                             log=log,
+                            log_level=log_level,
                             silent=silent,
                             num_threads=num_threads,
                             use_gpu=use_gpu,

@@ -4,11 +4,12 @@
 
 struct GpuCostFunction_SSD : public GpuSubFunction
 {
-    GpuCostFunction_SSD(const stk::GpuVolume& fixed,
-                        const stk::GpuVolume& moving) :
+    GpuCostFunction_SSD(const stk::GpuVolume& fixed, const stk::GpuVolume& moving) :
         _fixed(fixed),
         _moving(moving)
     {
+        ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
+        ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     }
     ~GpuCostFunction_SSD() {}
 

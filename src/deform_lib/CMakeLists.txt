@@ -61,6 +61,7 @@ if (DF_USE_CUDA)
 
         "registration/gpu/cost_functions/binary_function.cu"
         "registration/gpu/cost_functions/binary_function.h"
+        "registration/gpu/cost_functions/cost_function_kernel.h"
         "registration/gpu/cost_functions/cross_correlation.cu"
         "registration/gpu/cost_functions/cross_correlation.h"
         "registration/gpu/cost_functions/landmarks.cu"

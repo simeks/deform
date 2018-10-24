@@ -85,6 +85,8 @@ stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
+        const std::optional<stk::Volume> fixed_mask,
+        const std::optional<stk::Volume> moving_mask,
         const std::optional<std::vector<float3>> fixed_landmarks,
         const std::optional<std::vector<float3>> moving_landmarks,
         const std::optional<stk::Volume> initial_deformation,
@@ -117,6 +119,7 @@ stk::Volume registration(
     stk::Volume fixed_ref; // Reference volume for validation
     stk::Volume moving_ref; // Reference volume for computing the jacobian
 
+    // Input images
     for (size_t i = 0; i < fixed_volumes.size() && i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         std::string fixed_id = "fixed" + std::to_string(i);
         std::string moving_id = "moving" + std::to_string(i);
@@ -167,6 +170,25 @@ stk::Volume registration(
         engine.set_image_pair(static_cast<int>(i), fixed, moving);
     }
 
+    // Fixed mask
+    if (fixed_mask.has_value()) {
+        if (!fixed_mask.value().valid()) {
+            throw ValidationError("Invalid fixed mask");
+        }
+        validate_volume_properties(fixed_mask.value(), fixed_ref, "fixed mask");
+        engine.set_fixed_mask(fixed_mask.value());
+    }
+
+    // Moving mask
+    if (moving_mask.has_value()) {
+        if (!moving_mask.value().valid()) {
+            throw ValidationError("Invalid moving mask");
+        }
+        validate_volume_properties(moving_mask.value(), moving_ref, "moving mask");
+        engine.set_moving_mask(moving_mask.value());
+    }
+
+    // Initial deformation
     if (initial_deformation.has_value()) {
         if (!initial_deformation.value().valid()) {
             throw ValidationError("Invalid initial deformation volume");
@@ -176,6 +198,7 @@ stk::Volume registration(
         engine.set_initial_deformation(initial_deformation.value());
     }
 
+    // Constraints
     if (constraint_mask.has_value() && constraint_values.has_value()) {
         if (!constraint_mask.value().valid()) {
             throw ValidationError("Invalid constraint mask volume");
@@ -190,6 +213,7 @@ stk::Volume registration(
         engine.set_voxel_constraints(constraint_mask.value(), constraint_values.value());
     }
 
+    // Landmarks
     if (fixed_landmarks.has_value() || moving_landmarks.has_value()) {
         if (!fixed_landmarks.has_value() || !moving_landmarks.has_value()) {
             throw ValidationError("Landmarks must be specified for both fixed and moving");
@@ -208,7 +232,9 @@ stk::Volume registration(
     auto t_end = high_resolution_clock::now();
     int elapsed = int(round(duration_cast<duration<double>>(t_end - t_start).count()));
     LOG(Info) << "Registration completed in "
-              << elapsed / 60 << ":" << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
+              << elapsed / 60
+              << ":"
+              << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
 
     return def;
 }
@@ -217,6 +243,8 @@ stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
+        const std::optional<stk::Volume> fixed_mask,
+        const std::optional<stk::Volume> moving_mask,
         const std::optional<std::vector<float3>> fixed_landmarks,
         const std::optional<std::vector<float3>> moving_landmarks,
         const std::optional<stk::Volume> initial_deformation,
@@ -235,6 +263,8 @@ stk::Volume registration(
             settings,
             fixed_volumes,
             moving_volumes,
+            fixed_mask,
+            moving_mask,
             fixed_landmarks,
             moving_landmarks,
             initial_deformation,
@@ -248,6 +278,8 @@ stk::Volume registration(
             settings,
             fixed_volumes,
             moving_volumes,
+            fixed_mask,
+            moving_mask,
             fixed_landmarks,
             moving_landmarks,
             initial_deformation,

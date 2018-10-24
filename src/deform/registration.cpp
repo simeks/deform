@@ -19,6 +19,9 @@ bool RegistrationCommand::_parse_arguments(void)
     _args.add_option("moving{i}",    "-m{i}",        "Path to the i:th moving image", true);
     _args.add_option("output",       "-o, --output", "Path to the resulting displacement field");
     _args.add_group("Optional");
+    _args.add_option("fixed_mask",   "-fm, --fixed-mask",   "Path to the fixed image mask");
+    _args.add_option("moving_mask",  "-mm, --moving-mask", "Path to the moving image mask");
+    _args.add_group();
     _args.add_option("init_deform",  "-d0", "Path to the initial displacement field");
     _args.add_group();
     _args.add_option("fixed_points", "-fp, --fixed-points", "Path to the fixed landmark points");
@@ -54,6 +57,7 @@ int RegistrationCommand::_execute(void)
         LOG(Info) << "Running with default settings.";
     }
 
+    // Volumes
     std::vector<stk::Volume> fixed_volumes;
     std::vector<stk::Volume> moving_volumes;
 
@@ -74,9 +78,27 @@ int RegistrationCommand::_execute(void)
         LOG(Info) << "Moving image [" << i << "]: '" << moving_file << "'";
     }
 
+    // Output
     std::string out_file = _args.get<std::string>("output", "result_def.vtk");
     LOG(Info) << "Output displacement file: '" << out_file << "'";
 
+    // Masks
+    const std::string fixed_mask_file = _args.get<std::string>("fixed_mask", "");
+    const std::string moving_mask_file = _args.get<std::string>("moving_mask", "");
+
+    std::optional<stk::Volume> fixed_mask;
+    std::optional<stk::Volume> moving_mask;
+    if (!fixed_mask_file.empty()) {
+        fixed_mask = stk::read_volume(fixed_mask_file);
+    }
+    if (!moving_mask_file.empty()) {
+        moving_mask = stk::read_volume(moving_mask_file);
+    }
+
+    LOG(Info) << "Fixed mask: '" << fixed_mask_file << "'";
+    LOG(Info) << "Moving mask: '" << moving_mask_file << "'";
+
+    // Initial displacement
     std::string init_deform_file = _args.get<std::string>("init_deform", "");
     LOG(Info) << "Initial displacement: '" << init_deform_file << "'";
 
@@ -85,6 +107,7 @@ int RegistrationCommand::_execute(void)
         initial_displacement = stk::read_volume(init_deform_file.c_str());
     }
 
+    // Constraints
     std::string constraint_mask_file = _args.get<std::string>("constraint_mask", "");
     std::string constraint_values_file = _args.get<std::string>("constraint_values", "");
 
@@ -103,6 +126,7 @@ int RegistrationCommand::_execute(void)
         return 1;
     }
 
+    // Landmarks
     std::string fixed_landmarks_file = _args.get<std::string>("fixed_points", "");
     std::string moving_landmarks_file = _args.get<std::string>("moving_points", "");
 
@@ -131,22 +155,24 @@ int RegistrationCommand::_execute(void)
     stk::Volume def;
     try {
         def = registration(settings,
-                        fixed_volumes,
-                        moving_volumes,
-                        fixed_landmarks,
-                        moving_landmarks,
-                        initial_displacement,
-                        constraint_mask,
-                        constraint_values,
-                        _args.get<int>("num_threads", 0)
-                    #ifdef DF_USE_CUDA
-                        , use_gpu
-                    #endif
-                        );
+                           fixed_volumes,
+                           moving_volumes,
+                           fixed_mask,
+                           moving_mask,
+                           fixed_landmarks,
+                           moving_landmarks,
+                           initial_displacement,
+                           constraint_mask,
+                           constraint_values,
+                           _args.get<int>("num_threads", 0)
+                       #ifdef DF_USE_CUDA
+                           , use_gpu
+                       #endif
+                           );
     }
     catch (std::exception& e) {
         LOG(Error) << e.what();
-        return 1;
+        return EXIT_FAILURE;
     }
 
     LOG(Info) << "Writing displacement field to '" << out_file << "'";
@@ -164,6 +190,6 @@ int RegistrationCommand::_execute(void)
         stk::write_volume("result.vtk", t);
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 

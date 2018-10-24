@@ -1,59 +1,31 @@
+#include "cost_function_kernel.h"
 #include "squared_distance.h"
 
 namespace cuda = stk::cuda;
 
 template<typename T>
-__global__ void ssd_kernel(
-    cuda::VolumePtr<T> fixed,
-    cuda::VolumePtr<T> moving,
-    cuda::VolumePtr<float4> df,
-    float3 delta,
-    float weight,
-    int3 offset,
-    int3 dims,
-    dim3 moving_dims,
-    float3 fixed_origin,
-    float3 fixed_spacing,
-    Matrix3x3f fixed_direction,
-    float3 moving_origin,
-    float3 inv_moving_spacing,
-    Matrix3x3f inv_moving_direction,
-    cuda::VolumePtr<float2> cost_acc
-)
+struct SSDImpl
 {
-    int x = blockIdx.x*blockDim.x + threadIdx.x;
-    int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int z = blockIdx.z*blockDim.z + threadIdx.z;
+    typedef T VoxelType;
 
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
+    SSDImpl() {}
+
+    __device__ float operator()(
+        const cuda::VolumePtr<VoxelType>& fixed,
+        const cuda::VolumePtr<VoxelType>& moving,
+        const dim3& fixed_dims,
+        const dim3& moving_dims,
+        const int3& fixed_p,
+        const float3& moving_p
+    )
     {
-        return;
+        auto const lab = cuda::linear_at_border<float>;
+        const T val_fixed = fixed(fixed_p.x, fixed_p.y, fixed_p.z);
+        const T val_moving = lab(moving, moving_dims, moving_p.x, moving_p.y, moving_p.z);
+        const T diff = val_fixed - val_moving;
+        return diff * diff;
     }
-
-    x += offset.x;
-    y += offset.y;
-    z += offset.z;
-
-    float3 d0 { df(x,y,z).x, df(x,y,z).y, df(x,y,z).z };
-    float3 d1 = d0 + delta;
-
-    float3 xyz = float3{float(x),float(y),float(z)};
-    float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
-
-    float3 moving_p0 = (inv_moving_direction * (world_p + d0 - moving_origin)) * inv_moving_spacing;
-    float3 moving_p1 = (inv_moving_direction * (world_p + d1 - moving_origin)) * inv_moving_spacing;
-
-    float f0 = fixed(x,y,z) - cuda::linear_at_border<float>(
-        moving, moving_dims, moving_p0.x, moving_p0.y, moving_p0.z);
-
-    float f1 = fixed(x,y,z) - cuda::linear_at_border<float>(
-        moving, moving_dims, moving_p1.x, moving_p1.y, moving_p1.z);
-
-    cost_acc(x,y,z).x += weight*f0*f0;
-    cost_acc(x,y,z).y += weight*f1*f1;
-}
+};
 
 void GpuCostFunction_SSD::cost(
     stk::GpuVolume& df,
@@ -65,50 +37,26 @@ void GpuCostFunction_SSD::cost(
     stk::cuda::Stream& stream
 )
 {
-    ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
-    ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
-    FATAL_IF(_fixed.voxel_type() != stk::Type_Float || _moving.voxel_type() != stk::Type_Float)
-        << "Unsupported format";
+    FATAL_IF(_fixed.voxel_type() != stk::Type_Float ||
+             _moving.voxel_type() != stk::Type_Float ||
+             _fixed_mask.valid() && _fixed_mask.voxel_type() != stk::Type_Float ||
+             _moving_mask.valid() && _moving_mask.voxel_type() != stk::Type_Float)
+        << "Unsupported pixel type";
 
-    dim3 block_size {32, 32, 1};
-
-    if (dims.x <= 16 || dims.y <= 16) {
-        block_size = {16, 16, 4};
-    }
-
-    dim3 grid_size {
-        (dims.x + block_size.x - 1) / block_size.x,
-        (dims.y + block_size.y - 1) / block_size.y,
-        (dims.z + block_size.z - 1) / block_size.z
-    };
-
-    float3 inv_moving_spacing = {
-        1.0f / _moving.spacing().x,
-        1.0f / _moving.spacing().y,
-        1.0f / _moving.spacing().z
-    };
-
-    ssd_kernel<float><<<grid_size, block_size, 0, stream>>>(
+    auto kernel = CostFunctionKernel<SSDImpl<float>>(
+        SSDImpl<float>(),
         _fixed,
         _moving,
+        _fixed_mask,
+        _moving_mask,
         df,
-        delta,
         weight,
-        offset,
-        dims,
-        _moving.size(),
-        _fixed.origin(),
-        _fixed.spacing(),
-        _fixed.direction(),
-        _moving.origin(),
-        inv_moving_spacing,
-        _moving.inverse_direction(),
         cost_acc
     );
 
-    CUDA_CHECK_ERRORS(cudaPeekAtLastError());
+    invoke_cost_function_kernel(kernel, delta, offset, dims, stream);
 }
 

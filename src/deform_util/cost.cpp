@@ -131,7 +131,7 @@ int run_cost(int argc, char* argv[])
     Regularizer binary_fn;
     engine.build_regularizer(level, binary_fn);
 
-    UnaryFunction unary_fn;
+    UnaryFunction<false> unary_fn;
     engine.build_unary_function(level, unary_fn);
 
     stk::VolumeFloat3 def = engine.deformation_field(level);

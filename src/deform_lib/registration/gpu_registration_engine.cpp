@@ -54,6 +54,8 @@ namespace {
 
 void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& unary_fn)
 {
+    using FunctionPtr = std::unique_ptr<GpuSubFunction>;
+
     unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
 
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
@@ -80,10 +82,16 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                                                 + fn.parameters.begin()->second + "'");
                 }
 
-                unary_fn.add_function(
-                    std::make_unique<GpuCostFunction_SSD>(fixed, moving),
-                    fn.weight
-                );
+                FunctionPtr function = std::make_unique<GpuCostFunction_SSD>(fixed, moving);
+
+                if (_fixed_mask_pyramid.levels() > 0) {
+                    function->set_fixed_mask(_fixed_mask_pyramid.volume(level));
+                }
+                if (_moving_mask_pyramid.levels() > 0) {
+                    function->set_moving_mask(_moving_mask_pyramid.volume(level));
+                }
+
+                unary_fn.add_function(function, fn.weight);
             }
             else if (Settings::ImageSlot::CostFunction_NCC == fn.function) {
                 int radius = 2;
@@ -98,10 +106,16 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                     }
                 }
 
-                unary_fn.add_function(
-                    std::make_unique<GpuCostFunction_NCC>(fixed, moving, radius),
-                    fn.weight
-                );
+                FunctionPtr function = std::make_unique<GpuCostFunction_NCC>(fixed, moving, radius);
+
+                if (_fixed_mask_pyramid.levels() > 0) {
+                    function->set_fixed_mask(_fixed_mask_pyramid.volume(level));
+                }
+                if (_moving_mask_pyramid.levels() > 0) {
+                    function->set_moving_mask(_moving_mask_pyramid.volume(level));
+                }
+
+                unary_fn.add_function(function, fn.weight);
             }
             else {
                 FATAL() << "[GPU] Unsupported cost function (slot: " << i << ")";
@@ -113,15 +127,8 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
         ASSERT(_fixed_landmarks.size() == _moving_landmarks.size());
 
         auto& fixed = _fixed_pyramids[0].volume(level);
-
-        unary_fn.add_function(
-            std::make_unique<GpuCostFunction_Landmarks>(
-                _fixed_landmarks,
-                _moving_landmarks,
-                fixed
-            ),
-            _settings.levels[level].landmarks_weight
-        );
+        FunctionPtr f = std::make_unique<GpuCostFunction_Landmarks>(_fixed_landmarks, _moving_landmarks, fixed);
+        unary_fn.add_function(f, _settings.levels[level].landmarks_weight);
     }
 }
 void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& binary_fn)
@@ -202,6 +209,18 @@ void GpuRegistrationEngine::set_landmarks(const std::vector<float3>& fixed_landm
     ASSERT(fixed_landmarks.size() == moving_landmarks.size());
     _fixed_landmarks = fixed_landmarks;
     _moving_landmarks = moving_landmarks;
+}
+
+void GpuRegistrationEngine::set_fixed_mask(const stk::VolumeFloat& fixed_mask)
+{
+    _fixed_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _fixed_mask_pyramid.build_from_base(fixed_mask, filters::gpu::downsample_volume_by_2);
+}
+
+void GpuRegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
+{
+    _moving_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _moving_mask_pyramid.build_from_base(moving_mask, filters::gpu::downsample_volume_by_2);
 }
 
 void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,
