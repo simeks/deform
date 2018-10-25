@@ -2,7 +2,7 @@
 
 #include "sub_function.h"
 
-template<typename T, bool use_mask>
+template<typename T>
 struct SquaredDistanceFunction : public SubFunction
 {
     SquaredDistanceFunction(const stk::VolumeHelper<T>& fixed,
@@ -19,14 +19,12 @@ struct SquaredDistanceFunction : public SubFunction
 
         // Check whether the point is masked out
         float mask_value = 1.0f;
-        if constexpr (use_mask) {
+        if (_moving_mask.valid()) {
             mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
             if (mask_value <= std::numeric_limits<float>::epsilon()) {
                 return 0.0f;
             }
         }
-
-        T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // [Filip]: Addition for partial-body registrations
         if (moving_p.x < 0 || moving_p.x >= _moving.size().x ||
@@ -35,6 +33,7 @@ struct SquaredDistanceFunction : public SubFunction
             return 0;
         }
 
+        T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
         // TODO: Float cast
         float f = float(_fixed(p) - moving_v);

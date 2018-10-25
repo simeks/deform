@@ -5,7 +5,7 @@
 
 #include "sub_function.h"
 
-template<typename T, bool use_mask>
+template<typename T>
 struct GradientSSDFunction : public SubFunction
 {
     GradientSSDFunction(const stk::VolumeHelper<T>& fixed,
@@ -22,7 +22,7 @@ struct GradientSSDFunction : public SubFunction
 
         // Check whether the point is masked out
         float mask_value = 1.0f;
-        if constexpr (use_mask) {
+        if (_moving_mask.valid()) {
             mask_value = _moving_mask.linear_at(moving_p, stk::Border_Constant);
             if (mask_value <= std::numeric_limits<float>::epsilon()) {
                 return 0.0f;
