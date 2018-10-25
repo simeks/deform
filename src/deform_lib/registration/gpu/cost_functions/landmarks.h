@@ -10,7 +10,7 @@ struct GpuCostFunction_Landmarks : public GpuSubFunction
                               const std::vector<float3>& moving_landmarks,
                               const stk::GpuVolume& fixed);
 
-    ~GpuCostFunction_Landmarks();
+    virtual ~GpuCostFunction_Landmarks();
 
     void cost(
         stk::GpuVolume& df,
