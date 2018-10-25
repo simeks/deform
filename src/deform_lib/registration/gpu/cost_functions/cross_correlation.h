@@ -14,7 +14,7 @@ struct GpuCostFunction_NCC : public GpuSubFunction
         ASSERT(_fixed.usage() == stk::gpu::Usage_PitchedPointer);
         ASSERT(_moving.usage() == stk::gpu::Usage_PitchedPointer);
     }
-    ~GpuCostFunction_NCC() {}
+    virtual ~GpuCostFunction_NCC() {}
 
     void cost(
         stk::GpuVolume& df,

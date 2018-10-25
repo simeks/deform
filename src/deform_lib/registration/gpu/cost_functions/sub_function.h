@@ -15,6 +15,9 @@ namespace stk { namespace cuda {
 
 struct GpuSubFunction
 {
+    GpuSubFunction() {}
+    virtual ~GpuSubFunction() {}
+
     // Costs are accumulated into the specified cost_acc volume (of type float2),
     //  where x is the cost before applying delta and y is the cost after.
     // offset       : Offset to region to compute terms in
