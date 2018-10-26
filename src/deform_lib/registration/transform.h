@@ -12,7 +12,7 @@ namespace transform
 }
 
 stk::Volume transform_volume(
-    const stk::Volume& src, 
-    const stk::VolumeFloat3& def, 
+    const stk::Volume& src,
+    const stk::VolumeFloat3& def,
     transform::Interp i = transform::Interp_Linear
 );

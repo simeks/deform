@@ -23,7 +23,7 @@ struct Regularizer
     }
 
     // Sets the initial displacement for this registration level. This will be
-    //  the reference when computing the regularization energy. Any displacement 
+    //  the reference when computing the regularization energy. Any displacement
     //  identical to the initial displacement will result in zero energy.
     void set_initial_displacement(const stk::VolumeFloat3& initial)
     {
@@ -42,25 +42,25 @@ struct Regularizer
                              const float3& def1, const int3& step)
     {
         float3 step_in_mm {
-            step.x*_spacing.x, 
-            step.y*_spacing.y, 
+            step.x*_spacing.x,
+            step.y*_spacing.y,
             step.z*_spacing.z
         };
-        
+
         // The diff should be relative to the initial displacement diff
         float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
-        
+
         float dist_squared = stk::norm2(diff);
         float step_squared = stk::norm2(step_in_mm);
-        
+
         float w = _weight;
 
         #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
             /*
                 Tissue-specific regularization
-                Per edge weight: Mean term of neighboring voxels 
+                Per edge weight: Mean term of neighboring voxels
 
-                w = 0.5f*(weights(p) + weights(p+step)) 
+                w = 0.5f*(weights(p) + weights(p+step))
             */
 
             if (_weight_map.valid())

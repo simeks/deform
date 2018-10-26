@@ -114,13 +114,13 @@ namespace {
     {
         dim3 volume_size = tmp.size();
         float3 spacing = tmp.spacing();
-        
+
         int3 filter_size{
             (int)ceilf(3 * sigma / spacing.x),
             (int)ceilf(3 * sigma / spacing.y),
             (int)ceilf(3 * sigma / spacing.z)
         };
-    
+
         dim3 block_size{32,32,1};
         dim3 grid_size
         {
@@ -130,7 +130,7 @@ namespace {
         };
 
         float factor = -1.0f / (2.0f * sigma * sigma);
-            
+
         gaussian_filter_x_kernel<T><<<grid_size, block_size>>>(
             volume_size,
             tmp,
@@ -139,7 +139,7 @@ namespace {
             spacing.x,
             out
         );
-        
+
         CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
         tmp.copy_from(out);
 

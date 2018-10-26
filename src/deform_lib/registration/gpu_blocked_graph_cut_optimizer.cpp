@@ -51,7 +51,7 @@ void GpuBlockedGraphCutOptimizer::execute(
     DLOG(Info) << "Block size: " << block_dims;
     DLOG(Info) << "Block rest: " << block_rest;
 
-    BlockChangeFlags change_flags(block_count); 
+    BlockChangeFlags change_flags(block_count);
 
     int num_iterations = 0;
     //LOG(Info) << "Initial Energy: " << calculate_energy(unary_fn, binary_fn, def);
@@ -86,7 +86,7 @@ void GpuBlockedGraphCutOptimizer::execute(
                 block_offset.x = block_count.x == 1 ? 0 : (block_dims.x / 2);
                 block_offset.y = block_count.y == 1 ? 0 : (block_dims.y / 2);
                 block_offset.z = block_count.z == 1 ? 0 : (block_dims.z / 2);
-                
+
                 if (block_count.x > 1) real_block_count.x += 1;
                 if (block_count.y > 1) real_block_count.y += 1;
                 if (block_count.z > 1) real_block_count.z += 1;
@@ -95,7 +95,7 @@ void GpuBlockedGraphCutOptimizer::execute(
             for (int black_or_red = 0; black_or_red < 2; black_or_red++) {
                 PROFILER_SCOPE("red_black", 0xFF339955);
                 int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
-                
+
                 {
                     PROFILER_SCOPE("gpu_cost");
                     unary_fn(df, unary_cost);
@@ -165,7 +165,7 @@ void GpuBlockedGraphCutOptimizer::execute(
         PROFILER_COUNTER_SET("blocks_changed", num_blocks_changed);
 
         done = num_blocks_changed == 0;
-        
+
         ++num_iterations;
 
         PROFILER_FLIP();
