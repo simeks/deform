@@ -101,13 +101,13 @@ typedef uint16_t MicroProfileGroupId;
 #define MICROPROFILE_COUNTER_SET_INT64_PTR(name, ptr) do{} while(0)
 #define MICROPROFILE_COUNTER_CLEAR_PTR(name) do{} while(0)
 #define MICROPROFILE_COUNTER_SET_LIMIT(name, count) do{} while(0)
-#define MICROPROFILE_CONDITIONAL(expr) 
+#define MICROPROFILE_CONDITIONAL(expr)
 #define MICROPROFILE_COUNTER_CONFIG(name, type, limit, flags)
 #define MICROPROFILE_COUNTER_CONFIG_ONCE(name, type, limit, flags)
-#define MICROPROFILE_DECLARE_LOCAL_COUNTER(var) 
-#define MICROPROFILE_DEFINE_LOCAL_COUNTER(var, name) 
-#define MICROPROFILE_DECLARE_LOCAL_ATOMIC_COUNTER(var) 
-#define MICROPROFILE_DEFINE_LOCAL_ATOMIC_COUNTER(var, name) 
+#define MICROPROFILE_DECLARE_LOCAL_COUNTER(var)
+#define MICROPROFILE_DEFINE_LOCAL_COUNTER(var, name)
+#define MICROPROFILE_DECLARE_LOCAL_ATOMIC_COUNTER(var)
+#define MICROPROFILE_DEFINE_LOCAL_ATOMIC_COUNTER(var, name)
 #define MICROPROFILE_COUNTER_LOCAL_ADD(var, count) do{}while(0)
 #define MICROPROFILE_COUNTER_LOCAL_SUB(var, count) do{}while(0)
 #define MICROPROFILE_COUNTER_LOCAL_SET(var, count) do{}while(0)
@@ -338,7 +338,7 @@ typedef uint64_t MicroProfileThreadIdType;
 
 #ifndef MICROPROFILE_MAX_THREADS
 #define MICROPROFILE_MAX_THREADS 32
-#endif 
+#endif
 
 #ifndef MICROPROFILE_UNPACK_RED
 #define MICROPROFILE_UNPACK_RED(c) ((c)>>16)
@@ -358,7 +358,7 @@ typedef uint64_t MicroProfileThreadIdType;
 
 #ifndef MICROPROFILE_TIMELINE_MAX_ENTRIES
 #define MICROPROFILE_TIMELINE_MAX_ENTRIES (4<<10)
-#endif 
+#endif
 
 #ifndef MICROPROFILE_MAX_STRING
 #define MICROPROFILE_MAX_STRING 128
@@ -370,8 +370,8 @@ typedef uint64_t MicroProfileThreadIdType;
 #endif
 
 
-#ifndef MICROPROFILE_CONTEXT_SWITCH_TRACE 
-#if defined(_WIN32) 
+#ifndef MICROPROFILE_CONTEXT_SWITCH_TRACE
+#if defined(_WIN32)
 #define MICROPROFILE_CONTEXT_SWITCH_TRACE 1
 #elif defined(__APPLE__)
 #define MICROPROFILE_CONTEXT_SWITCH_TRACE 0 //disabled until dtrace script is working.
@@ -469,11 +469,11 @@ MICROPROFILE_API void MicroProfileContextSwitchSearch(uint32_t* pContextSwitchSt
 MICROPROFILE_API void MicroProfileOnThreadCreate(const char* pThreadName); //should be called from newly created threads
 MICROPROFILE_API void MicroProfileOnThreadExit(); //call on exit to reuse log
 MICROPROFILE_API void MicroProfileInitThreadLog();
-MICROPROFILE_API void MicroProfileSetEnableAllGroups(int bEnable); 
-MICROPROFILE_API void MicroProfileEnableCategory(const char* pCategory); 
-MICROPROFILE_API void MicroProfileDisableCategory(const char* pCategory); 
+MICROPROFILE_API void MicroProfileSetEnableAllGroups(int bEnable);
+MICROPROFILE_API void MicroProfileEnableCategory(const char* pCategory);
+MICROPROFILE_API void MicroProfileDisableCategory(const char* pCategory);
 MICROPROFILE_API int MicroProfileGetEnableAllGroups();
-MICROPROFILE_API void MicroProfileSetForceMetaCounters(int bEnable); 
+MICROPROFILE_API void MicroProfileSetForceMetaCounters(int bEnable);
 MICROPROFILE_API int MicroProfileGetForceMetaCounters();
 MICROPROFILE_API void MicroProfileEnableMetaCounter(const char* pMet);
 MICROPROFILE_API void MicroProfileDisableMetaCounter(const char* pMet);
@@ -540,7 +540,7 @@ MICROPROFILE_API uint32_t MicroProfileGetThreadInfoArray(MicroProfileThreadInfo*
 #endif
 
 #ifdef __cplusplus
-extern "C" 
+extern "C"
 {
 #endif
 
@@ -622,7 +622,7 @@ struct MicroProfileScopeHandler
 		nTick = MicroProfileEnterInternal(nToken);
 	}
 	~MicroProfileScopeHandler()
-	{		
+	{
 		MicroProfileLeaveInternal(nToken, nTick);
 	}
 };

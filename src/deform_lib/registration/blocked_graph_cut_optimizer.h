@@ -16,7 +16,7 @@ class BlockedGraphCutOptimizer
 {
 public:
     BlockedGraphCutOptimizer(
-        const int3& block_size, 
+        const int3& block_size,
         double block_energy_epsilon,
         int max_iteration_count
     );
@@ -24,7 +24,7 @@ public:
 
     /// step_size : Step size in [mm]
     void execute(
-        TUnaryTerm& unary_fn, 
+        TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
         float3 step_size,
         stk::VolumeFloat3& def);
@@ -33,9 +33,9 @@ private:
     bool do_block(
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
-        const int3& block_p, 
-        const int3& block_dims, 
-        const int3& block_offset, 
+        const int3& block_p,
+        const int3& block_dims,
+        const int3& block_offset,
         const float3& delta, // delta in [mm]
         stk::VolumeFloat3& def
     );

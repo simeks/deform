@@ -11,15 +11,15 @@ struct SoftConstraintsFunction : public SubFunction
         _spacing(_constraints_values.spacing())
     {}
 
-    float cost(const int3& p, const float3& def) 
+    float cost(const int3& p, const float3& def)
     {
         if (_constraints_mask(p) != 0)
         {
             float3 diff = def - _constraints_values(p);
-            
+
             // Distance^2 in [mm]
             float dist_squared = stk::norm2(diff);
-            
+
             return std::min(dist_squared, 1000.0f); // Clamp to avoid explosion
         }
         return 0.0f;

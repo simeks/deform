@@ -19,7 +19,7 @@ public:
     GpuVolumePyramid();
     ~GpuVolumePyramid();
 
-    /// Sets the size of the pyramid. 
+    /// Sets the size of the pyramid.
     /// This needs to be called before build_from_base, otherwise you'll need to rebuild the pyramid
     void set_level_count(int levels);
 
@@ -28,7 +28,7 @@ public:
     /// downsample_fn : Resampling function, required to support downsampling
     void build_from_base(const stk::GpuVolume& base, DownsampleFn downsample_fn);
 
-    /// Sets the volume at the given level without rebuilding any other levels of the pyramid. 
+    /// Sets the volume at the given level without rebuilding any other levels of the pyramid.
     void set_volume(int level, const stk::GpuVolume& vol);
 
     /// Returns the volume at the specified level, 0 being the base volume.

@@ -27,8 +27,8 @@ void ArgParser::add_group(const char* name)
         name
     });
 }
-void ArgParser::add_option(const char* name, 
-                           const char* matchers, 
+void ArgParser::add_option(const char* name,
+                           const char* matchers,
                            const char* help,
                            bool required)
 {
@@ -42,8 +42,8 @@ void ArgParser::add_option(const char* name,
         required
     });
 }
-void ArgParser::add_flag(const char* name, 
-                         const char* matchers, 
+void ArgParser::add_flag(const char* name,
+                         const char* matchers,
                          const char* help)
 {
     ASSERT(!check_collision(name));
@@ -106,9 +106,9 @@ bool ArgParser::parse()
 
     // Check if we have all the positionals
     if (positional_idx < _positionals.size()) {
-        _error << "Missing arguments: '" 
+        _error << "Missing arguments: '"
                << _positionals[positional_idx].name << "'";
-        
+
         for (auto p = positional_idx+1; p < _positionals.size(); ++p) {
             _error << ", '" << _positionals[p].name << "'";
         }
@@ -124,7 +124,7 @@ bool ArgParser::parse()
             if ((idx = name.find("{i}")) != std::string::npos) {
                 name = name.substr(0, name.size()-3);
                 // If an array-option is required, we require at least one value
-                auto it = std::find_if(_option_values.begin(), _option_values.end(), 
+                auto it = std::find_if(_option_values.begin(), _option_values.end(),
                     [&](const std::pair<std::string, std::string>& v){
                         return v.first.compare(0, name.size(), name) == 0;
                     });
@@ -166,8 +166,8 @@ void ArgParser::print_help()
 
     std::string indent(4, ' ');
     for (size_t p = 1; p < _positionals.size(); ++p) {
-        std::cout << indent << std::setw(40) << std::left << _positionals[p].name 
-            << _positionals[p].help << std::endl; 
+        std::cout << indent << std::setw(40) << std::left << _positionals[p].name
+            << _positionals[p].help << std::endl;
     }
 
     std::cout << std::endl;
@@ -181,12 +181,12 @@ void ArgParser::print_help()
         for (auto& o : _options) {
             if (o.group == g) {
                 if (o.flag) {
-                    std::cout << indent << std::setw(40) << std::left << o.matchers 
+                    std::cout << indent << std::setw(40) << std::left << o.matchers
                             << o.help << std::endl;
                 }
                 else {
                     std::string tmp = std::string(o.matchers) + " " + std::string(o.name);
-                    std::cout << std::string(4, ' ') << std::setw(40) << std::left << tmp 
+                    std::cout << std::string(4, ' ') << std::setw(40) << std::left << tmp
                             << o.help << std::endl;
                 }
             }
@@ -311,7 +311,7 @@ bool ArgParser::match_option(const Option& opt, const std::string& arg, std::str
                 //  will be the same as --arg0
 
                 std::string id_str = arg.substr(token.size()); // --arg123 => 123
-                
+
                 size_t end_index = id_str.size();
                 int id = 0;
                 if (id_str.size()) {

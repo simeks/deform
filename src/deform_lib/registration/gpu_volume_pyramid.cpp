@@ -4,7 +4,7 @@
 #include <stk/image/gpu_volume.h>
 
 
-GpuVolumePyramid::GpuVolumePyramid() : 
+GpuVolumePyramid::GpuVolumePyramid() :
     _levels(0)
 {
 }
@@ -16,7 +16,7 @@ void GpuVolumePyramid::set_level_count(int levels)
     _levels = levels;
     _volumes.resize(_levels);
 }
-void GpuVolumePyramid::build_from_base(const stk::GpuVolume& base, 
+void GpuVolumePyramid::build_from_base(const stk::GpuVolume& base,
     DownsampleFn downsample_fn)
 {
     ASSERT(base.valid());

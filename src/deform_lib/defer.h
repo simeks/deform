@@ -21,7 +21,7 @@ struct DeferCall {
     template<typename F>
     DeferCall(F &&f) : _f(std::forward<F>(f)) {}
     DeferCall(DeferCall&& o) : _f(std::move(o._f))
-    { 
+    {
         _f = nullptr;
     }
     ~DeferCall()

@@ -67,7 +67,7 @@ namespace YAML {
             if(!node.IsSequence() || node.size() != 3) {
                 throw YAML::RepresentationException(node.Mark(), "expected vector of 3 integers");
             }
-            
+
             try {
                 out = {
                     node[0].as<int>(),
@@ -126,7 +126,7 @@ namespace YAML {
                 out = Settings::ImageSlot::Resample_Gaussian;
                 return true;
             }
-            
+
             throw YAML::RepresentationException(node.Mark(), "unrecognised resampler " + fn);
         }
     };
@@ -167,7 +167,7 @@ namespace YAML {
                 out = Settings::ImageSlot::CostFunction_Gradient_SSD;
                 return true;
             }
-            
+
             throw YAML::RepresentationException(node.Mark(), "unrecognised cost function " + fn);
         }
     };
@@ -316,7 +316,7 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
     if (node["constraints_weight"]) {
         out.constraints_weight = node["constraints_weight"].as<float>();
     }
-    
+
 
     if (node["landmarks_weight"]) {
         out.landmarks_weight = node["landmarks_weight"].as<float>();
@@ -333,7 +333,7 @@ void print_registration_settings(const Settings& settings)
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         LOG(Info) << "level[" << l << "] = {";
-        LOG(Info) << "  block_size = " << settings.levels[l].block_size; 
+        LOG(Info) << "  block_size = " << settings.levels[l].block_size;
         LOG(Info) << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon;
         LOG(Info) << "  max_iteration_count = " << settings.levels[l].max_iteration_count;
         LOG(Info) << "  step_size = " << settings.levels[l].step_size;
@@ -347,14 +347,14 @@ void print_registration_settings(const Settings& settings)
         auto slot = settings.image_slots[i];
 
         // Dont print unused slots
-        if (0 == slot.cost_functions.size() || 
+        if (0 == slot.cost_functions.size() ||
                 Settings::ImageSlot::CostFunction_None == slot.cost_functions[0].function) {
             continue;
         }
 
         LOG(Info) << "image_slot[" << i << "] = {";
-        LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);        
-        LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");        
+        LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);
+        LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");
         LOG(Info) << "  cost_functions = {";
         for (size_t j = 0; j < slot.cost_functions.size(); ++j) {
             LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": ";
@@ -374,7 +374,7 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
     try {
 
         YAML::Node root = YAML::Load(str);
-        
+
         if (root["pyramid_levels"]) {
             settings.num_pyramid_levels = root["pyramid_levels"].as<int>();
         }
