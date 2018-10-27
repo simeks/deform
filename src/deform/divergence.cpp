@@ -1,13 +1,12 @@
 #include <stk/common/log.h>
-#include <stk/image/volume.h>
+#include <stk/filters/vector_calculus.h>
 #include <stk/io/io.h>
 
 #include "deform_lib/arg_parser.h"
-#include "deform_lib/jacobian.h"
 
 #include "deform/command.h"
 
-bool JacobianCommand::_parse_arguments(void)
+bool DivergenceCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("displacement", "Path to the displacement field");
@@ -15,9 +14,9 @@ bool JacobianCommand::_parse_arguments(void)
     return _args.parse();
 }
 
-int JacobianCommand::_execute(void)
+int DivergenceCommand::_execute(void)
 {
-    LOG(Info) << "Computing jacobian.";
+    LOG(Info) << "Computing divergence.";
     LOG(Info) << "Input: '" << _args.positional("displacement") << "'";
 
     stk::Volume def = stk::read_volume(_args.positional("displacement").c_str());
@@ -25,10 +24,10 @@ int JacobianCommand::_execute(void)
         return EXIT_FAILURE;
     }
 
-    stk::Volume jac = calculate_jacobian(def);
+    stk::Volume div = stk::divergence(def);
 
     LOG(Info) << "Writing to '" << _args.positional("output") << "'";
-    stk::write_volume(_args.positional("output").c_str(), jac);
+    stk::write_volume(_args.positional("output").c_str(), div);
 
     return EXIT_SUCCESS;
 }

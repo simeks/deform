@@ -7,13 +7,11 @@
 
 #include "deform/command.h"
 
-#include <iostream>
-
 bool TransformCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("source", "Path to the image you want to transform");
-    _args.add_positional("deformation", "Path to the deformation field used to transform");
+    _args.add_positional("displacement", "Path to the displacement field used to transform");
     _args.add_positional("output", "Path to the resulting file");
 
     _args.add_option("interp", "-i, --interp", "Interpolation to use, either 'nn' or 'linear' (default)");
@@ -43,13 +41,13 @@ int TransformCommand::_execute(void)
 
     LOG(Info) << "Interpolation method: " << ((interp == transform::Interp_Linear) ? "linear" : "nn");
     LOG(Info) << "Input: '" << _args.positional("source") << "'";
-    LOG(Info) << "Deformation: '" << _args.positional("deformation") << "'";
+    LOG(Info) << "displacement: '" << _args.positional("displacement") << "'";
 
     stk::Volume src = stk::read_volume(_args.positional("source").c_str());
     if (!src.valid())
         return EXIT_FAILURE;
 
-    stk::Volume def = stk::read_volume(_args.positional("deformation").c_str());
+    stk::Volume def = stk::read_volume(_args.positional("displacement").c_str());
     if (!def.valid())
         return EXIT_FAILURE;
     ASSERT(def.voxel_type() == stk::Type_Float3);

@@ -97,3 +97,12 @@ protected:
     virtual int _execute(void);
 };
 
+
+struct DivergenceCommand : public DeformCommand
+{
+    using DeformCommand::DeformCommand;
+protected:
+    virtual bool _parse_arguments(void);
+    virtual int _execute(void);
+};
+

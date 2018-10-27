@@ -8,6 +8,8 @@
 #include <optional>
 #include <string>
 
+#include <stk/filters/vector_calculus.h>
+
 #include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
 
@@ -656,7 +658,7 @@ np.ndarray
  *                  direction matrix in row-major order.
  *
  * @return A numpy array representing the Jacobian determinant (scalar map)
- *         size, origin, and spacing the input displacement.
+ *         of the input displacement.
  *
  * @throw ValidationError If the input is not consistent.
  */
@@ -704,6 +706,211 @@ Returns
 np.ndarray
     Scalar volume image containing the Jacobian of the
     deformation associated to the input displacement.
+)";
+
+
+/*!
+ * \brief Compute the divergence of a vector field.
+ *
+ * The divergence is computed with first order central differences.
+ *
+ * @note All the numpy arrays must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param displacement Quadridimensional numpy array containing
+ *                     the displacement field, in reference space
+ *                     coordinates, with indexing [z, y, x, d].
+ * @param origin Vector of length 3, containing the (x, y,z)
+ *               coordinates of the origin.
+ * @param spacing Vector of length 3, containing the (x, y,z) spacing.
+ * @param direction Vector of length 9, representing the cosine
+ *                  direction matrix in row-major order.
+ *
+ * @return A numpy array representing the divergence of the
+ *         input displacement.
+ *
+ * @throw ValidationError If the input is not consistent.
+ */
+py::array divergence_wrapper(
+        const py::array displacement,
+        const std::vector<double>& origin,
+        const std::vector<double>& spacing,
+        const std::vector<double>& direction
+        )
+{
+    // Compute divergence
+    auto divergence = stk::divergence(image_to_volume(displacement, origin, spacing, direction));
+
+    auto shape = get_scalar_shape(displacement);
+    return py::array_t<float>(shape, reinterpret_cast<const float*>(divergence.ptr()));
+}
+
+
+std::string divergence_docstring =
+R"(Compute the divergence of a displacement field.
+
+Given a displacement field :math:`d(x) = (d_1(x), d_2(x), d_3(x))` with
+:math:`x = (x_1, x_2, x_3)`, compute its divergence
+:math:`div(d(x)) = \sum_{i=0}^3 \frac{\partial d_i(x)}{\partial x_i}`.
+
+.. note::
+    All the arrays must be C-contiguous.
+
+Parameters
+----------
+displacement: np.ndarray
+    Displacement field used to resample the image.
+
+origin: np.ndarray
+    Origin of the displacement field.
+
+spacing: np.ndarray
+    Spacing of the displacement field.
+
+direction: Tuple[Int]
+    Cosine direction matrix of the displacement field.
+
+Returns
+-------
+np.ndarray
+    Scalar volume image containing the divergence of
+    the input displacement.
+)";
+
+
+/*!
+ * \brief Compute the rotor of a vector field.
+ *
+ * The rotor is computed with first order central differences.
+ *
+ * @note All the numpy arrays must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param displacement Quadridimensional numpy array containing
+ *                     the displacement field, in reference space
+ *                     coordinates, with indexing [z, y, x, d].
+ * @param origin Vector of length 3, containing the (x, y,z)
+ *               coordinates of the origin.
+ * @param spacing Vector of length 3, containing the (x, y,z) spacing.
+ * @param direction Vector of length 9, representing the cosine
+ *                  direction matrix in row-major order.
+ *
+ * @return A numpy array representing the rotor of the input
+ *         displacement.
+ *
+ * @throw ValidationError If the input is not consistent.
+ */
+py::array rotor_wrapper(
+        const py::array displacement,
+        const std::vector<double>& origin,
+        const std::vector<double>& spacing,
+        const std::vector<double>& direction
+        )
+{
+    // Compute rotor
+    auto rotor = stk::rotor(image_to_volume(displacement, origin, spacing, direction));
+
+    return py::array_t<float>(get_shape(displacement), reinterpret_cast<const float*>(rotor.ptr()));
+}
+
+
+std::string rotor_docstring =
+R"(Compute the rotor of a displacement field.
+
+Given a displacement field :math:`d(x) = (d_1(x), d_2(x), d_3(x))` with
+:math:`x = (x_1, x_2, x_3)`, compute its rotor.
+
+.. note::
+    All the arrays must be C-contiguous.
+
+Parameters
+----------
+displacement: np.ndarray
+    Displacement field used to resample the image.
+
+origin: np.ndarray
+    Origin of the displacement field.
+
+spacing: np.ndarray
+    Spacing of the displacement field.
+
+direction: Tuple[Int]
+    Cosine direction matrix of the displacement field.
+
+Returns
+-------
+np.ndarray
+    Vector volume image containing the rotor of
+    the input displacement.
+)";
+
+
+/*!
+ * \brief Compute the circulation density of a vector field.
+ *
+ * The circulation density is computed with first order central differences.
+ *
+ * @note All the numpy arrays must be C-contiguous, with
+ *       [z,y,x] indexing.
+ *
+ * @param displacement Quadridimensional numpy array containing
+ *                     the displacement field, in reference space
+ *                     coordinates, with indexing [z, y, x, d].
+ * @param origin Vector of length 3, containing the (x, y,z)
+ *               coordinates of the origin.
+ * @param spacing Vector of length 3, containing the (x, y,z) spacing.
+ * @param direction Vector of length 9, representing the cosine
+ *                  direction matrix in row-major order.
+ *
+ * @return A numpy array representing the circulation density of the input
+ *         displacement.
+ *
+ * @throw ValidationError If the input is not consistent.
+ */
+py::array circulation_density_wrapper(
+        const py::array displacement,
+        const std::vector<double>& origin,
+        const std::vector<double>& spacing,
+        const std::vector<double>& direction
+        )
+{
+    // Compute rotor
+    auto res = stk::circulation_density(image_to_volume(displacement, origin, spacing, direction));
+
+    auto shape = get_scalar_shape(displacement);
+    return py::array_t<float>(shape, reinterpret_cast<const float*>(res.ptr()));
+}
+
+
+std::string circulation_density_docstring =
+R"(Compute the circulation density of a displacement field.
+
+Given a displacement field :math:`d(x) = (d_1(x), d_2(x), d_3(x))` with
+:math:`x = (x_1, x_2, x_3)`, compute its circulation density, defined as
+the norm of its rotor.
+
+.. note::
+    All the arrays must be C-contiguous.
+
+Parameters
+----------
+displacement: np.ndarray
+    Displacement field used to resample the image.
+
+origin: np.ndarray
+    Origin of the displacement field.
+
+spacing: np.ndarray
+    Spacing of the displacement field.
+
+direction: Tuple[Int]
+    Cosine direction matrix of the displacement field.
+
+Returns
+-------
+np.ndarray
+    Vector volume image containing the circulation
+    density of the input displacement.
 )";
 
 
@@ -766,6 +973,33 @@ PYBIND11_MODULE(_pydeform, m)
     m.def("jacobian",
           &jacobian_wrapper,
           jacobian_docstring.c_str(),
+          py::arg("displacement"),
+          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+         );
+
+    m.def("divergence",
+          &divergence_wrapper,
+          divergence_docstring.c_str(),
+          py::arg("displacement"),
+          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+         );
+
+    m.def("rotor",
+          &rotor_wrapper,
+          rotor_docstring.c_str(),
+          py::arg("displacement"),
+          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+         );
+
+    m.def("circulation_density",
+          &circulation_density_wrapper,
+          circulation_density_docstring.c_str(),
           py::arg("displacement"),
           py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
           py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
