@@ -39,6 +39,34 @@ def jaccard(a, b):
     return np.sum(np.logical_and(a, b)) / np.sum(np.logical_or(a, b))
 
 
+def transform(img,
+              d,
+              fixed_origin=(0, 0, 0),
+              fixed_spacing=(1, 1, 1),
+              fixed_direction=(1, 0, 0, 0, 1, 0, 0, 0, 1),
+              moving_origin=(0, 0, 0),
+              moving_spacing=(1, 1, 1),
+              moving_direction=(1, 0, 0, 0, 1, 0, 0, 0, 1),
+              interpolator=sitk.sitkLinear
+              ):
+    img = sitk.GetImageFromArray(img)
+    img.SetOrigin(moving_origin)
+    img.SetSpacing(moving_spacing)
+    img.SetDirection(moving_direction)
+
+    d = sitk.GetImageFromArray(d)
+    d.SetOrigin(fixed_origin)
+    d.SetSpacing(fixed_spacing)
+    d.SetDirection(fixed_direction)
+
+    warp = sitk.WarpImageFilter()
+    warp.SetOutputParameteresFromImage(d)
+    warp.SetInterpolator(interpolator)
+    res = warp.Execute(img, d)
+
+    return sitk.GetArrayFromImage(res)
+
+
 class Test_Numpy_API(unittest.TestCase):
 
     def test_register(self):
@@ -69,7 +97,7 @@ class Test_Numpy_API(unittest.TestCase):
 
         d = pydeform.register(fixed, moving)
 
-        res = pydeform.transform(moving, d, interpolator=pydeform.Interpolator.NearestNeighbour)
+        res = transform(moving, d, interpolator=sitk.sitkNearestNeighbor)
 
         self.assertGreater(jaccard(res > 0.1, fixed > 0.1), 0.98)
 
