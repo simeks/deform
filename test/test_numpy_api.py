@@ -115,25 +115,16 @@ class Test_Numpy_API(unittest.TestCase):
             img = np.pad(rand(*shape_no_pad), pad, 'constant')
             d = 5 * (2.0 * rand(*shape_no_pad, 3) - 1.0)
             d = np.pad(d, 3 * [(pad, pad)] + [(0, 0)], 'constant')
-            shape = [x + 2*pad for x in shape_no_pad]
 
             # SimpleITK oracle
-            img_sitk = sitk.GetImageFromArray(img)
-            img_sitk.SetOrigin(moving_origin)
-            img_sitk.SetSpacing(moving_spacing)
-            d_sitk = sitk.GetImageFromArray(d)
-            d_sitk.SetOrigin(fixed_origin)
-            d_sitk.SetSpacing(fixed_spacing)
-            d_sitk = sitk.DisplacementFieldTransform(d_sitk)
-
-            res_sitk = sitk.Resample(img_sitk,
-                                     list(reversed(shape)),
-                                     d_sitk,
-                                     sitk.sitkLinear,
-                                     fixed_origin,
-                                     fixed_spacing,
-                                     )
-            res_sitk = sitk.GetArrayFromImage(res_sitk)
+            res_sitk = transform(img,
+                                 d,
+                                 fixed_origin=fixed_origin,
+                                 fixed_spacing=fixed_spacing,
+                                 moving_origin=moving_origin,
+                                 moving_spacing=moving_spacing,
+                                 interpolator=sitk.sitkLinear,
+                                 )
 
             # Compute transform
             res = pydeform.transform(img,
