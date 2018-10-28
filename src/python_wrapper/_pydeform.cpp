@@ -749,9 +749,21 @@ py::array divergence_wrapper(
 std::string divergence_docstring =
 R"(Compute the divergence of a displacement field.
 
-Given a displacement field :math:`d(x) = (d_1(x), d_2(x), d_3(x))` with
-:math:`x = (x_1, x_2, x_3)`, compute its divergence
-:math:`div(d(x)) = \sum_{i=0}^3 \frac{\partial d_i(x)}{\partial x_i}`.
+The divergence of a vector field
+
+.. math::
+    f(\boldsymbol{x}) =
+        (f_1(\boldsymbol{x}),
+         f_2(\boldsymbol{x}),
+         f_3(\boldsymbol{x}))
+
+with :math:`\boldsymbol{x} = (x_1, x_2, x_3)`
+is defined as
+
+.. math::
+    \nabla \cdot f (\boldsymbol{x}) =
+    \sum_{i=1}^3
+        \frac{\partial f_i}{\partial x_i} (\boldsymbol{x})
 
 .. note::
     All the arrays must be C-contiguous.
@@ -817,8 +829,27 @@ py::array rotor_wrapper(
 std::string rotor_docstring =
 R"(Compute the rotor of a displacement field.
 
-Given a displacement field :math:`d(x) = (d_1(x), d_2(x), d_3(x))` with
-:math:`x = (x_1, x_2, x_3)`, compute its rotor.
+The rotor of a 3D 3-vector field
+
+.. math::
+    f(\boldsymbol{x}) =
+        (f_1(\boldsymbol{x}),
+         f_2(\boldsymbol{x}),
+         f_3(\boldsymbol{x}))
+
+with :math:`\boldsymbol{x} = (x_1, x_2, x_3)`
+is defined as
+
+.. math::
+    \nabla \times f(\boldsymbol{x}) =
+    \left(
+        \frac{\partial f_3}{\partial x_2} -
+        \frac{\partial f_2}{\partial x_3},
+        \frac{\partial f_1}{\partial x_3} -
+        \frac{\partial f_3}{\partial x_1},
+        \frac{\partial f_2}{\partial x_1} -
+        \frac{\partial f_1}{\partial x_2}
+    \right)
 
 .. note::
     All the arrays must be C-contiguous.
@@ -885,9 +916,8 @@ py::array circulation_density_wrapper(
 std::string circulation_density_docstring =
 R"(Compute the circulation density of a displacement field.
 
-Given a displacement field :math:`d(x) = (d_1(x), d_2(x), d_3(x))` with
-:math:`x = (x_1, x_2, x_3)`, compute its circulation density, defined as
-the norm of its rotor.
+The circulation density for a 3D 3-vector field is defined as the
+norm of the rotor.
 
 .. note::
     All the arrays must be C-contiguous.
