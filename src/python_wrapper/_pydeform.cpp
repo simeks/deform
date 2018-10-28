@@ -739,7 +739,7 @@ py::array divergence_wrapper(
         )
 {
     // Compute divergence
-    auto divergence = stk::divergence(image_to_volume(displacement, origin, spacing, direction));
+    auto divergence = stk::divergence<float3>(image_to_volume(displacement, origin, spacing, direction));
 
     auto shape = get_scalar_shape(displacement);
     return py::array_t<float>(shape, reinterpret_cast<const float*>(divergence.ptr()));
@@ -820,7 +820,7 @@ py::array rotor_wrapper(
         )
 {
     // Compute rotor
-    auto rotor = stk::rotor(image_to_volume(displacement, origin, spacing, direction));
+    auto rotor = stk::rotor<float3>(image_to_volume(displacement, origin, spacing, direction));
 
     return py::array_t<float>(get_shape(displacement), reinterpret_cast<const float*>(rotor.ptr()));
 }
@@ -906,7 +906,7 @@ py::array circulation_density_wrapper(
         )
 {
     // Compute rotor
-    auto res = stk::circulation_density(image_to_volume(displacement, origin, spacing, direction));
+    auto res = stk::circulation_density<float3>(image_to_volume(displacement, origin, spacing, direction));
 
     auto shape = get_scalar_shape(displacement);
     return py::array_t<float>(shape, reinterpret_cast<const float*>(res.ptr()));
@@ -987,53 +987,53 @@ PYBIND11_MODULE(_pydeform, m)
           );
 
     m.def("transform",
-          &transform_wrapper,
-          transform_docstring.c_str(),
-          py::arg("image"),
-          py::arg("displacement"),
-          py::arg("fixed_origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("moving_origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("fixed_spacing") = py::make_tuple(1.0, 1.0, 1.0),
-          py::arg("moving_spacing") = py::make_tuple(1.0, 1.0, 1.0),
-          py::arg("fixed_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
-          py::arg("moving_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
-          py::arg("interpolator") = transform::Interp_Linear
-          );
+            &transform_wrapper,
+            transform_docstring.c_str(),
+            py::arg("image"),
+            py::arg("displacement"),
+            py::arg("fixed_origin") = py::make_tuple(0.0, 0.0, 0.0),
+            py::arg("moving_origin") = py::make_tuple(0.0, 0.0, 0.0),
+            py::arg("fixed_spacing") = py::make_tuple(1.0, 1.0, 1.0),
+            py::arg("moving_spacing") = py::make_tuple(1.0, 1.0, 1.0),
+            py::arg("fixed_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+            py::arg("moving_direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+            py::arg("interpolator") = transform::Interp_Linear
+         );
 
     m.def("jacobian",
-          &jacobian_wrapper,
-          jacobian_docstring.c_str(),
-          py::arg("displacement"),
-          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
-          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+            &jacobian_wrapper,
+            jacobian_docstring.c_str(),
+            py::arg("displacement"),
+            py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+            py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+            py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
          );
 
     m.def("divergence",
-          &divergence_wrapper,
-          divergence_docstring.c_str(),
-          py::arg("displacement"),
-          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
-          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+            &divergence_wrapper,
+            divergence_docstring.c_str(),
+            py::arg("displacement"),
+            py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+            py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+            py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
          );
 
     m.def("rotor",
-          &rotor_wrapper,
-          rotor_docstring.c_str(),
-          py::arg("displacement"),
-          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
-          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+            &rotor_wrapper,
+            rotor_docstring.c_str(),
+            py::arg("displacement"),
+            py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+            py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+            py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
          );
 
     m.def("circulation_density",
-          &circulation_density_wrapper,
-          circulation_density_docstring.c_str(),
-          py::arg("displacement"),
-          py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
-          py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
-          py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+            &circulation_density_wrapper,
+            circulation_density_docstring.c_str(),
+            py::arg("displacement"),
+            py::arg("origin") = py::make_tuple(0.0, 0.0, 0.0),
+            py::arg("spacing") = py::make_tuple(1.0, 1.0, 1.0),
+            py::arg("direction") = py::make_tuple(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
          );
 
     // Translate relevant exception types. The exceptions not handled

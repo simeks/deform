@@ -24,7 +24,7 @@ int DivergenceCommand::_execute(void)
         return EXIT_FAILURE;
     }
 
-    stk::Volume div = stk::divergence(def);
+    stk::Volume div = stk::divergence<float3>(def);
 
     LOG(Info) << "Writing to '" << _args.positional("output") << "'";
     stk::write_volume(_args.positional("output").c_str(), div);
