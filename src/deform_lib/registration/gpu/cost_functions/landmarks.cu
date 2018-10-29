@@ -16,6 +16,7 @@ __global__ void landmarks_kernel(
     const float3 fixed_spacing,
     const Matrix3x3f fixed_direction,
     cuda::VolumePtr<float2> cost_acc,
+    const float half_decay,
     const float epsilon = 1e-6f
 )
 {
@@ -41,7 +42,7 @@ __global__ void landmarks_kernel(
     float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
 
     for (size_t i = 0; i < landmark_count; ++i) {
-        const float inv_den = 1.0f / (stk::norm2(landmarks[i] - world_p) + epsilon);
+        const float inv_den = 1.0f / (pow(stk::norm2(landmarks[i] - world_p), half_decay) + epsilon);
         cost_acc(x,y,z).x += weight * stk::norm2(d0 - displacements[i]) * inv_den;
         cost_acc(x,y,z).y += weight * stk::norm2(d1 - displacements[i]) * inv_den;
     }
@@ -50,10 +51,12 @@ __global__ void landmarks_kernel(
 GpuCostFunction_Landmarks::GpuCostFunction_Landmarks(
         const std::vector<float3>& fixed_landmarks,
         const std::vector<float3>& moving_landmarks,
-        const stk::GpuVolume& fixed)
+        const stk::GpuVolume& fixed,
+        const float decay)
     : _landmarks {fixed_landmarks}
     , _displacements (fixed_landmarks.size())
     , _fixed {fixed}
+    , _half_decay {decay / 2.0f}
 {
     ASSERT(fixed_landmarks.size() == moving_landmarks.size());
     for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
@@ -100,7 +103,8 @@ void GpuCostFunction_Landmarks::cost(
         _fixed.origin(),
         _fixed.spacing(),
         _fixed.direction(),
-        cost_acc
+        cost_acc,
+        _half_decay
     );
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());

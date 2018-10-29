@@ -76,6 +76,7 @@ pyramid_levels: 6
 pyramid_stop_level: 0
 constraints_weight: 1000.0
 landmarks_weight: 1.0
+landmarks_decay: 2.0
 landmarks_stop_level: 0
 block_size: [12, 12, 12]
 block_energy_epsilon: 1e-7
@@ -137,7 +138,9 @@ the landmark-based unary energy term is inspired to [[2]](#2), but the cost in
 each term of the sum is also proportional to the distance between the current
 displacement and the landmark displacement. It is possible to limit the usage
 of the landmarks up to a certain height of the resolution pyramid by assigning
-to `landmarks_stop_level` a value greater than zero.
+to `landmarks_stop_level` a value greater than zero. `landmarks_decay` controls
+the exponential decay of the landmarks effect with respect to distance in image
+space: higher values correspond to faster decay.
 
 `block_size` size of the block (in voxels) for the block-wise solver. A block
 size of (0,0,0) will result in a single block for the whole volume.

@@ -317,9 +317,12 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
         out.constraints_weight = node["constraints_weight"].as<float>();
     }
 
-
     if (node["landmarks_weight"]) {
         out.landmarks_weight = node["landmarks_weight"].as<float>();
+    }
+
+    if (node["landmarks_decay"]) {
+        out.landmarks_decay = node["landmarks_decay"].as<float>();
     }
 }
 
@@ -340,6 +343,7 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "  regularization_weight = " << settings.levels[l].regularization_weight;
         LOG(Info) << "  constraints_weight = " << settings.levels[l].constraints_weight;
         LOG(Info) << "  landmarks_weight = " << settings.levels[l].landmarks_weight;
+        LOG(Info) << "  landmarks_decay = " << settings.levels[l].landmarks_decay;
         LOG(Info) << "}";
     }
 
