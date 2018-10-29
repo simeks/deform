@@ -10,26 +10,13 @@ struct UnaryFunction
         std::unique_ptr<SubFunction> function;
     };
 
-    UnaryFunction(const float regularization_weight = 0.0f)
-        : _regularization_weight(regularization_weight)
-    {
-    }
+    UnaryFunction() {}
+    ~UnaryFunction() {}
 
     void set_fixed_mask(const stk::VolumeFloat& mask)
     {
         _fixed_mask = mask;
     }
-
-    void set_regularization_weight(float weight)
-    {
-        _regularization_weight = weight;
-    }
-#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    void set_regularization_weight_map(stk::VolumeFloat& map)
-    {
-        _regularization_weight_map = map;
-    }
-#endif
 
     void add_function(std::unique_ptr<SubFunction> fn, float weight)
     {
@@ -51,27 +38,17 @@ struct UnaryFunction
             sum += fn.weight * fn.function->cost(p, def);
         }
 
-        float w = _regularization_weight;
-#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-        if (_regularization_weight_map.valid())
-            w = _regularization_weight_map(p);
-#endif
-
-        return (1.0f - w) * mask_value * sum;
+        return mask_value * sum;
     }
 
-    void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def) {
+    void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    {
         for (auto& fn : _functions) {
             fn.function->pre_iteration_hook(iteration, def);
         }
     }
 
     stk::VolumeFloat _fixed_mask;
-
-    float _regularization_weight;
-#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    stk::VolumeFloat _regularization_weight_map;
-#endif
 
     std::vector<WeightedFunction> _functions;
 };

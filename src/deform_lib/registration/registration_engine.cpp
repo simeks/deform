@@ -395,8 +395,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
     if (_fixed_mask_pyramid.levels() > 0) {
         unary_fn.set_fixed_mask(_fixed_mask_pyramid.volume(level));
     }
-    unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
-
+    
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
             binary_fn.set_weight_map(_regularization_weight_map.volume(l));

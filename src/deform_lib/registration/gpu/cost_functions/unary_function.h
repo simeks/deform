@@ -12,16 +12,9 @@ public:
         std::unique_ptr<GpuSubFunction> function;
     };
 
-    // TODO: Weights, regularization term, etc
-
-    GpuUnaryFunction() : _regularization_weight(0.0f) {}
-
+    GpuUnaryFunction() {}
     ~GpuUnaryFunction() {}
 
-    void set_regularization_weight(float weight)
-    {
-        _regularization_weight = weight;
-    }
 
     // cost_acc : Cost accumulator for unary term. float2 with E0 and E1.
     void operator()(
@@ -34,11 +27,9 @@ public:
     )
     {
         for (auto& fn : _functions) {
-            fn.function->cost(df, delta, (1.0f-_regularization_weight)*fn.weight,
+            fn.function->cost(df, delta, fn.weight,
                               offset, dims, cost_acc, stream);
         }
-        // TODO: Maybe applying regularization as a separate pass?
-        //       Would make sense for regularization weight maps.
     }
 
     void add_function(std::unique_ptr<GpuSubFunction>& fn, float weight)
@@ -47,8 +38,6 @@ public:
     }
 
 private:
-    float _regularization_weight;
-
     std::vector<WeightedFunction> _functions;
 };
 

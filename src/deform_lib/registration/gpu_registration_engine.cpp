@@ -56,8 +56,6 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
 {
     using FunctionPtr = std::unique_ptr<GpuSubFunction>;
 
-    unary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
-
     for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
         stk::GpuVolume fixed;
         stk::GpuVolume moving;
