@@ -63,7 +63,9 @@ namespace
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "regularize"
                   << "Regularizes a displacement field" << std::endl;
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "jacobian"
-                  << "Computes the jacobian determinants of a displacement field" << std::endl;
+                  << "Computes the Jacobian determinants of a displacement field" << std::endl;
+        std::cout << std::string(4, ' ') << std::setw(30) << std::left << "divergence"
+                  << "Computes the divergence of a displacement field" << std::endl;
     }
 
 } // namespace
@@ -97,6 +99,9 @@ int main(int argc, char* argv[])
     }
     else if (argc >= 2 && std::strcmp(argv[1], "jacobian") == 0) {
         command = std::make_unique<JacobianCommand>(argc, argv);
+    }
+    else if (argc >= 2 && std::strcmp(argv[1], "divergence") == 0) {
+        command = std::make_unique<DivergenceCommand>(argc, argv);
     }
     else {
         print_command_help(argv[0]);

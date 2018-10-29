@@ -1,5 +1,6 @@
 set(DEFORM_SRCS
     "command.h"
+    "divergence.cpp"
     "jacobian.cpp"
     "main.cpp"
     "registration.cpp"

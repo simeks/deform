@@ -3,6 +3,43 @@ import pydeform
 from . import interruptible
 
 
+def _sitk2numpy(image):
+    R""" Utility to convert a SimpleITK image to numpy.
+
+    .. note::
+        A view of the ITK underlying data is returned.
+        The array will become invalid if the input
+        ITK object is garbage-collected.
+
+    Parameters
+    ----------
+    image: SimpleITK.Image
+        Input SimpleITK object.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array view of the image data.
+
+    Tuple[float]
+        Origin of the image.
+
+    Tuple[float]
+        Spacing of the image.
+
+    Tuple[float]
+        Cosine direction matrix of the image, a :math:`3 \times 3`
+        matrix flattened as a tuple (row-major).
+
+    """
+    return (
+        sitk.GetArrayViewFromImage(image),
+        image.GetOrigin(),
+        image.GetSpacing(),
+        image.GetDirection()
+    )
+
+
 def register(
         fixed_images,
         moving_images,
@@ -20,16 +57,16 @@ def register(
         silent=True,
         num_threads=0,
         subprocess=False,
-        use_gpu=False,
+        use_gpu=False
         ):
     R""" Perform deformable registration.
 
     Parameters
     ----------
-    fixed_images: Union[sitk.Image, List[sitk.Image]]
+    fixed_images: Union[SimpleITK.Image, List[SimpleITK.Image]]
         Fixed image, or list of fixed images.
 
-    moving_images: Union[sitk.Image, List[sitk.Image]]
+    moving_images: Union[SimpleITK.Image, List[SimpleITK.Image]]
         Moving image, or list of moving images.
 
     fixed_mask: np.ndarray
@@ -48,14 +85,14 @@ def register(
         `n` landmarks with (x, y, z) coordinates in
         image space. Requires to provide `fixed_landmarks`.
 
-    initial_displacement: sitk.Image
+    initial_displacement: SimpleITK.Image
         Initial guess of the displacement field.
 
-    constraint_mask: sitk.Image
+    constraint_mask: SimpleITK.Image
         Boolean mask for the constraints on the displacement.
         Requires to provide `constraint_values`.
 
-    constraint_values: sitk.Image
+    constraint_values: SimpleITK.Image
         Value for the constraints on the displacement.
         Requires to provide `constraint_mask`.
 
@@ -88,7 +125,7 @@ def register(
 
     Returns
     -------
-    sitk.Image
+    SimpleITK.Image
         Vector field containing the displacement that
         warps the moving image(s) toward the fixed image(s).
         The displacement is defined in the reference coordinates
@@ -157,4 +194,138 @@ def register(
     displacement.SetDirection(fixed_direction)
 
     return displacement
+
+
+def jacobian(image):
+    R""" Compute the Jacobian determinant of a 3D 3-vector field.
+
+    The Jacobian determinant of a vector field
+
+    .. math::
+        f(\boldsymbol{x}) =
+            (f_1(\boldsymbol{x}),
+             f_2(\boldsymbol{x}),
+             f_3(\boldsymbol{x}))
+
+    with :math:`\boldsymbol{x} = (x_1, x_2, x_3)`
+    is defined as
+
+    .. math::
+        J[f] (\boldsymbol{x}) =
+        \det \left(
+            \frac{\partial f_i}{\partial x_j} (\boldsymbol{x})
+        \right)_{ij}
+
+    Parameters
+    ----------
+    image: SimpleITK.Image
+        Input image, should be a 3D 3-vector field.
+
+    Returns
+    -------
+    SimpleITK.Image
+        Scalar image representing the Jacobian determinant.
+    """
+    result = pydeform.jacobian(*_sitk2numpy(image))
+    result = sitk.GetImageFromArray(result)
+    result.CopyInformation(image)
+    return result
+
+
+def divergence(image):
+    R""" Compute the divergence of a 3D 3-vector field.
+
+    The divergence of a vector field
+
+    .. math::
+        f(\boldsymbol{x}) =
+            (f_1(\boldsymbol{x}),
+             f_2(\boldsymbol{x}),
+             f_3(\boldsymbol{x}))
+
+    with :math:`\boldsymbol{x} = (x_1, x_2, x_3)`
+    is defined as
+
+    .. math::
+        \nabla \cdot f (\boldsymbol{x}) =
+        \sum_{i=1}^3
+            \frac{\partial f_i}{\partial x_i} (\boldsymbol{x})
+
+    Parameters
+    ----------
+    image: SimpleITK.Image
+        Input image, should be a 3D 3-vector field.
+
+    Returns
+    -------
+    SimpleITK.Image
+        Scalar image representing the divergence.
+    """
+    result = pydeform.divergence(*_sitk2numpy(image))
+    result = sitk.GetImageFromArray(result)
+    result.CopyInformation(image)
+    return result
+
+
+def rotor(image):
+    R""" Compute the rotor of a vector field.
+
+    The rotor of a 3D 3-vector field
+
+    .. math::
+        f(\boldsymbol{x}) =
+            (f_1(\boldsymbol{x}),
+             f_2(\boldsymbol{x}),
+             f_3(\boldsymbol{x}))
+
+    with :math:`\boldsymbol{x} = (x_1, x_2, x_3)`
+    is defined as
+
+    .. math::
+        \nabla \times f(\boldsymbol{x}) =
+        \left(
+            \frac{\partial f_3}{\partial x_2} -
+            \frac{\partial f_2}{\partial x_3},
+            \frac{\partial f_1}{\partial x_3} -
+            \frac{\partial f_3}{\partial x_1},
+            \frac{\partial f_2}{\partial x_1} -
+            \frac{\partial f_1}{\partial x_2}
+        \right)
+
+    Parameters
+    ----------
+    image: SimpleITK.Image
+        Input image, should be a 3D 3-vector field.
+
+    Returns
+    -------
+    SimpleITK.Image
+        Vector image representing the rotor.
+    """
+    result = pydeform.rotor(*_sitk2numpy(image))
+    result = sitk.GetImageFromArray(result)
+    result.CopyInformation(image)
+    return result
+
+
+def circulation_density(image):
+    R""" Compute the circulation density of a vector field.
+
+    The circulation density for a 3D 3-vector field is defined as the
+    norm of the rotor.
+
+    Parameters
+    ----------
+    image: SimpleITK.Image
+        Input image, should be a 3D 3-vector field.
+
+    Returns
+    -------
+    SimpleITK.Image
+        Vector image representing the circulation density.
+    """
+    result = pydeform.circulation_density(*_sitk2numpy(image))
+    result = sitk.GetImageFromArray(result)
+    result.CopyInformation(image)
+    return result
 
