@@ -7,9 +7,11 @@ struct LandmarksFunction : public SubFunction
 {
     LandmarksFunction(const std::vector<float3>& fixed_landmarks,
                       const std::vector<float3>& moving_landmarks,
-                      const stk::Volume& fixed) :
+                      const stk::Volume& fixed,
+                      const float decay) :
         _landmarks {fixed_landmarks},
-        _fixed {fixed}
+        _fixed {fixed},
+        _half_decay {decay / 2.0f}
     {
         ASSERT(fixed_landmarks.size() == moving_landmarks.size());
         for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
@@ -26,7 +28,7 @@ struct LandmarksFunction : public SubFunction
 
         for (size_t i = 0; i < _landmarks.size(); ++i) {
             cost += stk::norm2(def - _displacements[i]) /
-                    (stk::norm2(_landmarks[i] - world_p) + epsilon);
+                    (std::pow(stk::norm2(_landmarks[i] - world_p), _half_decay) + epsilon);
         }
 
         return cost;
@@ -35,5 +37,6 @@ struct LandmarksFunction : public SubFunction
     const std::vector<float3> _landmarks;
     std::vector<float3> _displacements;
     const stk::Volume _fixed;
+    const float _half_decay;
 };
 

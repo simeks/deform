@@ -8,7 +8,8 @@ struct GpuCostFunction_Landmarks : public GpuSubFunction
 {
     GpuCostFunction_Landmarks(const std::vector<float3>& fixed_landmarks,
                               const std::vector<float3>& moving_landmarks,
-                              const stk::GpuVolume& fixed);
+                              const stk::GpuVolume& fixed,
+                              const float decay);
 
     virtual ~GpuCostFunction_Landmarks();
 
@@ -25,5 +26,6 @@ struct GpuCostFunction_Landmarks : public GpuSubFunction
     const thrust::device_vector<float3> _landmarks;
     thrust::device_vector<float3> _displacements;
     const stk::GpuVolume _fixed;
+    const float _half_decay;
 };
 

@@ -477,7 +477,8 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             std::make_unique<LandmarksFunction>(
                 _fixed_landmarks,
                 _moving_landmarks,
-                fixed
+                fixed,
+                _settings.levels[level].landmarks_decay
             ),
             _settings.levels[level].landmarks_weight
         );

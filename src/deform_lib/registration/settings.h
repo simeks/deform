@@ -84,6 +84,9 @@ struct Settings
         // Only applicable to landmark registration
         float landmarks_weight;
 
+        // Decay of landmarks force
+        float landmarks_decay;
+
         Level() :
             block_size(int3{12, 12, 12}),
             block_energy_epsilon(1e-7f),
@@ -91,7 +94,8 @@ struct Settings
             regularization_weight(0.05f),
             step_size({0.5f, 0.5f, 0.5f}),
             constraints_weight(1000.0f),
-            landmarks_weight(1.0f)
+            landmarks_weight(1.0f),
+            landmarks_decay(2.0f)
         {
         }
     };

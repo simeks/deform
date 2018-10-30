@@ -125,7 +125,12 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
         ASSERT(_fixed_landmarks.size() == _moving_landmarks.size());
 
         auto& fixed = _fixed_pyramids[0].volume(level);
-        FunctionPtr f = std::make_unique<GpuCostFunction_Landmarks>(_fixed_landmarks, _moving_landmarks, fixed);
+        FunctionPtr f = std::make_unique<GpuCostFunction_Landmarks>(
+                _fixed_landmarks,
+                _moving_landmarks,
+                fixed,
+                _settings.levels[level].landmarks_decay
+                );
         unary_fn.add_function(f, _settings.levels[level].landmarks_weight);
     }
 }
