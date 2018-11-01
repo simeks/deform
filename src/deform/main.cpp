@@ -33,24 +33,15 @@
 
 #include "deform/command.h"
 
+#ifdef DF_USE_BACKWARD
+    #include "backward.hpp"
+    namespace backward {
+        backward::SignalHandling sh;
+    } // namespace backward
+#endif
+
 namespace
 {
-
-    struct Args
-    {
-        const char* param_file;
-
-        const char* fixed_files[DF_MAX_IMAGE_PAIR_COUNT];
-        const char* moving_files[DF_MAX_IMAGE_PAIR_COUNT];
-
-        const char* initial_displacement;
-
-        int num_threads;
-
-        const char* constraint_mask;
-        const char* constraint_values;
-    };
-
     void print_command_help(const char* exec)
     {
         std::cout << "Usage: " << exec << " COMMAND ..." << std::endl << std::endl;
