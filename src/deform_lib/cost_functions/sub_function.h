@@ -8,6 +8,8 @@
 
 struct SubFunction
 {
+    virtual ~SubFunction() {}
+
     /*!
      * \brief Cost term for a single voxel.
      * \param p Indices of the voxel in the reference image.

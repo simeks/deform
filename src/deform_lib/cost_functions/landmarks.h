@@ -19,6 +19,8 @@ struct LandmarksFunction : public SubFunction
         }
     }
 
+    virtual ~LandmarksFunction() {}
+
     float cost(const int3& p, const float3& def)
     {
         float cost = 0.0f;

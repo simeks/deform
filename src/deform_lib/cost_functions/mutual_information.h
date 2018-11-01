@@ -354,6 +354,8 @@ struct MIFunction : public SubFunction
     {
     }
 
+    virtual ~MIFunction() {}
+
     /*!
      * \brief Contribution of a single voxel to the mutual information.
      *

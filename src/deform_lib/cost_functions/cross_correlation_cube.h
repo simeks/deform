@@ -49,6 +49,9 @@ struct NCCFunction_cube : public SubFunction
     }
 
 
+    virtual ~NCCFunction_cube() {}
+
+
     float cost(const int3& p, const float3& def)
     {
         // [fixed] -> [world] -> [moving]
@@ -109,6 +112,7 @@ struct NCCFunction_cube : public SubFunction
                                  "in order to use NCC with cubic window.");
     }
 
+    virtual ~NCCFunction_cube() {}
 
     float cost(const int3& /* p */, const float3& /* def */)
     {
