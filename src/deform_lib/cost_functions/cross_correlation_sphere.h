@@ -17,6 +17,9 @@ struct NCCFunction_sphere : public SubFunction
     {}
 
 
+    virtual ~NCCFunction_sphere() {}
+
+
     float cost(const int3& p, const float3& def)
     {
         // [fixed] -> [world] -> [moving]

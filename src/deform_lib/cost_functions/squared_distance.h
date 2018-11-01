@@ -12,6 +12,8 @@ struct SquaredDistanceFunction : public SubFunction
         _moving(moving)
     {}
 
+    virtual ~SquaredDistanceFunction() {}
+
     float cost(const int3& p, const float3& def)
     {
         // [fixed] -> [world] -> [moving]

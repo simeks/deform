@@ -11,6 +11,8 @@ struct SoftConstraintsFunction : public SubFunction
         _spacing(_constraints_values.spacing())
     {}
 
+    virtual ~SoftConstraintsFunction() {}
+
     float cost(const int3& p, const float3& def)
     {
         if (_constraints_mask(p) != 0)

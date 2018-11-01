@@ -15,6 +15,8 @@ struct GradientSSDFunction : public SubFunction
         _moving(stk::sobel(stk::gaussian_filter_3d(moving, sigma)))
     {}
 
+    virtual ~GradientSSDFunction() {}
+
     float cost(const int3& p, const float3& def)
     {
         // [fixed] -> [world] -> [moving]

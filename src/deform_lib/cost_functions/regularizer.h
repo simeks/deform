@@ -13,6 +13,8 @@ struct Regularizer
     {
     }
 
+    virtual ~Regularizer() {}
+
     void set_regularization_weight(float weight)
     {
         _weight = weight;
