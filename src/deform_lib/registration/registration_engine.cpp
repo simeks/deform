@@ -404,7 +404,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
     auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
                                                                 : stk::VolumeFloat();
 
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+    for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
         stk::Volume fixed;
         stk::Volume moving;
 
@@ -498,8 +498,9 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
 RegistrationEngine::RegistrationEngine(const Settings& settings) :
     _settings(settings)
 {
-    _fixed_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
-    _moving_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
+    // Guess from settings, it will be resized later if too small
+    _fixed_pyramids.resize(settings.image_slots.size());
+    _moving_pyramids.resize(settings.image_slots.size());
 
     _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
 
@@ -539,7 +540,11 @@ void RegistrationEngine::set_image_pair(
     const stk::Volume& fixed,
     const stk::Volume& moving)
 {
-    ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
+    ASSERT(_fixed_pyramids.size() == _moving_pyramids.size());
+    if (i >= (int) _fixed_pyramids.size()) {
+        _fixed_pyramids.resize(i + 1);
+        _moving_pyramids.resize(i + 1);
+    }
 
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
@@ -701,8 +706,9 @@ void RegistrationEngine::upsample_and_save(int level)
 }
 void RegistrationEngine::save_volume_pyramid()
 {
+    ASSERT(_fixed_pyramids.size() == _moving_pyramids.size());
     for (int l = 0; l < _settings.num_pyramid_levels; ++l) {
-        for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+        for (int i = 0; i < _fixed_pyramids.size(); ++i) {
 
             if (_fixed_pyramids[i].levels() > 0) {
                 std::stringstream file;

@@ -44,7 +44,7 @@ int run_cost(int argc, char* argv[])
     RegistrationEngine engine(settings);
 
     stk::Volume fixed_ref, moving_ref;
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+    for (int i = 0; i < args.count_instances("fixed{i}"); ++i) {
         std::string fixed_id = "fixed" + std::to_string(i);
         std::string moving_id = "moving" + std::to_string(i);
 

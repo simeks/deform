@@ -49,20 +49,20 @@ Additional flags starting with `-D` are also recognised and forwarded to CMake.
 To perform a registration
 `deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
 
-| Argument                    |                                                |
-| --------------------------- | ---------------------------------------------- |
-| `-f<i> <file>`              | Filename of the i:th fixed image (i &lt; 8).†  |
-| `-m<i> <file>`              | Filename of the i:th moving image (i &lt; 8).† |
-| `-fm <file>`                | Filename of the fixed mask.‡                   |
-| `-mm <file>`                | Filename of the moving mask.‡                  |
-| `-fp <file>`                | Filename for the fixed landmarks.              |
-| `-mp <file>`                | Filename for the moving landmarks.             |
-| `-d0 <file>`                | Filename for initial deformation field.        |
-| `-constraint_mask <file>`   | Filename for constraint mask.                  |
-| `-constraint_values <file>` | Filename for constraint values.                |
-| `-p <file>`                 | Filename of the parameter file.                |
-| `-o <file>`                 | Filename of the resulting deformation field    |
-| `--gpu`                     | Enables GPU assisted registration.             |
+| Argument                    |                                             |
+| --------------------------- | ------------------------------------------- |
+| `-f<i> <file>`              | Filename of the i:th fixed image.†          |
+| `-m<i> <file>`              | Filename of the i:th moving image.†         |
+| `-fm <file>`                | Filename of the fixed mask.‡                |
+| `-mm <file>`                | Filename of the moving mask.‡               |
+| `-fp <file>`                | Filename for the fixed landmarks.           |
+| `-mp <file>`                | Filename for the moving landmarks.          |
+| `-d0 <file>`                | Filename for initial deformation field.     |
+| `-constraint_mask <file>`   | Filename for constraint mask.               |
+| `-constraint_values <file>` | Filename for constraint values.             |
+| `-p <file>`                 | Filename of the parameter file.             |
+| `-o <file>`                 | Filename of the resulting deformation field |
+| `--gpu`                     | Enables GPU assisted registration.          |
 
 † Requires a matching number of fixed and moving images.
 

@@ -56,7 +56,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
 {
     using FunctionPtr = std::unique_ptr<GpuSubFunction>;
 
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+    for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
         stk::GpuVolume fixed;
         stk::GpuVolume moving;
 
@@ -147,8 +147,9 @@ GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
     _settings(settings),
     _worker_pool(omp_get_max_threads()-1) // Consider main thread as a worker
 {
-    _fixed_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
-    _moving_pyramids.resize(DF_MAX_IMAGE_PAIR_COUNT);
+    // Guess from settings, it will be resized later if too small
+    _fixed_pyramids.resize(settings.image_slots.size());
+    _moving_pyramids.resize(settings.image_slots.size());
 
     _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
 
@@ -179,10 +180,15 @@ void GpuRegistrationEngine::set_image_pair(
         const stk::Volume& fixed,
         const stk::Volume& moving)
 {
-    ASSERT(i < DF_MAX_IMAGE_PAIR_COUNT);
+    ASSERT(_fixed_pyramids.size() == _moving_pyramids.size());
     FATAL_IF(fixed.voxel_type() != stk::Type_Float ||
              moving.voxel_type() != stk::Type_Float)
         << "Unsupported format";
+
+    if (i >= (int) _fixed_pyramids.size()) {
+        _fixed_pyramids.resize(i + 1);
+        _moving_pyramids.resize(i + 1);
+    }
 
     _fixed_pyramids[i].set_level_count(_settings.num_pyramid_levels);
     _moving_pyramids[i].set_level_count(_settings.num_pyramid_levels);
