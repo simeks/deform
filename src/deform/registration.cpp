@@ -9,6 +9,8 @@
 
 #include "deform/command.h"
 
+#include <fstream>
+
 bool RegistrationCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
@@ -48,10 +50,22 @@ int RegistrationCommand::_execute(void)
     std::string param_file = _args.get<std::string>("param_file", "");
 
     Settings settings; // Default settings
+
     if (!param_file.empty()) {
+        std::ifstream f(param_file, std::ifstream::in);
+        if (!f.is_open()) {
+            LOG(Error) << "Failed to open parameter file '" << param_file << "'";
+            return EXIT_FAILURE;
+        }
+
+        std::stringstream param_str;
+        param_str << f.rdbuf();
+
         LOG(Info) << "Running with parameter file: '" << param_file << "'";
-        if (!parse_registration_file(param_file, settings))
-            return 1;
+        if (!parse_registration_settings(param_str.str(), settings))
+            return EXIT_FAILURE;
+
+        LOG(Info) << "Parameter file:" << std::endl << param_str.str();
     }
     else {
         LOG(Info) << "Running with default settings.";
@@ -123,7 +137,7 @@ int RegistrationCommand::_execute(void)
     else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
         // Just a check to make sure the user didn't forget something
         LOG(Error) << "No constraints used, to use constraints, specify both a mask and a vectorfield";
-        return 1;
+        return EXIT_FAILURE;
     }
 
     // Landmarks
@@ -145,7 +159,7 @@ int RegistrationCommand::_execute(void)
     }
     catch (ValidationError& e) {
         LOG(Error) << e.what();
-        return 1;
+        return EXIT_FAILURE;
     }
 
 #ifdef DF_USE_CUDA
