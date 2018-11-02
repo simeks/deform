@@ -65,7 +65,12 @@ int RegistrationCommand::_execute(void)
         if (!parse_registration_settings(param_str.str(), settings))
             return EXIT_FAILURE;
 
-        LOG(Info) << "Parameter file:" << std::endl << param_str.str();
+
+        if (stk::log_level() == stk::Verbose) {
+            print_registration_settings(settings);
+        } else {
+            LOG(Info) << "Parameters:" << std::endl << param_str.str();
+        }
     }
     else {
         LOG(Info) << "Running with default settings.";
