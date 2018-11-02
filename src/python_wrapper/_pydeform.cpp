@@ -420,6 +420,12 @@ py::array registration_wrapper(
         parse_registration_settings(settings_str, settings_);
     }
 
+    // Check number of image slots
+    if (settings_.image_slots.size() != fixed_images_.size()) {
+        LOG(Warning) << "Different number of images between input and settings!";
+        settings_.image_slots.resize(fixed_images_.size());
+    }
+
     // Perform registration
     stk::Volume displacement = registration(settings_,
                                             fixed_volumes,

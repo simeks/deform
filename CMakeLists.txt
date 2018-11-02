@@ -44,6 +44,9 @@ endif()
 
 if(DF_STACK_TRACE)
     set(DF_BUILD_WITH_DEBUG_INFO ON)
+    if(UNIX)
+        find_package(Backward)
+    endif()
 endif()
 
 project(deform)

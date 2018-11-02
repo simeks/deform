@@ -347,7 +347,7 @@ void print_registration_settings(const Settings& settings)
         LOG(Info) << "}";
     }
 
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+    for (int i = 0; i < (int) settings.image_slots.size(); ++i) {
         auto slot = settings.image_slots[i];
 
         // Dont print unused slots
@@ -375,6 +375,8 @@ void print_registration_settings(const Settings& settings)
 
 bool parse_registration_settings(const std::string& str, Settings& settings)
 {
+    settings = {}; // Clean up
+
     try {
 
         YAML::Node root = YAML::Load(str);
@@ -415,8 +417,8 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
 
         auto is = root["image_slots"];
         if (is && is.IsSequence()) {
-            for (size_t i = 0; i < is.size() && i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
-                settings.image_slots[i] = is[i].as<Settings::ImageSlot>();
+            for (size_t i = 0; i < is.size(); ++i) {
+                settings.image_slots.push_back(is[i].as<Settings::ImageSlot>());
             }
         }
     }

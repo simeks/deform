@@ -6,6 +6,8 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
+#include <regex>
 
 ArgParser::ArgParser(int argc, char* argv[]) :
     _argc(argc),
@@ -256,6 +258,41 @@ std::string ArgParser::positional(int i)
     return _positionals[i].read;
 }
 
+int ArgParser::count_instances(const std::string& name) const
+{
+    // Find option by name
+    auto const option = std::find_if(
+            _options.begin(),
+            _options.end(),
+            [&](const Option& o) {return std::string(o.name) == name;});
+    if (option == _options.end()) {
+        throw std::runtime_error("Unknown option '" + name + "'");
+    }
+
+    // Find matchers
+    std::vector<std::string> matchers{split_matchers(option->matchers)};
+    if (matchers.size() < 1) {
+        throw std::runtime_error("No matcher for option '" + name + "'");
+    }
+
+    // Build a regex /(m_1)|(m_2)|...|(m_k)/ for the matchers m_i
+    std::string pattern = std::accumulate(
+            matchers.begin() + 1,
+            matchers.end(),
+            "(" + matchers.begin()->substr(0, matchers.begin()->size()-3) + ")",
+            [](auto& a, auto& b) {return (std::string(a) + "|(" + b.substr(0, b.size()-3) + ")").c_str();});
+    std::regex re("^" + pattern + "[0-9]*$");
+
+    // Count instances
+    int count = 0;
+    for (int i = 1; i < _argc; ++i) {
+        if (std::regex_search(_argv[i], re)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 std::string ArgParser::error()
 {
     return _error.str();
@@ -272,7 +309,7 @@ bool ArgParser::check_collision(const char* name)
     return false;
 }
 
-std::vector<std::string> ArgParser::split_matchers(const char* in)
+std::vector<std::string> ArgParser::split_matchers(const char* in) const
 {
     std::vector<std::string> results;
     std::string tmp = in;
