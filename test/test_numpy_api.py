@@ -118,7 +118,11 @@ class Test_Numpy_API(unittest.TestCase):
         fixed = (_gauss3(size=(40, 50, 60), mu=(20, 25, 30), sigma=8) > 0.3).astype(np.float32)
         moving = (_gauss3(size=(40, 50, 60), mu=(30, 20, 25), sigma=8) > 0.3).astype(np.float32)
 
-        d = pydeform.register(fixed, moving)
+        settings = {
+            'regularization_weight': 0.05,
+        }
+
+        d = pydeform.register(fixed, moving, settings=settings)
 
         res = _transform(moving, d, interpolator=sitk.sitkNearestNeighbor)
 
