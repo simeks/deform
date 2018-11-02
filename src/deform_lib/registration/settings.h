@@ -88,10 +88,10 @@ struct Settings
         float landmarks_decay;
 
         Level() :
-            block_size(int3{12, 12, 12}),
+            block_size(int3{16, 16, 16}),
             block_energy_epsilon(1e-7f),
             max_iteration_count(-1),
-            regularization_weight(0.05f),
+            regularization_weight(0.5f),
             step_size({0.5f, 0.5f, 0.5f}),
             constraints_weight(1000.0f),
             landmarks_weight(1.0f),
