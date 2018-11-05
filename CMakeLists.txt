@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 
+project(deform)
+
 # path separator
 if(WIN32)
   set(SEP "\\;")
@@ -48,8 +50,6 @@ if(DF_STACK_TRACE)
         find_package(Backward)
     endif()
 endif()
-
-project(deform)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_STANDARD 17)
