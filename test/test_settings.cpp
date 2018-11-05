@@ -17,6 +17,7 @@ block_energy_epsilon: 0.00000000009
 max_iteration_count: 100
 step_size: 10.5
 regularization_weight: 0.5
+regularization_exponent: 1.5
 
 constraints_weight: 1234.1234
 
@@ -27,6 +28,7 @@ levels:
         max_iteration_count: 99
         step_size: 9.9
         regularization_weight: 9
+        regularization_exponent: 2.0
 
         constraints_weight: 999.999
 
@@ -306,7 +308,7 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].block_size.x == 9);
                 REQUIRE(settings.levels[i].block_size.y == 9);
                 REQUIRE(settings.levels[i].block_size.z == 9);
-                
+
                 REQUIRE(settings.levels[i].block_energy_epsilon == Approx(0.9));
                 REQUIRE(settings.levels[i].max_iteration_count == 99);
                 REQUIRE(settings.levels[i].step_size.x == Approx(9.9f));
@@ -314,13 +316,14 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].step_size.z == Approx(9.9f));
 
                 REQUIRE(settings.levels[i].regularization_weight == Approx(9.0f));
+                REQUIRE(settings.levels[i].regularization_exponent == Approx(2.0f));
                 REQUIRE(settings.levels[i].constraints_weight == Approx(999.999f));
             }
             else {
                 REQUIRE(settings.levels[i].block_size.x == 20);
                 REQUIRE(settings.levels[i].block_size.y == 24);
                 REQUIRE(settings.levels[i].block_size.z == 38);
-                
+
                 REQUIRE(settings.levels[i].block_energy_epsilon == Approx(0.00000000009));
                 REQUIRE(settings.levels[i].max_iteration_count == 100);
                 REQUIRE(settings.levels[i].step_size.x == Approx(10.5f));
@@ -328,76 +331,77 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].step_size.z == Approx(10.5f));
 
                 REQUIRE(settings.levels[i].regularization_weight == Approx(0.5f));
+                REQUIRE(settings.levels[i].regularization_exponent == Approx(1.5f));
                 REQUIRE(settings.levels[i].constraints_weight == Approx(1234.1234f));
             }
         }
 
-        REQUIRE(settings.image_slots[0].resample_method == 
+        REQUIRE(settings.image_slots[0].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[0].normalize == true);
-        REQUIRE(settings.image_slots[0].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_None);
-        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight ==
                 1.0f);
 
-        REQUIRE(settings.image_slots[1].resample_method == 
+        REQUIRE(settings.image_slots[1].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[1].normalize == true);
-        REQUIRE(settings.image_slots[1].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[1].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_SSD);
-        REQUIRE(settings.image_slots[1].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[1].cost_functions[0].weight ==
                 1.0f);
-        
-        REQUIRE(settings.image_slots[2].resample_method == 
+
+        REQUIRE(settings.image_slots[2].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[2].normalize == true);
-        REQUIRE(settings.image_slots[2].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[2].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[2].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[2].cost_functions[0].weight ==
                 1.0f);
-                
-        REQUIRE(settings.image_slots[3].resample_method == 
+
+        REQUIRE(settings.image_slots[3].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[3].normalize == false);
-        REQUIRE(settings.image_slots[3].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[3].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_None);
-        REQUIRE(settings.image_slots[3].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[3].cost_functions[0].weight ==
                 1.0f);
 
-        REQUIRE(settings.image_slots[4].resample_method == 
+        REQUIRE(settings.image_slots[4].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[4].normalize == false);
-        REQUIRE(settings.image_slots[4].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[4].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_SSD);
-        REQUIRE(settings.image_slots[4].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[4].cost_functions[0].weight ==
                 0.4f);
-        REQUIRE(settings.image_slots[4].cost_functions[1].function == 
+        REQUIRE(settings.image_slots[4].cost_functions[1].function ==
                 Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[4].cost_functions[1].weight == 
+        REQUIRE(settings.image_slots[4].cost_functions[1].weight ==
                 0.3f);
-        
-        REQUIRE(settings.image_slots[5].resample_method == 
+
+        REQUIRE(settings.image_slots[5].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[5].normalize == false);
-        REQUIRE(settings.image_slots[5].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[5].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[5].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[5].cost_functions[0].weight ==
                 1.0f);
 
-        REQUIRE(settings.image_slots[6].resample_method == 
+        REQUIRE(settings.image_slots[6].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[6].normalize == false);
-        REQUIRE(settings.image_slots[6].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[6].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_SSD);
-        REQUIRE(settings.image_slots[6].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[6].cost_functions[0].weight ==
                 1.0f);
 
-        REQUIRE(settings.image_slots[7].resample_method == 
+        REQUIRE(settings.image_slots[7].resample_method ==
                 Settings::ImageSlot::Resample_Gaussian);
         REQUIRE(settings.image_slots[7].normalize == false);
-        REQUIRE(settings.image_slots[7].cost_functions[0].function == 
+        REQUIRE(settings.image_slots[7].cost_functions[0].function ==
                 Settings::ImageSlot::CostFunction_None);
-        REQUIRE(settings.image_slots[7].cost_functions[0].weight == 
+        REQUIRE(settings.image_slots[7].cost_functions[0].weight ==
                 1.0f);
     }
     SECTION("no_file")
