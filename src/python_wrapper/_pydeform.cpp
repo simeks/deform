@@ -12,6 +12,7 @@
 
 #include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
+#include <deform_lib/version.h>
 
 #include <deform_lib/registration/settings.h>
 #include <deform_lib/registration/registration.h>
@@ -322,6 +323,7 @@ py::array registration_wrapper(
     std::unique_ptr<std::ostream> out_stream;
     stk::log_init(silent);
     add_logger(log, log_level, buffer, out_stream);
+    LOG(Info) << deform::version_string();
 
     // Handle single images passed as objects, without a container
     std::vector<py::array> fixed_images_;
