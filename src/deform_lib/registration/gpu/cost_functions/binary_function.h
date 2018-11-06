@@ -5,12 +5,16 @@
 class GpuBinaryFunction
 {
 public:
-    GpuBinaryFunction() : _weight(0.0f), _spacing{0, 0, 0} {}
+    GpuBinaryFunction() : _weight(0.0f), _half_exponent(1.0f), _spacing{0, 0, 0} {}
     ~GpuBinaryFunction() {}
 
     void set_regularization_weight(float weight)
     {
         _weight = weight;
+    }
+    void set_regularization_exponent(float exponent)
+    {
+        _half_exponent = 0.5f * exponent;
     }
     void set_fixed_spacing(const float3& spacing)
     {
@@ -52,6 +56,7 @@ public:
 
 private:
     float _weight;
+    float _half_exponent;
     float3 _spacing;
 
     stk::GpuVolume _initial;
