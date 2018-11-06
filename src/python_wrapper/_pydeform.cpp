@@ -418,6 +418,12 @@ py::array registration_wrapper(
         py::object py_settings_str = py_yaml_dump(py::cast<py::dict>(settings));
         std::string settings_str = py::cast<std::string>(py_settings_str);
         parse_registration_settings(settings_str, settings_);
+
+        // Print only contents of parameter file to Info
+        LOG(Info) << "Parameters:" << std::endl << settings_str;
+
+        // Print all settings to Verbose
+        print_registration_settings(settings_, stk::LogMessage(stk::Verbose).stream());
     }
 
     // Perform registration
