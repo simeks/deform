@@ -91,7 +91,7 @@ struct Settings
             block_size(int3{16, 16, 16}),
             block_energy_epsilon(1e-7f),
             max_iteration_count(-1),
-            regularization_weight(0.5f),
+            regularization_weight(0.25f),
             step_size({0.5f, 0.5f, 0.5f}),
             constraints_weight(1000.0f),
             landmarks_weight(1.0f),
@@ -123,7 +123,7 @@ struct Settings
 };
 
 // Prints the settings to the log in a human-readable format
-void print_registration_settings(const Settings& settings);
+void print_registration_settings(const Settings& settings, std::ostream& s);
 
 // Return true if parsing was successful, false if not
 bool parse_registration_file(const std::string& parameter_file, Settings& settings);
