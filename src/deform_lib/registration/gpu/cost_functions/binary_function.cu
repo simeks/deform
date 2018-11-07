@@ -7,6 +7,7 @@ __global__ void regularizer_kernel(
     cuda::VolumePtr<float4> initial_df,
     float3 delta,
     float weight,
+    float scale,
     float half_exponent,
     int3 offset,
     int3 dims,
@@ -46,15 +47,15 @@ __global__ void regularizer_kernel(
 
             float4 diff_00 = d - dx;
             float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-            dist2_00 = pow(dist2_00, half_exponent);
+            dist2_00 = pow(scale * dist2_00, half_exponent);
 
             float4 diff_01 = d - (dx+delta4);
             float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-            dist2_01 = pow(dist2_01, half_exponent);
+            dist2_01 = pow(scale * dist2_01, half_exponent);
 
             float4 diff_10 = (d+delta4) - dx;
             float dist2_10 = diff_10.x*diff_10.x + diff_10.y*diff_10.y + diff_10.z*diff_10.z;
-            dist2_10 = pow(dist2_10, half_exponent);
+            dist2_10 = pow(scale * dist2_10, half_exponent);
 
             o_x.x = dist2_00;
             o_x.y = dist2_01;
@@ -66,15 +67,15 @@ __global__ void regularizer_kernel(
 
             float4 diff_00 = d - dy;
             float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-            dist2_00 = pow(dist2_00, half_exponent);
+            dist2_00 = pow(scale * dist2_00, half_exponent);
 
             float4 diff_01 = d - (dy+delta4);
             float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-            dist2_01 = pow(dist2_01, half_exponent);
+            dist2_01 = pow(scale * dist2_01, half_exponent);
 
             float4 diff_10 = (d+delta4) - dy;
             float dist2_10 = diff_10.x*diff_10.x + diff_10.y*diff_10.y + diff_10.z*diff_10.z;
-            dist2_10 = pow(dist2_10, half_exponent);
+            dist2_10 = pow(scale * dist2_10, half_exponent);
 
             o_y.x = dist2_00;
             o_y.y = dist2_01;
@@ -86,15 +87,15 @@ __global__ void regularizer_kernel(
 
             float4 diff_00 = d - dz;
             float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-            dist2_00 = pow(dist2_00, half_exponent);
+            dist2_00 = pow(scale * dist2_00, half_exponent);
 
             float4 diff_01 = d - (dz+delta4);
             float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-            dist2_01 = pow(dist2_01, half_exponent);
+            dist2_01 = pow(scale * dist2_01, half_exponent);
 
             float4 diff_10 = (d+delta4) - dz;
             float dist2_10 = diff_10.x*diff_10.x + diff_10.y*diff_10.y + diff_10.z*diff_10.z;
-            dist2_10 = pow(dist2_10, half_exponent);
+            dist2_10 = pow(scale * dist2_10, half_exponent);
 
             o_z.x = dist2_00;
             o_z.y = dist2_01;
@@ -113,11 +114,11 @@ __global__ void regularizer_kernel(
 
         float4 diff_00 = d - dx;
         float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-        dist2_00 = pow(dist2_00, half_exponent);
+        dist2_00 = pow(scale * dist2_00, half_exponent);
 
         float4 diff_01 = (d+delta4) - dx;
         float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-        dist2_01 = pow(dist2_01, half_exponent);
+        dist2_01 = pow(scale * dist2_01, half_exponent);
 
         cost_x(gx-1,gy,gz).x = weight*inv_spacing2_exp.x*dist2_00;
         cost_x(gx-1,gy,gz).y = weight*inv_spacing2_exp.x*dist2_01;
@@ -130,11 +131,11 @@ __global__ void regularizer_kernel(
 
         float4 diff_00 = d - dy;
         float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-        dist2_00 = pow(dist2_00, half_exponent);
+        dist2_00 = pow(scale * dist2_00, half_exponent);
 
         float4 diff_01 = (d+delta4) - dy;
         float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-        dist2_01 = pow(dist2_01, half_exponent);
+        dist2_01 = pow(scale * dist2_01, half_exponent);
 
         cost_y(gx,gy-1,gz).x = weight*inv_spacing2_exp.y*dist2_00;
         cost_y(gx,gy-1,gz).y = weight*inv_spacing2_exp.y*dist2_01;
@@ -147,11 +148,11 @@ __global__ void regularizer_kernel(
 
         float4 diff_00 = d - dz;
         float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-        dist2_00 = pow(dist2_00, half_exponent);
+        dist2_00 = pow(scale * dist2_00, half_exponent);
 
         float4 diff_01 = (d+delta4) - dz;
         float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-        dist2_01 = pow(dist2_01, half_exponent);
+        dist2_01 = pow(scale * dist2_01, half_exponent);
 
         cost_z(gx,gy,gz-1).x = weight*inv_spacing2_exp.z*dist2_00;
         cost_z(gx,gy,gz-1).y = weight*inv_spacing2_exp.z*dist2_01;
@@ -200,6 +201,7 @@ void GpuBinaryFunction::operator()(
             _initial,
             delta,
             _weight,
+            _scale,
             _half_exponent,
             offset,
             dims,

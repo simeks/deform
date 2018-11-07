@@ -26,6 +26,7 @@ block_size: [12, 12, 12]
 block_energy_epsilon: 0.001
 step_size: 0.5
 regularization_weight: 0.05
+regularization_scale: 1.0
 regularization_exponent: 2.0
 
 levels:
@@ -296,6 +297,10 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
         out.regularization_weight = node["regularization_weight"].as<float>();
     }
 
+    if (node["regularization_scale"]) {
+        out.regularization_scale = node["regularization_scale"].as<float>();
+    }
+
     if (node["regularization_exponent"]) {
         out.regularization_exponent = node["regularization_exponent"].as<float>();
     }
@@ -347,6 +352,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
         s << "  step_size = " << settings.levels[l].step_size;
         s << "  regularization_weight = " << settings.levels[l].regularization_weight;
         s << "  constraints_weight = " << settings.levels[l].constraints_weight;
+        s << "  regularization_scale = " << settings.levels[l].regularization_scale;
         s << "  regularization_exponent = " << settings.levels[l].regularization_exponent;
         s << "  landmarks_weight = " << settings.levels[l].landmarks_weight;
         s << "  landmarks_decay = " << settings.levels[l].landmarks_decay;

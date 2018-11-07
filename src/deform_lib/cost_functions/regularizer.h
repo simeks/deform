@@ -8,16 +8,27 @@
 
 struct Regularizer
 {
-    Regularizer(float weight=0.0f, float exponent=1.0f, const float3& spacing={1.0f, 1.0f, 1.0f}) :
-        _weight(weight), _half_exponent(0.5f * exponent), _spacing(spacing)
+    Regularizer(
+            const float weight=0.0f,
+            const float scale=1.0f,
+            float exponent=1.0f,
+            const float3& spacing={1.0f, 1.0f, 1.0f})
+        : _weight(weight)
+        , _scale(scale)
+        , _half_exponent(0.5f * exponent)
+        , _spacing(spacing)
     {
     }
 
     virtual ~Regularizer() {}
 
-    void set_regularization_weight(float weight)
+    void set_regularization_weight(const float weight)
     {
         _weight = weight;
+    }
+    void set_regularization_scale(const float scale)
+    {
+        _scale = scale;
     }
     void set_regularization_exponent(const float exponent)
     {
@@ -57,7 +68,7 @@ struct Regularizer
         float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
 
         float dist_squared = stk::norm2(diff);
-        float step_squared = stk::norm2(step_in_mm);
+        float step_squared = _scale * stk::norm2(step_in_mm);
 
         float w = _weight;
 
@@ -77,6 +88,7 @@ struct Regularizer
     }
 
     float _weight;
+    float _scale;
     float _half_exponent;
     float3 _spacing;
 

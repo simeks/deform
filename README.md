@@ -83,6 +83,7 @@ block_energy_epsilon: 1e-7
 max_iteration_count: -1
 step_size: 0.5
 regularization_weight: 0.1
+regularization_scale: 1.0
 regularization_exponent: 2.0
 
 levels:
@@ -158,11 +159,12 @@ single `float` value, in that case the same step size will be used in all
 directions, or a sequence `[sx, sy, sz]` of three `float` specifying the size
 for each direction.
 
-`regularization_weight` and `regularization_exponent` control the importance of
-the regularization term. The cost function is specified as `cost = D +
-a*(R^b)`, where `D = Σa_i*C_i` is the data term given by the cost functions
-`C_i` with weights `a_i`, `R` is the regularization term, `a` is the
-regularization weight and `b` the regularization exponent.
+`regularization_weight`, `regularization_scale`, and `regularization_exponent`
+control the importance of the regularization term. The cost function is
+specified as `cost = D + a*((b*R)^c)`, where `D = Σw_i*C_i` is the data term
+given by the cost functions `C_i` with weights `w_i`, `R` is the regularization
+term, `a` is the regularization weight, `b` the regularization scale, and `c`
+the regularization exponent.
 
 `levels`, specifies parameters on a per-level basis. The key indicates which
 level the parameters apply to, where 0 is the bottom of the resolution pyramid
