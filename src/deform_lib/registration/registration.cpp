@@ -104,7 +104,6 @@ stk::Volume registration(
         omp_set_num_threads(num_threads);
     }
 
-    print_registration_settings(settings);
     TEngine engine(settings);
 
     // Rules:

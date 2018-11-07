@@ -327,24 +327,24 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
 }
 
 
-void print_registration_settings(const Settings& settings)
+void print_registration_settings(const Settings& settings, std::ostream& s)
 {
-    LOG(Info) << "Settings:";
-    LOG(Info) << "pyramid_stop_level = " << settings.pyramid_stop_level;
-    LOG(Info) << "num_pyramid_levels = " << settings.num_pyramid_levels;
-    LOG(Info) << "landmarks_stop_level = " << settings.landmarks_stop_level;
+    s << "Settings:";
+    s << "pyramid_stop_level = " << settings.pyramid_stop_level;
+    s << "num_pyramid_levels = " << settings.num_pyramid_levels;
+    s << "landmarks_stop_level = " << settings.landmarks_stop_level;
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
-        LOG(Info) << "level[" << l << "] = {";
-        LOG(Info) << "  block_size = " << settings.levels[l].block_size;
-        LOG(Info) << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon;
-        LOG(Info) << "  max_iteration_count = " << settings.levels[l].max_iteration_count;
-        LOG(Info) << "  step_size = " << settings.levels[l].step_size;
-        LOG(Info) << "  regularization_weight = " << settings.levels[l].regularization_weight;
-        LOG(Info) << "  constraints_weight = " << settings.levels[l].constraints_weight;
-        LOG(Info) << "  landmarks_weight = " << settings.levels[l].landmarks_weight;
-        LOG(Info) << "  landmarks_decay = " << settings.levels[l].landmarks_decay;
-        LOG(Info) << "}";
+        s << "level[" << l << "] = {";
+        s << "  block_size = " << settings.levels[l].block_size;
+        s << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon;
+        s << "  max_iteration_count = " << settings.levels[l].max_iteration_count;
+        s << "  step_size = " << settings.levels[l].step_size;
+        s << "  regularization_weight = " << settings.levels[l].regularization_weight;
+        s << "  constraints_weight = " << settings.levels[l].constraints_weight;
+        s << "  landmarks_weight = " << settings.levels[l].landmarks_weight;
+        s << "  landmarks_decay = " << settings.levels[l].landmarks_decay;
+        s << "}";
     }
 
     for (int i = 0; i < (int) settings.image_slots.size(); ++i) {
@@ -356,19 +356,19 @@ void print_registration_settings(const Settings& settings)
             continue;
         }
 
-        LOG(Info) << "image_slot[" << i << "] = {";
-        LOG(Info) << "  resample_method = " << resample_method_to_str(slot.resample_method);
-        LOG(Info) << "  normalize = " << (slot.normalize ? "true" : "false");
-        LOG(Info) << "  cost_functions = {";
+        s << "image_slot[" << i << "] = {";
+        s << "  resample_method = " << resample_method_to_str(slot.resample_method);
+        s << "  normalize = " << (slot.normalize ? "true" : "false");
+        s << "  cost_functions = {";
         for (size_t j = 0; j < slot.cost_functions.size(); ++j) {
-            LOG(Info) << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": ";
-            LOG(Info) << "      weight: " << slot.cost_functions[j].weight;
+            s << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": ";
+            s << "      weight: " << slot.cost_functions[j].weight;
             for (const auto& [k, v] : slot.cost_functions[j].parameters) {
-                LOG(Info) << "      " << k << ": " << v;
+                s << "      " << k << ": " << v;
             }
         }
-        LOG(Info) << "  }";
-        LOG(Info) << "}";
+        s << "  }";
+        s << "}";
     }
 }
 
