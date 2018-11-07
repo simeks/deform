@@ -1,5 +1,7 @@
 #include "catch.hpp"
 
+#include <initializer_list>
+
 #include <deform_lib/arg_parser.h>
 
 namespace {
@@ -37,7 +39,7 @@ TEST_CASE("args", "")
             "-a0", "value0",
             "--array1", "value1",
             "-a2", "value2",
-            
+
             "cmd1",
             "cmd2"
         };
@@ -77,13 +79,13 @@ TEST_CASE("args", "")
         int argc = 5;
         const char * argv[] = {
             "test.exe",
-            
+
             "-a", "value0",
-            
+
             "cmd1",
             "cmd2"
         };
-        
+
         ArgParser parser(argc, const_cast<char**>(argv));
         init_parser(parser);
         REQUIRE(parser.parse());
@@ -104,7 +106,7 @@ TEST_CASE("args", "")
             "-a0", "value0",
             "--array1", "value1",
             "-a2", "value2",
-            
+
             "--unexpected", "asd",
 
             "cmd1",
@@ -146,7 +148,7 @@ TEST_CASE("args", "")
 
             "cmd1",
             "cmd2",
-            
+
             "--named",
             "--flag",
         };
@@ -165,7 +167,7 @@ TEST_CASE("args", "")
 
             "cmd1",
             "cmd2",
-            
+
             "--named",
         };
         ArgParser parser(argc, const_cast<char**>(argv));
@@ -210,6 +212,36 @@ TEST_CASE("args", "")
         REQUIRE(parser.get<float>("array1", 0.5f) == Approx(0.5f));
         REQUIRE(parser.get<double>("array2", 0.5) == Approx(0.5));
         REQUIRE(parser.get<std::string>("array3", "tmp") == "tmp");
+    }
+    SECTION("count_instances")
+    {
+        auto const test_case = [](const std::initializer_list<std::string> args, const int expected) {
+            std::vector<std::string> ss {
+                "test.exe",
+
+                "-n", "321",
+                "-n2", "1.5",
+                "-n3", "value0",
+
+                "cmd1",
+                "cmd2"
+            };
+
+            ss.insert(ss.end(), args.begin(), args.end());
+
+            std::vector<const char*> strings;
+            std::for_each(ss.begin(), ss.end(), [&](const std::string& s) {strings.push_back(s.c_str());});
+
+            ArgParser parser(strings.size(), const_cast<char**>(strings.data()));
+            init_parser(parser);
+            parser.parse();
+
+            REQUIRE(parser.count_instances("array{i}") == expected);
+        };
+
+        test_case({"-a0"}, 1);
+        test_case({"-a0", "foo"}, 1);
+        test_case({"-a0", "-a1", "-a2", "-a3"}, 4);
     }
 
 }

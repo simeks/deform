@@ -110,6 +110,9 @@ public:
     //  name of the executable.
     std::string positional(int i);
 
+    // Count the number of instances of an array option
+    int count_instances(const std::string& name) const;
+
     // Returns the last error.
     std::string error();
 
@@ -144,7 +147,7 @@ private:
     bool check_collision(const char* name);
 
     // Splits a string of matchers ("-f, --flag, --flag2") to a vector of strings
-    std::vector<std::string> split_matchers(const char* in);
+    std::vector<std::string> split_matchers(const char* in) const;
 
     // Returns true if the specified option matches the given option, false if not
     // If a match is found, the key in which to store the command-line argument is

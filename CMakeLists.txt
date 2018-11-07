@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 
+project(deform)
+
 # path separator
 if(WIN32)
   set(SEP "\\;")
@@ -28,6 +30,7 @@ option(DF_BUILD_WITH_DEBUG_INFO "Include debug info in release builds" OFF)
 option(DF_ENABLE_FAST_MATH "Enable fast math" OFF)
 option(DF_ITK_BRIDGE "Add support to interoperate with ITK" OFF)
 option(DF_STACK_TRACE "Print a stack trace on errors" OFF)
+option(DF_SIGNAL_HANDLER "Enable signal handling (unsafe, for debug only)" OFF)
 option(DF_NON_PORTABLE "Enable non-portable optimisations" ON)
 
 option(DF_ENABLE_MICROPROFILE "Enable microprofile profiler" OFF)
@@ -42,11 +45,17 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-if(DF_STACK_TRACE)
-    set(DF_BUILD_WITH_DEBUG_INFO ON)
+if(DF_SIGNAL_HANDLER)
+    set(DF_STACK_TRACE ON)
+    add_definitions(-DDF_SIGNAL_HANDLER)
 endif()
 
-project(deform)
+if(DF_STACK_TRACE)
+    set(DF_BUILD_WITH_DEBUG_INFO ON)
+    if(UNIX)
+        find_package(Backward)
+    endif()
+endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_STANDARD 17)

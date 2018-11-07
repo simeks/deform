@@ -95,6 +95,8 @@ stk::Volume registration(
         const int num_threads
 )
 {
+    ASSERT(fixed_volumes.size() == moving_volumes.size());
+
     LOG(Info) << "Running registration";
 
     if (num_threads > 0) {
@@ -119,7 +121,7 @@ stk::Volume registration(
     stk::Volume moving_ref; // Reference volume for computing the jacobian
 
     // Input images
-    for (size_t i = 0; i < fixed_volumes.size() && i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+    for (size_t i = 0; i < fixed_volumes.size(); ++i) {
         std::string fixed_id = "fixed" + std::to_string(i);
         std::string moving_id = "moving" + std::to_string(i);
 

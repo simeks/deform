@@ -111,7 +111,7 @@ struct Settings
     // Last level for which landmarks are used
     int landmarks_stop_level;
 
-    ImageSlot image_slots[DF_MAX_IMAGE_PAIR_COUNT];
+    std::vector<ImageSlot> image_slots;
 
     Settings() :
         pyramid_stop_level(0),

@@ -79,7 +79,18 @@ int RegistrationCommand::_execute(void)
     std::vector<stk::Volume> fixed_volumes;
     std::vector<stk::Volume> moving_volumes;
 
-    for (int i = 0; i < DF_MAX_IMAGE_PAIR_COUNT; ++i) {
+    const int image_pair_count = _args.count_instances("fixed{i}");
+    if (_args.count_instances("moving{i}") != image_pair_count) {
+        LOG(Fatal) << "Mismatching number of fixed and moving images.";
+        return EXIT_FAILURE;
+    }
+
+    if ((int) settings.image_slots.size() != image_pair_count) {
+        LOG(Warning) << "Different number of images between input and settings!";
+        settings.image_slots.resize(image_pair_count);
+    }
+
+    for (int i = 0; i < image_pair_count; ++i) {
         std::string fixed_id = "fixed" + std::to_string(i);
         std::string moving_id = "moving" + std::to_string(i);
 
