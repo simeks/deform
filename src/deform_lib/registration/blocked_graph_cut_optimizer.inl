@@ -1,6 +1,6 @@
 #include "block_change_flags.h"
 #include "../config.h"
-#include "../graph_cut/graph_cut.h"
+#include "../optimiser/graph_cut.h"
 #include "../profiler/profiler.h"
 
 #include <stk/common/log.h>

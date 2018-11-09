@@ -16,11 +16,11 @@ set(DEFORM_LIB_SRCS
     "filters/resample.cpp"
     "filters/resample.h"
 
-    "graph_cut/graph_cut.h"
-    "graph_cut/graph_cut.inl"
-
-    "graph_cut/graph_cut.h"
-    "graph_cut/graph_cut.inl"
+    "optimiser/optimiser.h"
+    "optimiser/graph_cut.h"
+    "optimiser/graph_cut.inl"
+    "optimiser/qpbo.h"
+    "optimiser/qpbo.inl"
 
     "registration/block_change_flags.cpp"
     "registration/block_change_flags.h"
@@ -99,7 +99,7 @@ add_dependencies(deform_lib FetchGitVersion)
 
 target_include_directories(deform_lib PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} "${CMAKE_BINARY_DIR}/src")
 
-target_link_libraries(deform_lib stk yaml-cpp gco)
+target_link_libraries(deform_lib stk yaml-cpp gco qpbo)
 
 if (DF_ENABLE_NVTOOLSEXT)
     target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})

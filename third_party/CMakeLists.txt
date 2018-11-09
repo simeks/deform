@@ -43,3 +43,19 @@ endif()
 
 add_library(gco INTERFACE)
 target_include_directories(gco INTERFACE gco-v3.0)
+
+add_library(qpbo STATIC)
+target_include_directories(qpbo PUBLIC QPBO-v1.4)
+target_sources(qpbo PRIVATE
+    "QPBO-v1.4/QPBO.cpp"
+    "QPBO-v1.4/QPBO_maxflow.cpp"
+    "QPBO-v1.4/QPBO_postprocessing.cpp"
+    "QPBO-v1.4/QPBO_extra.cpp"
+    )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set_target_properties(qpbo PROPERTIES COMPILE_FLAGS
+        "-Wno-reorder -Wno-unused-but-set-variable -Wno-parentheses"
+        )
+endif()
+
