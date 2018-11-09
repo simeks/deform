@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stk/math/math.h>
+
 /// Interface for using the GCO graph cut solver.
 
 #if defined(__GNUC__) || defined(__clang__)

@@ -1,3 +1,5 @@
+#pragma once
+
 template<typename T>
 GraphCut<T>::GraphCut(const int3& size) :
     _e(size.x * size.y * size.z, size.x * size.y * size.z * 3),
