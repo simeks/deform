@@ -97,8 +97,7 @@ add_library(deform_lib STATIC ${DEFORM_LIB_SRCS})
 
 add_dependencies(deform_lib FetchGitVersion)
 
-target_include_directories(deform_lib PRIVATE "${CMAKE_BINARY_DIR}/src")
-target_include_directories(deform_lib PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+target_include_directories(deform_lib PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} "${CMAKE_BINARY_DIR}/src")
 
 target_link_libraries(deform_lib stk yaml-cpp gco)
 

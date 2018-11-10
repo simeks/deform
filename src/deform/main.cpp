@@ -33,7 +33,8 @@
 
 #include "deform/command.h"
 
-#ifdef DF_USE_BACKWARD
+// NOTE: signal handling is unsafe and may generate deadlocks. Caveat emptor.
+#if defined(DF_SIGNAL_HANDLER) && defined(DF_USE_BACKWARD)
     #include "backward.hpp"
     namespace backward {
         backward::SignalHandling sh;
@@ -72,7 +73,7 @@ int main(int argc, char* argv[])
     defer{PROFILER_SHUTDOWN();};
 
     for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "-v") == 0 || std::strcmp(argv[i], "--version") == 0) {
+        if (std::strcmp(argv[i], "--version") == 0) {
             print_version();
             return EXIT_SUCCESS;
         }
