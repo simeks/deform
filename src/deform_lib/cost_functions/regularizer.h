@@ -8,16 +8,31 @@
 
 struct Regularizer
 {
-    Regularizer(float weight=0.0f, const float3& spacing={1.0f, 1.0f, 1.0f}) :
-        _weight(weight), _spacing(spacing)
+    Regularizer(
+            const float weight=0.0f,
+            const float scale=1.0f,
+            float exponent=1.0f,
+            const float3& spacing={1.0f, 1.0f, 1.0f})
+        : _weight(weight)
+        , _scale(scale)
+        , _half_exponent(0.5f * exponent)
+        , _spacing(spacing)
     {
     }
 
     virtual ~Regularizer() {}
 
-    void set_regularization_weight(float weight)
+    void set_regularization_weight(const float weight)
     {
         _weight = weight;
+    }
+    void set_regularization_scale(const float scale)
+    {
+        _scale = scale;
+    }
+    void set_regularization_exponent(const float exponent)
+    {
+        _half_exponent = 0.5f * exponent;
     }
     void set_fixed_spacing(const float3& spacing)
     {
@@ -53,7 +68,7 @@ struct Regularizer
         float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
 
         float dist_squared = stk::norm2(diff);
-        float step_squared = stk::norm2(step_in_mm);
+        float step_squared = _scale * stk::norm2(step_in_mm);
 
         float w = _weight;
 
@@ -69,10 +84,12 @@ struct Regularizer
                 w = 0.5f*(_weight_map(p) + _weight_map(p+step));
         #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
-        return w * dist_squared / step_squared;
+        return w * std::pow(dist_squared / step_squared, _half_exponent);
     }
 
     float _weight;
+    float _scale;
+    float _half_exponent;
     float3 _spacing;
 
     stk::VolumeFloat3 _initial;

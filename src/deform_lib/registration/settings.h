@@ -73,6 +73,8 @@ struct Settings
 
         // Only considered if no weight map is given
         float regularization_weight;
+        float regularization_scale;
+        float regularization_exponent;
 
         // Step size in [mm]
         float3 step_size;
@@ -92,6 +94,8 @@ struct Settings
             block_energy_epsilon(1e-7f),
             max_iteration_count(-1),
             regularization_weight(0.25f),
+            regularization_scale(1.0f),
+            regularization_exponent(2.0f),
             step_size({0.5f, 0.5f, 0.5f}),
             constraints_weight(1000.0f),
             landmarks_weight(1.0f),
