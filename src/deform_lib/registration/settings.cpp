@@ -385,6 +385,14 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
 }
 
 
+std::stringstream print_registration_settings(const Settings& settings)
+{
+    std::stringstream os;
+    print_registration_settings(settings, os);
+    return os;
+}
+
+
 bool parse_registration_settings(const std::string& str, Settings& settings)
 {
     settings = {}; // Clean up

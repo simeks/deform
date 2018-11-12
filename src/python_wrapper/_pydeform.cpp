@@ -425,7 +425,7 @@ py::array registration_wrapper(
         LOG(Info) << "Parameters:" << std::endl << settings_str;
 
         // Print all settings to Verbose
-        print_registration_settings(settings_, stk::LogMessage(stk::Verbose).stream());
+        LOG(Verbose) << print_registration_settings(settings_).rdbuf();
     }
 
     // Check number of image slots
