@@ -6,7 +6,18 @@
 Optional
 * ISPC : https://ispc.github.io/
 
+## Download
+
+Retrieve the repository and associated dependencies by running
+
+```
+$ git clone https://github.com/simeks/deform.git
+$ cd deform
+$ git submodule update --init --recursive
+```
+
 ## Build
+
 Use CMake (>=3.8) to generate build options of your own choosing.
 
 If CMake cannot find the ISPC executable on your installation, it is possible
