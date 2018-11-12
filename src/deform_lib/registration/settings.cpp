@@ -339,24 +339,24 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
 
 void print_registration_settings(const Settings& settings, std::ostream& s)
 {
-    s << "Settings:";
-    s << "pyramid_stop_level = " << settings.pyramid_stop_level;
-    s << "num_pyramid_levels = " << settings.num_pyramid_levels;
-    s << "landmarks_stop_level = " << settings.landmarks_stop_level;
+    s << "Settings:" << std::endl;
+    s << "pyramid_stop_level = " << settings.pyramid_stop_level << std::endl;
+    s << "num_pyramid_levels = " << settings.num_pyramid_levels << std::endl;
+    s << "landmarks_stop_level = " << settings.landmarks_stop_level << std::endl;
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
-        s << "level[" << l << "] = {";
-        s << "  block_size = " << settings.levels[l].block_size;
-        s << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon;
-        s << "  max_iteration_count = " << settings.levels[l].max_iteration_count;
-        s << "  step_size = " << settings.levels[l].step_size;
-        s << "  regularization_weight = " << settings.levels[l].regularization_weight;
-        s << "  constraints_weight = " << settings.levels[l].constraints_weight;
-        s << "  regularization_scale = " << settings.levels[l].regularization_scale;
-        s << "  regularization_exponent = " << settings.levels[l].regularization_exponent;
-        s << "  landmarks_weight = " << settings.levels[l].landmarks_weight;
-        s << "  landmarks_decay = " << settings.levels[l].landmarks_decay;
-        s << "}";
+        s << "level[" << l << "] = {" << std::endl;
+        s << "  block_size = " << settings.levels[l].block_size << std::endl;
+        s << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon << std::endl;
+        s << "  max_iteration_count = " << settings.levels[l].max_iteration_count << std::endl;
+        s << "  step_size = " << settings.levels[l].step_size << std::endl;
+        s << "  regularization_weight = " << settings.levels[l].regularization_weight << std::endl;
+        s << "  constraints_weight = " << settings.levels[l].constraints_weight << std::endl;
+        s << "  regularization_scale = " << settings.levels[l].regularization_scale << std::endl;
+        s << "  regularization_exponent = " << settings.levels[l].regularization_exponent << std::endl;
+        s << "  landmarks_weight = " << settings.levels[l].landmarks_weight << std::endl;
+        s << "  landmarks_decay = " << settings.levels[l].landmarks_decay << std::endl;
+        s << "}" << std::endl;
     }
 
     for (int i = 0; i < (int) settings.image_slots.size(); ++i) {
@@ -368,19 +368,19 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
             continue;
         }
 
-        s << "image_slot[" << i << "] = {";
-        s << "  resample_method = " << resample_method_to_str(slot.resample_method);
-        s << "  normalize = " << (slot.normalize ? "true" : "false");
-        s << "  cost_functions = {";
+        s << "image_slot[" << i << "] = {" << std::endl;
+        s << "  resample_method = " << resample_method_to_str(slot.resample_method) << std::endl;
+        s << "  normalize = " << (slot.normalize ? "true" : "false") << std::endl;
+        s << "  cost_functions = {" << std::endl;
         for (size_t j = 0; j < slot.cost_functions.size(); ++j) {
-            s << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": ";
-            s << "      weight: " << slot.cost_functions[j].weight;
+            s << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": " << std::endl;
+            s << "      weight: " << slot.cost_functions[j].weight << std::endl;
             for (const auto& [k, v] : slot.cost_functions[j].parameters) {
-                s << "      " << k << ": " << v;
+                s << "      " << k << ": " << v << std::endl;
             }
         }
-        s << "  }";
-        s << "}";
+        s << "  }" << std::endl;
+        s << "}" << std::endl;
     }
 }
 
