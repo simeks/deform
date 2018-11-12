@@ -89,6 +89,7 @@ constraints_weight: 1000.0
 landmarks_weight: 1.0
 landmarks_decay: 2.0
 landmarks_stop_level: 0
+solver: gc
 block_size: [12, 12, 12]
 block_energy_epsilon: 1e-7
 max_iteration_count: -1
@@ -154,6 +155,12 @@ of the landmarks up to a certain height of the resolution pyramid by assigning
 to `landmarks_stop_level` a value greater than zero. `landmarks_decay` controls
 the exponential decay of the landmarks effect with respect to distance in image
 space: higher values correspond to faster decay.
+
+`solver` sets the solver for the graph energy minimisation problem. Can be
+`graph_cut` or `qpbo`. `graph_cut` provides a complete labelling, but requires
+sub-modular terms in order to run in polynomial time, while `qpbo` can optimise
+non-sub-modular terms, in which case it will generate a partial labelling that
+is guaranteed to be part of an optimal solution.
 
 `block_size` size of the block (in voxels) for the block-wise solver. A block
 size of (0,0,0) will result in a single block for the whole volume.

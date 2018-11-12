@@ -622,13 +622,26 @@ stk::Volume RegistrationEngine::execute()
             UnaryFunction unary_fn;
             build_unary_function(l, unary_fn);
 
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.levels[l].block_size,
-                _settings.levels[l].block_energy_epsilon,
-                _settings.levels[l].max_iteration_count
-            );
+            using FlowType = double;
 
-            optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            if (Settings::Solver::Solver_GC == _settings.levels[l].solver) {
+                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GraphCut<FlowType>> optimizer(
+                    _settings.levels[l].block_size,
+                    _settings.levels[l].block_energy_epsilon,
+                    _settings.levels[l].max_iteration_count
+                );
+
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            }
+            else if (Settings::Solver::Solver_QPBO == _settings.levels[l].solver) {
+                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, QPBO<FlowType>> optimizer(
+                    _settings.levels[l].block_size,
+                    _settings.levels[l].block_energy_epsilon,
+                    _settings.levels[l].max_iteration_count
+                );
+
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            }
         }
         else {
             LOG(Info) << "Skipping level " << l;

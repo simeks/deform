@@ -57,7 +57,7 @@
 	...
 
 	DBlock<MyType> *dblock = new DBlock<MyType>(BLOCK_SIZE);
-	
+
 	// adding items
 	for (int i=0; i<sizeof(array); i++)
 	{
@@ -89,10 +89,12 @@
 	deallocated only when the destructor is called.
 */
 
-#ifndef __BLOCK_H__
-#define __BLOCK_H__
+#ifndef __QPBO_BLOCK_H__
+#define __QPBO_BLOCK_H__
 
 #include <stdlib.h>
+
+namespace qpbo {
 
 /***********************************************************************/
 /***********************************************************************/
@@ -343,7 +345,7 @@ private:
 class Buffer
 {
 public:
-	Buffer(int _default_size, void (*err_function)(const char *) = NULL) 
+	Buffer(int _default_size, void (*err_function)(const char *) = NULL)
 		: default_size(_default_size), buf_first(NULL), error_function(err_function) {}
 	~Buffer()
 	{
@@ -385,5 +387,6 @@ private:
 	void	(*error_function)(const char *);
 };
 
-#endif
+} // namespace qpbo
 
+#endif

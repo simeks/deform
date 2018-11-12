@@ -22,6 +22,7 @@ pyramid_stop_level: 0
 
 constraints_weight: 1000
 
+solver: gc
 block_size: [12, 12, 12]
 block_energy_epsilon: 0.001
 step_size: 0.5
@@ -105,6 +106,35 @@ namespace YAML {
             }
 
             return true;
+        }
+    };
+
+    template<>
+    struct convert<Settings::Solver>
+    {
+        static bool decode(const Node& node, Settings::Solver& out) {
+            if(!node.IsScalar()) {
+                throw YAML::RepresentationException(node.Mark(), "expected solver");
+            }
+
+            std::string solver;
+            try {
+                solver = node.as<std::string>();
+            }
+            catch (YAML::TypedBadConversion<std::string> &) {
+                throw YAML::RepresentationException(node.Mark(), "expected solver");
+            }
+
+            if (solver == "gc" || solver == "graph_cut") {
+                out = Settings::Solver::Solver_GC;
+                return true;
+            }
+            else if (solver == "qpbo") {
+                out = Settings::Solver::Solver_QPBO;
+                return true;
+            }
+
+            throw YAML::RepresentationException(node.Mark(), "unrecognised resampler " + solver);
         }
     };
 
@@ -275,10 +305,24 @@ const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
     };
     return "none";
 }
+const char* solver_to_str(const Settings::Solver solver)
+{
+    switch (solver) {
+    case Settings::Solver::Solver_GC:
+        return "graph_cut";
+    case Settings::Solver::Solver_QPBO:
+        return "qpbo";
+    };
+    return "none";
+}
 
 static void parse_level(const YAML::Node& node, Settings::Level& out) {
     if(!node.IsMap()) {
         throw YAML::RepresentationException(node.Mark(), "expected level");
+    }
+
+    if (node["solver"]) {
+        out.solver = node["solver"].as<Settings::Solver>();
     }
 
     if (node["block_size"]) {
@@ -346,6 +390,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         s << "level[" << l << "] = {" << std::endl;
+        s << "  solver = " << settings.levels[l].solver << std::endl;
         s << "  block_size = " << settings.levels[l].block_size << std::endl;
         s << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon << std::endl;
         s << "  max_iteration_count = " << settings.levels[l].max_iteration_count << std::endl;

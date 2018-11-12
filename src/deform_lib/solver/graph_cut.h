@@ -1,6 +1,6 @@
 #pragma once
 
-#include "optimiser.h"
+#include "solver.h"
 
 /// Interface for using the GCO graph cut solver.
 
@@ -29,6 +29,15 @@
     #pragma warning(disable: 4706)
     #pragma warning(disable: 4463)
 #endif
+
+// Include all headers used by gco here, before including gco.
+// Otherwise, the symbols here defined will end up inside the gco
+// namespace.
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 namespace gco
 {
     // Prevent breaking the build in C++17, where register was removed.
@@ -49,19 +58,32 @@ namespace gco
 #endif
 
 template<typename T>
-class GraphCut : public Optimiser<T>
+class GraphCut : public Solver<T>
 {
 public:
     GraphCut(const int3& size);
     virtual ~GraphCut();
 
     virtual void add_term1(const int3& p, T e0, T e1);
-    virtual void add_term1(int x, int y, int z, T e0, T e1);
+    virtual void add_term1(const int x, const int y, const int z, T e0, T e1);
 
     virtual void add_term2(const int3& p1, const int3& p2, T e00, T e01, T e10, T e11);
-    virtual void add_term2(int x1, int y1, int z1,
-                   int x2, int y2, int z2,
-                   T e00, T e01, T e10, T e11);
+    virtual void add_term2(const int x1, const int y1, const int z1,
+                           const int x2, const int y2, const int z2,
+                           T e00, T e01, T e10, T e11);
+
+	virtual void add_term3(const int3& p1, const int3& p2, const int3& p3,
+	                       T e000, T e001,
+	                       T e010, T e011,
+	                       T e100, T e101,
+	                       T e110, T e111);
+	virtual void add_term3(const int x1, const int y1, const int z1,
+                           const int x2, const int y2, const int z2,
+                           const int x3, const int y3, const int z3,
+	                       T e000, T e001,
+	                       T e010, T e011,
+	                       T e100, T e101,
+	                       T e110, T e111);
 
     virtual T minimize();
 

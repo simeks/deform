@@ -16,11 +16,11 @@ set(DEFORM_LIB_SRCS
     "filters/resample.cpp"
     "filters/resample.h"
 
-    "optimiser/optimiser.h"
-    "optimiser/graph_cut.h"
-    "optimiser/graph_cut.inl"
-    "optimiser/qpbo.h"
-    "optimiser/qpbo.inl"
+    "solver/solver.h"
+    "solver/graph_cut.h"
+    "solver/graph_cut.inl"
+    "solver/qpbo.h"
+    "solver/qpbo.inl"
 
     "registration/block_change_flags.cpp"
     "registration/block_change_flags.h"

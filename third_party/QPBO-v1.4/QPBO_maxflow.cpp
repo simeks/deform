@@ -23,6 +23,8 @@
 #include "QPBO.h"
 
 
+namespace qpbo {
+
 
 #define INFINITE_D ((int)(((unsigned)-1)/2))		/* infinite distance to the terminal */
 
@@ -42,7 +44,7 @@
 */
 
 
-template <typename REAL> 
+template <typename REAL>
 	inline void QPBO<REAL>::set_active(Node *i)
 {
 	if (!i->next)
@@ -60,7 +62,7 @@ template <typename REAL>
 	If it is connected to the sink, it stays in the list,
 	otherwise it is removed from the list
 */
-template <typename REAL> 
+template <typename REAL>
 	inline typename QPBO<REAL>::Node* QPBO<REAL>::next_active()
 {
 	Node *i;
@@ -88,7 +90,7 @@ template <typename REAL>
 
 /***********************************************************************/
 
-template <typename REAL> 
+template <typename REAL>
 	inline void QPBO<REAL>::set_orphan_front(Node *i)
 {
 	nodeptr *np;
@@ -99,7 +101,7 @@ template <typename REAL>
 	orphan_first = np;
 }
 
-template <typename REAL> 
+template <typename REAL>
 	inline void QPBO<REAL>::set_orphan_rear(Node *i)
 {
 	nodeptr *np;
@@ -114,7 +116,7 @@ template <typename REAL>
 
 /***********************************************************************/
 
-template <typename REAL> 
+template <typename REAL>
 	inline void QPBO<REAL>::add_to_changed_list(Node *i)
 {
 	if (keep_changed_list)
@@ -131,7 +133,7 @@ template <typename REAL>
 
 /***********************************************************************/
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::maxflow_init()
 {
 	Node *i;
@@ -173,7 +175,7 @@ template <typename REAL>
 	}
 }
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::maxflow_reuse_trees_init()
 {
 	Node* i;
@@ -267,7 +269,7 @@ template <typename REAL>
 	//test_consistency();
 }
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::augment(Arc *middle_arc)
 {
 	Node *i;
@@ -336,7 +338,7 @@ template <typename REAL>
 
 /***********************************************************************/
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::process_source_orphan(Node *i)
 {
 	Node *j;
@@ -413,7 +415,7 @@ template <typename REAL>
 	}
 }
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::process_sink_orphan(Node *i)
 {
 	Node *j;
@@ -492,7 +494,7 @@ template <typename REAL>
 
 /***********************************************************************/
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::maxflow(bool reuse_trees, bool _keep_changed_list)
 {
 	Node *i, *j, *current_node = NULL;
@@ -627,8 +629,8 @@ template <typename REAL>
 
 	if (!reuse_trees || (maxflow_iteration % 64) == 0)
 	{
-		delete nodeptr_block; 
-		nodeptr_block = NULL; 
+		delete nodeptr_block;
+		nodeptr_block = NULL;
 	}
 
 	maxflow_iteration ++;
@@ -637,7 +639,7 @@ template <typename REAL>
 /***********************************************************************/
 
 
-template <typename REAL> 
+template <typename REAL>
 	void QPBO<REAL>::test_consistency(Node* current_node)
 {
 	Node *i;
@@ -722,5 +724,7 @@ template <typename REAL>
 		}
 	}
 }
+
+} // namespace qpbo
 
 #include "instances.inc"

@@ -3,7 +3,7 @@
 #include "hybrid_graph_cut_optimizer.h"
 #include "worker_pool.h"
 
-#include "deform_lib/optimiser/graph_cut.h"
+#include "deform_lib/solver/graph_cut.h"
 #include "deform_lib/profiler/profiler.h"
 
 #include <stk/cuda/stream.h>

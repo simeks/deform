@@ -1,6 +1,7 @@
 #include "block_change_flags.h"
 #include "../config.h"
-#include "../optimiser/graph_cut.h"
+#include "../solver/graph_cut.h"
+#include "../solver/qpbo.h"
 #include "../profiler/profiler.h"
 
 #include <stk/common/log.h>
@@ -9,9 +10,10 @@
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
 >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::BlockedGraphCutOptimizer(
     const int3& block_size,
     double block_energy_epsilon,
     int max_iteration_count) :
@@ -28,16 +30,18 @@ BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
 }
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
     >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::~BlockedGraphCutOptimizer()
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::~BlockedGraphCutOptimizer()
 {
 }
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
     >
-void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
+void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     float3 step_size,
@@ -182,9 +186,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
 >
-bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
+bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     const int3& block_p,
@@ -198,7 +203,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
     typedef double FlowType;
 
-    GraphCut<FlowType> graph(block_dims);
+    TSolver graph(block_dims);
 
     FlowType current_energy = 0;
     {
@@ -362,9 +367,10 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
 >
-double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
+double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::calculate_energy(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     stk::VolumeFloat3& def

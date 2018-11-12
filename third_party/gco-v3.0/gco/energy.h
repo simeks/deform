@@ -267,55 +267,55 @@ inline void Energy<captype,tcaptype,flowtype>::add_term3(Var x, Var y, Var z,
 	{
 		Econst += E111 - (E011 + E101 + E110);
 
-		add_tweights(x, E101, E001);
-		add_tweights(y, E110, E100);
-		add_tweights(z, E011, E010);
+		this->add_tweights(x, E101, E001);
+		this->add_tweights(y, E110, E100);
+		this->add_tweights(z, E011, E010);
 
 		delta = (E010 + E001) - (E000 + E011); /* -pi(E[x=0]) */
 		assert(delta >= 0); /* check regularity */
-		add_edge(y, z, delta, 0);
+		this->add_edge(y, z, delta, 0);
 
 		delta = (E100 + E001) - (E000 + E101); /* -pi(E[y=0]) */
 		assert(delta >= 0); /* check regularity */
-		add_edge(z, x, delta, 0);
+		this->add_edge(z, x, delta, 0);
 
 		delta = (E100 + E010) - (E000 + E110); /* -pi(E[z=0]) */
 		assert(delta >= 0); /* check regularity */
-		add_edge(x, y, delta, 0);
+		this->add_edge(x, y, delta, 0);
 
 		if (pi > 0)
 		{
-			u = add_variable();
-			add_edge(x, u, pi, 0);
-			add_edge(y, u, pi, 0);
-			add_edge(z, u, pi, 0);
-			add_tweights(u, 0, pi);
+			u = this->add_variable();
+			this->add_edge(x, u, pi, 0);
+			this->add_edge(y, u, pi, 0);
+			this->add_edge(z, u, pi, 0);
+			this->add_tweights(u, 0, pi);
 		}
 	}
 	else
 	{
 		Econst += E000 - (E100 + E010 + E001);
 
-		add_tweights(x, E110, E010);
-		add_tweights(y, E011, E001);
-		add_tweights(z, E101, E100);
+		this->add_tweights(x, E110, E010);
+		this->add_tweights(y, E011, E001);
+		this->add_tweights(z, E101, E100);
 
 		delta = (E110 + E101) - (E100 + E111); /* -pi(E[x=1]) */
 		assert(delta >= 0); /* check regularity */
-		add_edge(z, y, delta, 0);
+		this->add_edge(z, y, delta, 0);
 
 		delta = (E110 + E011) - (E010 + E111); /* -pi(E[y=1]) */
 		assert(delta >= 0); /* check regularity */
-		add_edge(x, z, delta, 0);
+		this->add_edge(x, z, delta, 0);
 
 		delta = (E101 + E011) - (E001 + E111); /* -pi(E[z=1]) */
 		assert(delta >= 0); /* check regularity */
-		add_edge(y, x, delta, 0);
+		this->add_edge(y, x, delta, 0);
 
-		u = add_variable();
-		add_edge(u, x, -pi, 0);
-		add_edge(u, y, -pi, 0);
-		add_edge(u, z, -pi, 0);
+		u = this->add_variable();
+		this->add_edge(u, x, -pi, 0);
+		this->add_edge(u, y, -pi, 0);
+		this->add_edge(u, z, -pi, 0);
 		this->add_tweights(u, -pi, 0);
 	}
 }

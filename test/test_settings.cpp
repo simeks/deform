@@ -12,6 +12,7 @@ const char* sample_settings = R"(
 pyramid_levels: 4
 pyramid_stop_level: 2
 
+solver: gc
 block_size: [20, 24, 38]
 block_energy_epsilon: 0.00000000009
 max_iteration_count: 100
@@ -24,6 +25,7 @@ constraints_weight: 1234.1234
 
 levels:
     3:
+        solver: qpbo
         block_size: [9,9,9]
         block_energy_epsilon: 0.9
         max_iteration_count: 99
@@ -307,6 +309,8 @@ TEST_CASE("parse_registration_file", "")
 
         for (int i = 0; i < settings.num_pyramid_levels; ++i) {
             if (i == 3) {
+                REQUIRE(settings.levels[i].solver == Settings::Solver::Solver_QPBO);
+
                 REQUIRE(settings.levels[i].block_size.x == 9);
                 REQUIRE(settings.levels[i].block_size.y == 9);
                 REQUIRE(settings.levels[i].block_size.z == 9);
@@ -323,6 +327,8 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].constraints_weight == Approx(999.999f));
             }
             else {
+                REQUIRE(settings.levels[i].solver == Settings::Solver::Solver_GC);
+
                 REQUIRE(settings.levels[i].block_size.x == 20);
                 REQUIRE(settings.levels[i].block_size.y == 24);
                 REQUIRE(settings.levels[i].block_size.z == 38);

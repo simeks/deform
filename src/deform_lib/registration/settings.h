@@ -58,9 +58,17 @@ struct Settings
             normalize{true} {}
     };
 
+    enum Solver {
+        Solver_GC,
+        Solver_QPBO
+    };
+
     struct Level
     {
         // Optimizer specific settings (Blocked graph cut):
+
+        // Solver for the graph energy minimisation problem
+        Solver solver;
 
         // Block size, (0,0,0) is the same as using only a single large block
         int3 block_size;
@@ -90,6 +98,7 @@ struct Settings
         float landmarks_decay;
 
         Level() :
+            solver(Solver_GC),
             block_size(int3{16, 16, 16}),
             block_energy_epsilon(1e-7f),
             max_iteration_count(-1),
