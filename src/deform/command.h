@@ -17,9 +17,7 @@ struct DeformCommand
     {}
 
     ~DeformCommand() {
-        if (_log_to_file) {
-            stk::log_shutdown();
-        }
+        stk::log_shutdown();
     }
 
     int execute(void) {
@@ -27,24 +25,27 @@ struct DeformCommand
             return -1;
         }
 
-        if (_log_to_file) {
-            stk::log_init();
+        stk::log_init();
 
+        // Read log level
+        const char * const log_level_p = std::getenv("DF_LOG_LEVEL");
+        stk::LogLevel log_level = stk::LogLevel::Info;
+        if (log_level_p) {
+            try {
+                log_level = stk::log_level_from_str(log_level_p);
+            }
+            catch (const std::runtime_error&) {
+                LOG(Error) << "Invalid value for the environment variable " <<
+                              "DF_LOG_LEVEL=' " << std::string(log_level_p);
+                return EXIT_FAILURE;
+            }
+        }
+
+        stk::log_add_stream(&std::cerr, log_level);
+
+        if (_log_to_file) {
             const char * const log_file_p = std::getenv("DF_LOG_FILE");
             const std::string log_file {log_file_p ? log_file_p : "deform_log.txt"};
-
-            const char * const log_level_p = std::getenv("DF_LOG_LEVEL");
-            stk::LogLevel log_level = stk::LogLevel::Info;
-            if (log_level_p) {
-                try {
-                    log_level = stk::log_level_from_str(log_level_p);
-                }
-                catch (const std::runtime_error&) {
-                    LOG(Error) << "Invalid value for the environment variable " <<
-                                  "DF_LOG_LEVEL=' " << std::string(log_level_p);
-                    return EXIT_FAILURE;
-                }
-            }
 
             stk::log_add_file(log_file.c_str(), log_level);
             LOG(Info) << "Version: " << deform::version_string();
