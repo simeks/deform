@@ -4,6 +4,7 @@
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/settings.h>
+#include <deform_lib/regularization/diffusion_regularizer.h>
 
 #include <stk/common/assert.h>
 #include <stk/common/log.h>
@@ -128,7 +129,7 @@ int run_cost(int argc, char* argv[])
     int level = args.get<int>("level", 0);
     LOG(Info) << "Level: " << level;
 
-    Regularizer binary_fn;
+    std::shared_ptr<Regularizer> binary_fn;
     engine.build_regularizer(level, binary_fn);
 
     UnaryFunction unary_fn;
@@ -154,15 +155,15 @@ int run_cost(int argc, char* argv[])
                 double3 b{0,0,0};
                 if (x + 1 < int(dims.x)) {
                     float3 def2 = def(x+1,y,z);
-                    b.x = binary_fn({x,y,z}, def1, def2, {1,0,0});
+                    b.x = (*binary_fn)({x,y,z}, {1,0,0}, def1, def2);
                 }
                 if (y + 1 < int(dims.y)) {
                     float3 def2 = def(x,y+1,z);
-                    b.y = binary_fn({x,y,z}, def1, def2, {0,1,0});
+                    b.y = (*binary_fn)({x,y,z}, {0,1,0}, def1, def2);
                 }
                 if (z + 1 < int(dims.z)) {
                     float3 def2 = def(x,y,z+1);
-                    b.z = binary_fn({x,y,z}, def1, def2, {0,0,1});
+                    b.z = (*binary_fn)({x,y,z}, {0,0,1}, def1, def2);
                 }
 
                 binary_cost(x,y,z) = b;

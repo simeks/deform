@@ -17,6 +17,7 @@ block_size: [20, 24, 38]
 block_energy_epsilon: 0.00000000009
 max_iteration_count: 100
 step_size: 10.5
+regularizer: diffusion
 regularization_weight: 0.5
 regularization_scale: 1.1
 regularization_exponent: 1.5
@@ -30,6 +31,7 @@ levels:
         block_energy_epsilon: 0.9
         max_iteration_count: 99
         step_size: 9.9
+        regularizer: diffusion
         regularization_weight: 9
         regularization_scale: 0.9
         regularization_exponent: 2.0
@@ -321,6 +323,7 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].step_size.y == Approx(9.9f));
                 REQUIRE(settings.levels[i].step_size.z == Approx(9.9f));
 
+                REQUIRE(settings.levels[i].regularizer == Settings::Regularizer::Regularizer_Diffusion);
                 REQUIRE(settings.levels[i].regularization_weight == Approx(9.0f));
                 REQUIRE(settings.levels[i].regularization_scale == Approx(0.9f));
                 REQUIRE(settings.levels[i].regularization_exponent == Approx(2.0f));
@@ -339,6 +342,7 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].step_size.y == Approx(10.5f));
                 REQUIRE(settings.levels[i].step_size.z == Approx(10.5f));
 
+                REQUIRE(settings.levels[i].regularizer == Settings::Regularizer::Regularizer_Diffusion);
                 REQUIRE(settings.levels[i].regularization_weight == Approx(0.5f));
                 REQUIRE(settings.levels[i].regularization_scale == Approx(1.1f));
                 REQUIRE(settings.levels[i].regularization_exponent == Approx(1.5f));

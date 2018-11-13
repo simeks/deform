@@ -236,40 +236,40 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
                     if (sub_x == 0 && gx != 0) {
                         int3 step{-1, 0, 0};
                         float3 def2 = def(gx - 1, gy, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f0 += binary_fn(p, step, def1, def2);
+                        f1 += binary_fn(p, step, def1 + delta, def2);
                     }
                     else if (sub_x == block_dims.x - 1 && gx < int(dims.x) - 1) {
                         int3 step{1, 0, 0};
                         float3 def2 = def(gx + 1, gy, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f0 += binary_fn(p, step, def1, def2);
+                        f1 += binary_fn(p, step, def1 + delta, def2);
                     }
 
                     if (sub_y == 0 && gy != 0) {
                         int3 step{0, -1, 0};
                         float3 def2 = def(gx, gy - 1, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f0 += binary_fn(p, step, def1, def2);
+                        f1 += binary_fn(p, step, def1 + delta, def2);
                     }
                     else if (sub_y == block_dims.y - 1 && gy < int(dims.y) - 1) {
                         int3 step{0, 1, 0};
                         float3 def2 = def(gx, gy + 1, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f0 += binary_fn(p, step, def1, def2);
+                        f1 += binary_fn(p, step, def1 + delta, def2);
                     }
 
                     if (sub_z == 0 && gz != 0) {
                         int3 step{0, 0, -1};
                         float3 def2 = def(gx, gy, gz - 1);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f0 += binary_fn(p, step, def1, def2);
+                        f1 += binary_fn(p, step, def1 + delta, def2);
                     }
                     else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
                         int3 step{0, 0, 1};
                         float3 def2 = def(gx, gy, gz + 1);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f0 += binary_fn(p, step, def1, def2);
+                        f1 += binary_fn(p, step, def1 + delta, def2);
                     }
 
                     graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
@@ -279,9 +279,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
                     if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.x)) {
                         int3 step{1, 0, 0};
                         float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f_same = binary_fn(p, step, def1, def2);
+                        double f01 = binary_fn(p, step, def1, def2 + delta);
+                        double f10 = binary_fn(p, step, def1 + delta, def2);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -293,9 +293,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
                     if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
                         int3 step{0, 1, 0};
                         float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f_same = binary_fn(p, step, def1, def2);
+                        double f01 = binary_fn(p, step, def1, def2 + delta);
+                        double f10 = binary_fn(p, step, def1 + delta, def2);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -307,9 +307,9 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
                     if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
                         int3 step{0, 0, 1};
                         float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f_same = binary_fn(p, step, def1, def2);
+                        double f01 = binary_fn(p, step, def1, def2 + delta);
+                        double f10 = binary_fn(p, step, def1 + delta, def2);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -391,17 +391,17 @@ double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::calculate_ene
                 if (gx + 1 < int(dims.x)) {
                     int3 step{1, 0, 0};
                     float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, def1, def2, step);
+                    total_energy += binary_fn(p, step, def1, def2);
                 }
                 if (gy + 1 < int(dims.y)) {
                     int3 step{0, 1, 0};
                     float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, def1, def2, step);
+                    total_energy += binary_fn(p, step, def1, def2);
                 }
                 if (gz + 1 < int(dims.z)) {
                     int3 step{0, 0, 1};
                     float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, def1, def2, step);
+                    total_energy += binary_fn(p, step, def1, def2);
                 }
             }
         }

@@ -1,6 +1,7 @@
 #include "../config.h"
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
+#include "../regularization/diffusion_regularizer.h"
 
 #include "blocked_graph_cut_optimizer.h"
 #include "registration_engine.h"
@@ -195,19 +196,21 @@ namespace
     }
 }
 
-void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
+void RegistrationEngine::build_regularizer(int level, std::shared_ptr<Regularizer>& binary_fn)
 {
-    binary_fn.set_fixed_spacing(_fixed_pyramids[0].volume(level).spacing());
-    binary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
-    binary_fn.set_regularization_scale(_settings.levels[level].regularization_scale);
-    binary_fn.set_regularization_exponent(_settings.levels[level].regularization_exponent);
-
-    // Clone the def, because the current copy will be changed when executing the optimizer
-    binary_fn.set_initial_displacement(_deformation_pyramid.volume(level).clone());
+    if (Settings::Regularizer::Regularizer_Diffusion == _settings.levels[level].regularizer) {
+        binary_fn = std::make_shared<DiffusionRegularizer>(
+            _settings.levels[level].regularization_weight,
+            _settings.levels[level].regularization_scale,
+            _settings.levels[level].regularization_exponent,
+            _fixed_pyramids[0].volume(level).spacing(),
+            _deformation_pyramid.volume(level).clone()
+        );
+    }
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
-            binary_fn.set_weight_map(_regularization_weight_map.volume(level));
+            binary_fn->set_weight_map(_regularization_weight_map.volume(level));
     #endif
 }
 
@@ -606,7 +609,7 @@ stk::Volume RegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            Regularizer binary_fn;
+            std::shared_ptr<Regularizer> binary_fn;
             build_regularizer(l, binary_fn);
 
             if (_constraints_mask_pyramid.volume(l).valid())
@@ -631,7 +634,7 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].max_iteration_count
                 );
 
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, *binary_fn.get(), _settings.levels[l].step_size, def);
             }
             else if (Settings::Solver::Solver_QPBO == _settings.levels[l].solver) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, QPBO<FlowType>> optimizer(
@@ -640,7 +643,7 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].max_iteration_count
                 );
 
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, *binary_fn.get(), _settings.levels[l].step_size, def);
             }
         }
         else {

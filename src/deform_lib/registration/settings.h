@@ -63,8 +63,15 @@ struct Settings
         Solver_QPBO
     };
 
+    enum Regularizer {
+        Regularizer_Diffusion,
+    };
+
     struct Level
     {
+        // Regularizer
+        Regularizer regularizer;
+
         // Optimizer specific settings (Blocked graph cut):
 
         // Solver for the graph energy minimisation problem
@@ -98,6 +105,7 @@ struct Settings
         float landmarks_decay;
 
         Level() :
+            regularizer(Regularizer_Diffusion),
             solver(Solver_GC),
             block_size(int3{16, 16, 16}),
             block_energy_epsilon(1e-7f),

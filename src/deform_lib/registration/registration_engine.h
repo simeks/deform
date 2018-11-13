@@ -43,7 +43,7 @@ public:
     stk::Volume execute();
 
     /// Builds a binary function for the specified pyramid level
-    void build_regularizer(int level, Regularizer& binary_fn);
+    void build_regularizer(int level, std::shared_ptr<Regularizer>& binary_fn);
 
     /// Builds a unary function for the specified pyramid level
     void build_unary_function(int level, UnaryFunction& unary_fn);

@@ -279,6 +279,31 @@ namespace YAML {
         }
     };
 
+    template<>
+    struct convert<Settings::Regularizer>
+    {
+        static bool decode(const Node& node, Settings::Regularizer& out) {
+            if(!node.IsScalar()) {
+                throw YAML::RepresentationException(node.Mark(), "expected regularizer");
+            }
+
+            std::string fn;
+            try {
+                fn = node.as<std::string>();
+            }
+            catch (YAML::TypedBadConversion<std::string> &) {
+                throw YAML::RepresentationException(node.Mark(), "expected regularizer");
+            }
+
+            if (fn == "diffusion") {
+                out = Settings::Regularizer::Regularizer_Diffusion;
+                return true;
+            }
+
+            throw YAML::RepresentationException(node.Mark(), "unrecognised regularizer " + fn);
+        }
+    };
+
 } // namespace YAML
 
 const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
@@ -315,10 +340,23 @@ const char* solver_to_str(const Settings::Solver solver)
     };
     return "none";
 }
+const char* regularizer_to_str(const Settings::Regularizer regularizer)
+{
+    switch (regularizer) {
+    case Settings::Regularizer::Regularizer_Diffusion:
+        return "diffusion";
+    default:
+        return "none";
+    }
+}
 
 static void parse_level(const YAML::Node& node, Settings::Level& out) {
     if(!node.IsMap()) {
         throw YAML::RepresentationException(node.Mark(), "expected level");
+    }
+
+    if (node["regularizer"]) {
+        out.regularizer = node["regularizer"].as<Settings::Regularizer>();
     }
 
     if (node["solver"]) {
@@ -390,6 +428,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         s << "level[" << l << "] = {" << std::endl;
+        s << "  regularizer = " << settings.levels[l].regularizer << std::endl;
         s << "  solver = " << settings.levels[l].solver << std::endl;
         s << "  block_size = " << settings.levels[l].block_size << std::endl;
         s << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon << std::endl;

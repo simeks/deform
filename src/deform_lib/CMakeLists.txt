@@ -5,7 +5,6 @@ set(DEFORM_LIB_SRCS
     "cost_functions/landmarks.h"
     "cost_functions/mutual_information.cpp"
     "cost_functions/mutual_information.h"
-    "cost_functions/regularizer.h"
     "cost_functions/soft_constraints.h"
     "cost_functions/squared_distance.h"
     "cost_functions/sub_function.h"
@@ -15,6 +14,9 @@ set(DEFORM_LIB_SRCS
     "filters/gaussian_filter.h"
     "filters/resample.cpp"
     "filters/resample.h"
+
+    "regularization/regularizer.h"
+    "regularization/diffusion_regularizer.h"
 
     "solver/solver.h"
     "solver/graph_cut.h"

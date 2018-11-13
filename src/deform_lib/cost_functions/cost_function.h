@@ -1,6 +1,5 @@
 #pragma once
 
-#include "regularizer.h"
 #include "soft_constraints.h"
 #include "squared_distance.h"
 #include "cross_correlation_sphere.h"
