@@ -1,5 +1,6 @@
 #pragma once
-#include "solver.h"
+
+#include <stk/math/math.h>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define GCC_VERSION (__GNUC__ * 10000 \
@@ -31,7 +32,7 @@ enum class ELCReductionMode {
 };
 
 template<typename T, ELCReductionMode mode>
-class ELC : public Solver<T>
+class ELC
 {
 public:
     ELC(const int3& size);
@@ -45,7 +46,8 @@ public:
                            const int x2, const int y2, const int z2,
                            T e00, T e01, T e10, T e11);
 
-	virtual void add_term_n(const std::vector<int3>& p, const std::vector<T> e);
+    template<int N>
+    void add_term(const int3 p[N], const T e[1 << N]);
 
     virtual T minimize();
 
@@ -53,6 +55,14 @@ public:
     virtual int get_var(const int x, const int y, const int z);
 
 private:
+    inline int get_index(const int x, const int y, const int z) const {
+        return x + y*_size.x + z*_size.x*_size.y;
+    }
+
+    inline int get_index(const int3& p) const {
+        return p.x + p.y*_size.x + p.z*_size.x*_size.y;
+    }
+
     void convert();
 
     const int3 _size;

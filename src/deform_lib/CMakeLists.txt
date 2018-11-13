@@ -20,7 +20,6 @@ set(DEFORM_LIB_SRCS
 
     "solver/elc.h"
     "solver/elc.inl"
-    "solver/solver.h"
     "solver/graph_cut.h"
     "solver/graph_cut.inl"
     "solver/qpbo.h"

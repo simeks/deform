@@ -1,6 +1,6 @@
 #pragma once
 
-#include "solver.h"
+#include <stk/math/math.h>
 
 /// Interface for using the GCO graph cut solver.
 
@@ -58,28 +58,38 @@ namespace gco
 #endif
 
 template<typename T>
-class GraphCut : public Solver<T>
+class GraphCut
 {
 public:
     GraphCut(const int3& size);
-    virtual ~GraphCut();
+    ~GraphCut();
 
-    virtual void add_term1(const int3& p, T e0, T e1);
-    virtual void add_term1(const int x, const int y, const int z, T e0, T e1);
+    void add_term1(const int3& p, T e0, T e1);
+    void add_term1(const int x, const int y, const int z, T e0, T e1);
 
-    virtual void add_term2(const int3& p1, const int3& p2, T e00, T e01, T e10, T e11);
-    virtual void add_term2(const int x1, const int y1, const int z1,
-                           const int x2, const int y2, const int z2,
-                           T e00, T e01, T e10, T e11);
+    void add_term2(const int3& p1, const int3& p2, T e00, T e01, T e10, T e11);
+    void add_term2(const int x1, const int y1, const int z1,
+                   const int x2, const int y2, const int z2,
+                   T e00, T e01, T e10, T e11);
 
-	virtual void add_term_n(const std::vector<int3>& p, const std::vector<T> e);
+    template<int N>
+    void add_term(const int3 p[N], const T e[1 << N]);
 
-    virtual T minimize();
+    T minimize();
 
-    virtual int get_var(const int3& p);
-    virtual int get_var(int x, int y, int z);
+    int get_var(const int3& p);
+    int get_var(int x, int y, int z);
 
 private:
+    inline int get_index(const int x, const int y, const int z) const {
+        return x + y*_size.x + z*_size.x*_size.y;
+    }
+
+    inline int get_index(const int3& p) const {
+        return p.x + p.y*_size.x + p.z*_size.x*_size.y;
+    }
+
+    const int3 _size;
     gco::Energy<T, T, T> _e;
 };
 
