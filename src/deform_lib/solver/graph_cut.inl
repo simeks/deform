@@ -45,30 +45,13 @@ void GraphCut<T>::add_term2(
 }
 
 template<typename T>
-void GraphCut<T>::add_term3(const int3& p1, const int3& p2, const int3& p3,
-                            T e000, T e001,
-                            T e010, T e011,
-                            T e100, T e101,
-                            T e110, T e111)
+void GraphCut<T>::add_term_n(const std::vector<int3>& p, const std::vector<T> e)
 {
-    int i1 = Solver<T>::get_index(p1);
-    int i2 = Solver<T>::get_index(p2);
-    int i3 = Solver<T>::get_index(p3);
-    _e.add_term3(i1, i2, i3, e000, e001, e010, e011, e100, e101, e110, e111);
-}
-template<typename T>
-void GraphCut<T>::add_term3(const int x1, const int y1, const int z1,
-                            const int x2, const int y2, const int z2,
-                            const int x3, const int y3, const int z3,
-                            T e000, T e001,
-                            T e010, T e011,
-                            T e100, T e101,
-                            T e110, T e111)
-{
-    int i1 = Solver<T>::get_index(x1, y1, z1);
-    int i2 = Solver<T>::get_index(x2, y2, z2);
-    int i3 = Solver<T>::get_index(x3, y3, z3);
-    _e.add_term3(i1, i2, i3, e000, e001, e010, e011, e100, e101, e110, e111);
+    ASSERT(p.size() == 3 && e.size() == 8 && "Only ternary terms are supported");
+    int i1 = Solver<T>::get_index(p[0]);
+    int i2 = Solver<T>::get_index(p[1]);
+    int i3 = Solver<T>::get_index(p[2]);
+    _e.add_term3(i1, i2, i3, e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
 }
 
 template<typename T>

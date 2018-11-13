@@ -1,5 +1,4 @@
 #pragma once
-
 #include "solver.h"
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -13,7 +12,9 @@
 
     #pragma GCC diagnostic ignored "-Wpedantic"
     #pragma GCC diagnostic ignored "-Wreorder"
+    #pragma GCC diagnostic ignored "-Wsign-compare"
 
+    #include <ELC/ELC.h>
     #include <QPBO.h>
 
     #if GCC_VERSION > 40604 // 4.6.4
@@ -21,12 +22,20 @@
     #endif
 #endif
 
-template<typename T>
-class QPBO : public Solver<T>
+namespace elc = ELCReduce;
+
+enum class ELCReductionMode {
+    HOCR,
+    ELC_HOCR,
+    Approximate,
+};
+
+template<typename T, ELCReductionMode mode>
+class ELC : public Solver<T>
 {
 public:
-    QPBO(const int3& size);
-    virtual ~QPBO();
+    ELC(const int3& size);
+    virtual ~ELC();
 
     virtual void add_term1(const int3& p, T e0, T e1);
     virtual void add_term1(const int x, const int y, const int z, T e0, T e1);
@@ -44,8 +53,12 @@ public:
     virtual int get_var(const int x, const int y, const int z);
 
 private:
+    void convert();
+
+    const int3 _size;
     qpbo::QPBO<T> _q;
+    elc::PBF<T> _pbf;
 };
 
-#include "qpbo.inl"
+#include "elc.inl"
 

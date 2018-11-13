@@ -60,7 +60,8 @@ struct Settings
 
     enum Solver {
         Solver_GC,
-        Solver_QPBO
+        Solver_QPBO,
+        Solver_ELC,
     };
 
     enum Regularizer {

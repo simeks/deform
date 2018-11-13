@@ -2,6 +2,9 @@
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
 #include "../regularization/diffusion_regularizer.h"
+#include "../solver/elc.h"
+#include "../solver/graph_cut.h"
+#include "../solver/qpbo.h"
 
 #include "blocked_graph_cut_optimizer.h"
 #include "registration_engine.h"
@@ -638,6 +641,16 @@ stk::Volume RegistrationEngine::execute()
             }
             else if (Settings::Solver::Solver_QPBO == _settings.levels[l].solver) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, QPBO<FlowType>> optimizer(
+                    _settings.levels[l].block_size,
+                    _settings.levels[l].block_energy_epsilon,
+                    _settings.levels[l].max_iteration_count
+                );
+
+                optimizer.execute(unary_fn, *binary_fn.get(), _settings.levels[l].step_size, def);
+            }
+            else if (Settings::Solver::Solver_ELC == _settings.levels[l].solver) {
+                using ELCSolver = ELC<FlowType, ELCReductionMode::ELC_HOCR>;
+                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ELCSolver> optimizer(
                     _settings.levels[l].block_size,
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count

@@ -72,18 +72,7 @@ public:
                            const int x2, const int y2, const int z2,
                            T e00, T e01, T e10, T e11);
 
-	virtual void add_term3(const int3& p1, const int3& p2, const int3& p3,
-	                       T e000, T e001,
-	                       T e010, T e011,
-	                       T e100, T e101,
-	                       T e110, T e111);
-	virtual void add_term3(const int x1, const int y1, const int z1,
-                           const int x2, const int y2, const int z2,
-                           const int x3, const int y3, const int z3,
-	                       T e000, T e001,
-	                       T e010, T e011,
-	                       T e100, T e101,
-	                       T e110, T e111);
+	virtual void add_term_n(const std::vector<int3>& p, const std::vector<T> e);
 
     virtual T minimize();
 

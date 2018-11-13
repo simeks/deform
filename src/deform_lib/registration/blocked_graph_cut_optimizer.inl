@@ -1,7 +1,5 @@
 #include "block_change_flags.h"
 #include "../config.h"
-#include "../solver/graph_cut.h"
-#include "../solver/qpbo.h"
 #include "../profiler/profiler.h"
 
 #include <stk/common/log.h>

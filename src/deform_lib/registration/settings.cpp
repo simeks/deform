@@ -133,6 +133,10 @@ namespace YAML {
                 out = Settings::Solver::Solver_QPBO;
                 return true;
             }
+            else if (solver == "elc") {
+                out = Settings::Solver::Solver_ELC;
+                return true;
+            }
 
             throw YAML::RepresentationException(node.Mark(), "unrecognised resampler " + solver);
         }
@@ -337,6 +341,8 @@ const char* solver_to_str(const Settings::Solver solver)
         return "graph_cut";
     case Settings::Solver::Solver_QPBO:
         return "qpbo";
+    case Settings::Solver::Solver_ELC:
+        return "elc";
     };
     return "none";
 }

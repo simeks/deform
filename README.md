@@ -148,7 +148,7 @@ from the constraint target. See cost function for more info.
 `landmarks_weight` sets the weight for the landmark cost term when performing
 landmark-based registration.  In order to perform landmark-based registration,
 a set of fixed and moving landmarks must be supplied.  The implementation of
-the landmark-based unary energy term is inspired to [[2]](#2), but the cost in
+the landmark-based unary energy term is inspired to [[3]](#3), but the cost in
 each term of the sum is also proportional to the distance between the current
 displacement and the landmark displacement. It is possible to limit the usage
 of the landmarks up to a certain height of the resolution pyramid by assigning
@@ -157,10 +157,13 @@ the exponential decay of the landmarks effect with respect to distance in image
 space: higher values correspond to faster decay.
 
 `solver` sets the solver for the graph energy minimisation problem. Can be
-`graph_cut` or `qpbo`. `graph_cut` provides a complete labelling, but requires
-sub-modular terms in order to run in polynomial time, while `qpbo` can optimise
+`graph_cut`, `qpbo`, or `elc`. `graph_cut` operates on cliques up to order 3
+and generates a complete labelling, but requires sub-modular terms in order to
+run in polynomial time. `qpbo` operates only on binary cliques and can optimise
 non-sub-modular terms, in which case it will generate a partial labelling that
-is guaranteed to be part of an optimal solution.
+is guaranteed to be part of an optimal solution. `elc` can operate on higher
+order cliques, reducing the energy to a quadratic form [[1]](#1) and solving
+the resulting problem with `qpbo`.
 
 `block_size` size of the block (in voxels) for the block-wise solver. A block
 size of (0,0,0) will result in a single block for the whole volume.
@@ -223,7 +226,7 @@ The parameters available for each function are:
   + `sigma` (`float`): standard deviation of the Gaussian kernel used to
       approximate probability densities (default: `4.5`)
   + `update_interval` (`int`): interval (in iterations) between updates of the
-      entropy estimates (default: `1`). If `0`, updates are disabled.
+      entropy estimates (default: `1`). If `0`, updates are turned off.
   + `interpolator` (`'linear'` or `'nearest'`): interpolator used in the update
       the entropy estimates (default: `'nearest'`)
 + `gradient_ssd`:
@@ -276,11 +279,15 @@ reference space to regions outside of the moving image mask.
 
 ## References
 
-+ <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih:
++ <a id="1"></a>[1] Hiroshi Ishikawa: *Higher-order clique reduction without
+  auxiliary variables.* Proceedings of the IEEE Conference on Computer Vision
+  and Pattern Recognition, 1362-1369. 2014.
+
++ <a id="2"></a>[2] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih:
   *Visual correspondence using energy minimization and mutual information.*
   Proceedings of the Ninth IEEE International Conference on Computer Vision,
   1033-1040, 2003.
 
-+ <a id="2"></a>[2] Herve Lombaert, Yiyong Sun, Farida Cheriet:
++ <a id="3"></a>[3] Herve Lombaert, Yiyong Sun, Farida Cheriet:
   *Landmark-based non-rigid registration via graph cuts*,
   International Conference Image Analysis and Recognition, 166–175, 2007

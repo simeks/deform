@@ -59,3 +59,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         )
 endif()
 
+add_library(elc INTERFACE)
+target_include_directories(elc INTERFACE ELC1.04)
+
