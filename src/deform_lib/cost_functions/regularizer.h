@@ -68,7 +68,7 @@ struct Regularizer
         float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
 
         float dist_squared = stk::norm2(diff);
-        float step_squared = _scale * stk::norm2(step_in_mm);
+        float step_squared = stk::norm2(step_in_mm);
 
         float w = _weight;
 
@@ -84,7 +84,7 @@ struct Regularizer
                 w = 0.5f*(_weight_map(p) + _weight_map(p+step));
         #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
-        return w * std::pow(dist_squared / step_squared, _half_exponent);
+        return w * std::pow(_scale * dist_squared / step_squared, _half_exponent);
     }
 
     float _weight;
