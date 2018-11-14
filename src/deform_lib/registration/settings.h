@@ -22,24 +22,24 @@ struct Settings
     //  then we have 2 slots, one for each modality
     struct ImageSlot
     {
-        enum CostFunction
+        enum class CostFunction
         {
-            CostFunction_None = 0,
-            CostFunction_SSD,
-            CostFunction_NCC,
-            CostFunction_MI,
-            CostFunction_Gradient_SSD,
+            None = 0,
+            SSD,
+            NCC,
+            MI,
+            Gradient_SSD,
         };
 
-        enum ResampleMethod
+        enum class ResampleMethod
         {
-            Resample_Gaussian // Applies a gaussian filter before downsampling
+            Gaussian // Applies a gaussian filter before downsampling
         };
 
         // A function associated with a weight
         struct WeightedFunction {
             float weight = 1.0;
-            CostFunction function = CostFunction_None;
+            CostFunction function = CostFunction::None;
             std::map<std::string, std::string> parameters;
         };
 
@@ -53,19 +53,26 @@ struct Settings
         bool normalize;
 
         ImageSlot() :
-            cost_functions{{1.0, CostFunction_SSD, {}}},
-            resample_method{Resample_Gaussian},
+            cost_functions{{1.0, CostFunction::SSD, {}}},
+            resample_method{ResampleMethod::Gaussian},
             normalize{true} {}
     };
 
-    enum Solver {
-        Solver_GC,
-        Solver_QPBO,
-        Solver_ELC,
+    enum class Solver {
+        GC,
+        QPBO,
+        ELC,
     };
 
-    enum Regularizer {
-        Regularizer_Diffusion,
+    enum class ELCReductionMode {
+        HOCR,
+        ELC_HOCR,
+        Approximate,
+    };
+
+    enum class Regularizer {
+        Diffusion,
+        Bending,
     };
 
     struct Level
@@ -77,6 +84,9 @@ struct Settings
 
         // Solver for the graph energy minimisation problem
         Solver solver;
+
+        // Higher order clique reduction mode for ELC solver
+        ELCReductionMode reduction_mode;
 
         // Block size, (0,0,0) is the same as using only a single large block
         int3 block_size;
@@ -106,8 +116,9 @@ struct Settings
         float landmarks_decay;
 
         Level() :
-            regularizer(Regularizer_Diffusion),
-            solver(Solver_GC),
+            regularizer(Regularizer::Diffusion),
+            solver(Solver::GC),
+            reduction_mode(ELCReductionMode::ELC_HOCR),
             block_size(int3{16, 16, 16}),
             block_energy_epsilon(1e-7f),
             max_iteration_count(-1),

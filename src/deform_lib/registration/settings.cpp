@@ -23,6 +23,7 @@ pyramid_stop_level: 0
 constraints_weight: 1000
 
 solver: gc
+reduction_mode: approximate
 block_size: [12, 12, 12]
 block_energy_epsilon: 0.001
 step_size: 0.5
@@ -126,19 +127,52 @@ namespace YAML {
             }
 
             if (solver == "gc" || solver == "graph_cut") {
-                out = Settings::Solver::Solver_GC;
+                out = Settings::Solver::GC;
                 return true;
             }
             else if (solver == "qpbo") {
-                out = Settings::Solver::Solver_QPBO;
+                out = Settings::Solver::QPBO;
                 return true;
             }
             else if (solver == "elc") {
-                out = Settings::Solver::Solver_ELC;
+                out = Settings::Solver::ELC;
                 return true;
             }
 
             throw YAML::RepresentationException(node.Mark(), "unrecognised resampler " + solver);
+        }
+    };
+
+    template<>
+    struct convert<Settings::ELCReductionMode>
+    {
+        static bool decode(const Node& node, Settings::ELCReductionMode& out) {
+            if(!node.IsScalar()) {
+                throw YAML::RepresentationException(node.Mark(), "expected reduction mode");
+            }
+
+            std::string mode;
+            try {
+                mode = node.as<std::string>();
+            }
+            catch (YAML::TypedBadConversion<std::string> &) {
+                throw YAML::RepresentationException(node.Mark(), "expected reduction mode");
+            }
+
+            if (mode == "approximate") {
+                out = Settings::ELCReductionMode::Approximate;
+                return true;
+            }
+            else if (mode == "elc_hocr") {
+                out = Settings::ELCReductionMode::ELC_HOCR;
+                return true;
+            }
+            else if (mode == "hocr") {
+                out = Settings::ELCReductionMode::HOCR;
+                return true;
+            }
+
+            throw YAML::RepresentationException(node.Mark(), "unrecognised reduction mode " + mode);
         }
     };
 
@@ -159,7 +193,7 @@ namespace YAML {
             }
 
             if (fn == "gaussian") {
-                out = Settings::ImageSlot::Resample_Gaussian;
+                out = Settings::ImageSlot::ResampleMethod::Gaussian;
                 return true;
             }
 
@@ -184,23 +218,23 @@ namespace YAML {
             }
 
             if (fn == "none") {
-                out = Settings::ImageSlot::CostFunction_None;
+                out = Settings::ImageSlot::CostFunction::None;
                 return true;
             }
             else if (fn == "squared_distance" || fn == "ssd") {
-                out = Settings::ImageSlot::CostFunction_SSD;
+                out = Settings::ImageSlot::CostFunction::SSD;
                 return true;
             }
             else if (fn == "ncc") {
-                out = Settings::ImageSlot::CostFunction_NCC;
+                out = Settings::ImageSlot::CostFunction::NCC;
                 return true;
             }
             else if (fn == "mutual_information" || fn == "mi") {
-                out = Settings::ImageSlot::CostFunction_MI;
+                out = Settings::ImageSlot::CostFunction::MI;
                 return true;
             }
             else if (fn == "gradient_ssd") {
-                out = Settings::ImageSlot::CostFunction_Gradient_SSD;
+                out = Settings::ImageSlot::CostFunction::Gradient_SSD;
                 return true;
             }
 
@@ -300,7 +334,11 @@ namespace YAML {
             }
 
             if (fn == "diffusion") {
-                out = Settings::Regularizer::Regularizer_Diffusion;
+                out = Settings::Regularizer::Diffusion;
+                return true;
+            }
+            else if (fn == "bending") {
+                out = Settings::Regularizer::Bending;
                 return true;
             }
 
@@ -313,23 +351,23 @@ namespace YAML {
 const char* cost_function_to_str(Settings::ImageSlot::CostFunction fn)
 {
     switch (fn) {
-    case Settings::ImageSlot::CostFunction_SSD:
+    case Settings::ImageSlot::CostFunction::SSD:
         return "ssd";
-    case Settings::ImageSlot::CostFunction_NCC:
+    case Settings::ImageSlot::CostFunction::NCC:
         return "ncc";
-    case Settings::ImageSlot::CostFunction_MI:
+    case Settings::ImageSlot::CostFunction::MI:
         return "mi";
-    case Settings::ImageSlot::CostFunction_Gradient_SSD:
+    case Settings::ImageSlot::CostFunction::Gradient_SSD:
         return "gradient_ssd";
     default:
-    case Settings::ImageSlot::CostFunction_None:
+    case Settings::ImageSlot::CostFunction::None:
         return "none";
     }
 }
 const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
 {
     switch (fn) {
-    case Settings::ImageSlot::Resample_Gaussian:
+    case Settings::ImageSlot::ResampleMethod::Gaussian:
         return "gaussian";
     };
     return "none";
@@ -337,20 +375,34 @@ const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
 const char* solver_to_str(const Settings::Solver solver)
 {
     switch (solver) {
-    case Settings::Solver::Solver_GC:
+    case Settings::Solver::GC:
         return "graph_cut";
-    case Settings::Solver::Solver_QPBO:
+    case Settings::Solver::QPBO:
         return "qpbo";
-    case Settings::Solver::Solver_ELC:
+    case Settings::Solver::ELC:
         return "elc";
+    };
+    return "none";
+}
+const char* reduction_mode_to_str(const Settings::ELCReductionMode mode)
+{
+    switch (mode) {
+    case Settings::ELCReductionMode::Approximate:
+        return "approximate";
+    case Settings::ELCReductionMode::ELC_HOCR:
+        return "elc_hocr";
+    case Settings::ELCReductionMode::HOCR:
+        return "hocr";
     };
     return "none";
 }
 const char* regularizer_to_str(const Settings::Regularizer regularizer)
 {
     switch (regularizer) {
-    case Settings::Regularizer::Regularizer_Diffusion:
+    case Settings::Regularizer::Diffusion:
         return "diffusion";
+    case Settings::Regularizer::Bending:
+        return "bending";
     default:
         return "none";
     }
@@ -367,6 +419,10 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
 
     if (node["solver"]) {
         out.solver = node["solver"].as<Settings::Solver>();
+    }
+
+    if (node["reduction_mode"]) {
+        out.reduction_mode = node["reduction_mode"].as<Settings::ELCReductionMode>();
     }
 
     if (node["block_size"]) {
@@ -434,8 +490,9 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         s << "level[" << l << "] = {" << std::endl;
-        s << "  regularizer = " << settings.levels[l].regularizer << std::endl;
-        s << "  solver = " << settings.levels[l].solver << std::endl;
+        s << "  regularizer = " << regularizer_to_str(settings.levels[l].regularizer) << std::endl;
+        s << "  solver = " << solver_to_str(settings.levels[l].solver) << std::endl;
+        s << "  reduction_mode = " << reduction_mode_to_str(settings.levels[l].reduction_mode) << std::endl;
         s << "  block_size = " << settings.levels[l].block_size << std::endl;
         s << "  block_energy_epsilon = " << settings.levels[l].block_energy_epsilon << std::endl;
         s << "  max_iteration_count = " << settings.levels[l].max_iteration_count << std::endl;
@@ -454,7 +511,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
 
         // Dont print unused slots
         if (0 == slot.cost_functions.size() ||
-                Settings::ImageSlot::CostFunction_None == slot.cost_functions[0].function) {
+                Settings::ImageSlot::CostFunction::None == slot.cost_functions[0].function) {
             continue;
         }
 

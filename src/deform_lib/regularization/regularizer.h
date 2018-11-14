@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../registration/settings.h"
+
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
 #include <stk/math/int3.h>
@@ -32,7 +34,9 @@ struct Regularizer
             const int3& step,
             const float3& def0,
             const float3& def1,
-            const float3& def2 = {}) = 0;
+            const float3& def2 = {}) const = 0;
+
+    virtual Settings::Regularizer type() const = 0;
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_weight_map(stk::VolumeFloat& map) { _weight_map = map; }

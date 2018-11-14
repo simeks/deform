@@ -1,7 +1,6 @@
 #include "../config.h"
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
-#include "../regularization/diffusion_regularizer.h"
 #include "../solver/elc.h"
 #include "../solver/graph_cut.h"
 #include "../solver/qpbo.h"
@@ -19,7 +18,6 @@
 #include <string>
 
 #include "voxel_constraints.h"
-
 
 namespace
 {
@@ -199,10 +197,19 @@ namespace
     }
 }
 
-void RegistrationEngine::build_regularizer(int level, std::shared_ptr<Regularizer>& binary_fn)
+void RegistrationEngine::build_regularizer(int level, std::shared_ptr<Regularizer>& regularizer_fn)
 {
-    if (Settings::Regularizer::Regularizer_Diffusion == _settings.levels[level].regularizer) {
-        binary_fn = std::make_shared<DiffusionRegularizer>(
+    if (Settings::Regularizer::Diffusion == _settings.levels[level].regularizer) {
+        regularizer_fn = std::make_shared<DiffusionRegularizer>(
+            _settings.levels[level].regularization_weight,
+            _settings.levels[level].regularization_scale,
+            _settings.levels[level].regularization_exponent,
+            _fixed_pyramids[0].volume(level).spacing(),
+            _deformation_pyramid.volume(level).clone()
+        );
+    }
+    else if (Settings::Regularizer::Bending == _settings.levels[level].regularizer) {
+        regularizer_fn = std::make_shared<BendingRegularizer>(
             _settings.levels[level].regularization_weight,
             _settings.levels[level].regularization_scale,
             _settings.levels[level].regularization_exponent,
@@ -213,7 +220,7 @@ void RegistrationEngine::build_regularizer(int level, std::shared_ptr<Regularize
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
-            binary_fn->set_weight_map(_regularization_weight_map.volume(level));
+            regularizer_fn->set_weight_map(_regularization_weight_map.volume(level));
     #endif
 }
 
@@ -403,10 +410,10 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
     if (_fixed_mask_pyramid.levels() > 0) {
         unary_fn.set_fixed_mask(_fixed_mask_pyramid.volume(level));
     }
-    
+
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         if (_regularization_weight_map.volume(level).valid())
-            binary_fn.set_weight_map(_regularization_weight_map.volume(l));
+            regularizer_fn.set_weight_map(_regularization_weight_map.volume(l));
     #endif
 
     auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
@@ -426,7 +433,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
 
         ASSERT(fixed.voxel_type() == moving.voxel_type());
         for (auto& fn : _settings.image_slots[i].cost_functions) {
-            if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
+            if (Settings::ImageSlot::CostFunction::SSD == fn.function) {
                 FactoryFn factory = ssd_factory[fixed.voxel_type()];
                 if (factory) {
                     unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
@@ -437,7 +444,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                             << "(slot: " << i << ")";
                 }
             }
-            else if (Settings::ImageSlot::CostFunction_NCC == fn.function)
+            else if (Settings::ImageSlot::CostFunction::NCC == fn.function)
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
                 if (factory) {
@@ -449,7 +456,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                             << "(slot: " << i << ")";
                 }
             }
-            else if (Settings::ImageSlot::CostFunction_MI == fn.function)
+            else if (Settings::ImageSlot::CostFunction::MI == fn.function)
             {
                 FactoryFn factory = mi_factory[fixed.voxel_type()];
                 if (factory) {
@@ -461,7 +468,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
                             << "(slot: " << i << ")";
                 }
             }
-            else if (Settings::ImageSlot::CostFunction_Gradient_SSD == fn.function)
+            else if (Settings::ImageSlot::CostFunction::Gradient_SSD == fn.function)
             {
                 FactoryFn factory = gradient_ssd_factory[fixed.voxel_type()];
                 if (factory) {
@@ -612,8 +619,8 @@ stk::Volume RegistrationEngine::execute()
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
-            std::shared_ptr<Regularizer> binary_fn;
-            build_regularizer(l, binary_fn);
+            std::shared_ptr<Regularizer> regularizer_fn;
+            build_regularizer(l, regularizer_fn);
 
             if (_constraints_mask_pyramid.volume(l).valid())
             {
@@ -630,33 +637,55 @@ stk::Volume RegistrationEngine::execute()
 
             using FlowType = double;
 
-            if (Settings::Solver::Solver_GC == _settings.levels[l].solver) {
+            if (Settings::Solver::GC == _settings.levels[l].solver) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GraphCut<FlowType>> optimizer(
                     _settings.levels[l].block_size,
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
 
-                optimizer.execute(unary_fn, *binary_fn.get(), _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, *regularizer_fn.get(), _settings.levels[l].step_size, def);
             }
-            else if (Settings::Solver::Solver_QPBO == _settings.levels[l].solver) {
+            else if (Settings::Solver::QPBO == _settings.levels[l].solver) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, QPBO<FlowType>> optimizer(
                     _settings.levels[l].block_size,
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
 
-                optimizer.execute(unary_fn, *binary_fn.get(), _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, *regularizer_fn.get(), _settings.levels[l].step_size, def);
             }
-            else if (Settings::Solver::Solver_ELC == _settings.levels[l].solver) {
-                using ELCSolver = ELC<FlowType, ELCReductionMode::ELC_HOCR>;
-                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ELCSolver> optimizer(
-                    _settings.levels[l].block_size,
-                    _settings.levels[l].block_energy_epsilon,
-                    _settings.levels[l].max_iteration_count
-                );
+            else if (Settings::Solver::ELC == _settings.levels[l].solver) {
+                if (Settings::ELCReductionMode::Approximate == _settings.levels[l].reduction_mode) {
+                    using ELCSolver = ELC<FlowType, ELCReductionMode::Approximate>;
+                    BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ELCSolver> optimizer(
+                        _settings.levels[l].block_size,
+                        _settings.levels[l].block_energy_epsilon,
+                        _settings.levels[l].max_iteration_count
+                    );
 
-                optimizer.execute(unary_fn, *binary_fn.get(), _settings.levels[l].step_size, def);
+                    optimizer.execute(unary_fn, *regularizer_fn.get(), _settings.levels[l].step_size, def);
+                }
+                else if (Settings::ELCReductionMode::ELC_HOCR == _settings.levels[l].reduction_mode) {
+                    using ELCSolver = ELC<FlowType, ELCReductionMode::ELC_HOCR>;
+                    BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ELCSolver> optimizer(
+                        _settings.levels[l].block_size,
+                        _settings.levels[l].block_energy_epsilon,
+                        _settings.levels[l].max_iteration_count
+                    );
+
+                    optimizer.execute(unary_fn, *regularizer_fn.get(), _settings.levels[l].step_size, def);
+                }
+                else if (Settings::ELCReductionMode::HOCR == _settings.levels[l].reduction_mode) {
+                    using ELCSolver = ELC<FlowType, ELCReductionMode::HOCR>;
+                    BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ELCSolver> optimizer(
+                        _settings.levels[l].block_size,
+                        _settings.levels[l].block_energy_epsilon,
+                        _settings.levels[l].max_iteration_count
+                    );
+
+                    optimizer.execute(unary_fn, *regularizer_fn.get(), _settings.levels[l].step_size, def);
+                }
             }
         }
         else {

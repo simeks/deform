@@ -4,9 +4,13 @@
 
 #include <vector>
 
-struct DiffusionRegularizer : public Regularizer
+struct BendingRegularizer : public Regularizer
 {
-    DiffusionRegularizer(
+    /*!
+     * \brief Approximate the bending energy as the sum of the
+     *        non-mixed second derivatives.
+     */
+    BendingRegularizer(
             const float weight,
             const float scale,
             float exponent,
@@ -16,14 +20,21 @@ struct DiffusionRegularizer : public Regularizer
     {
     }
 
-    virtual ~DiffusionRegularizer() {}
+    virtual ~BendingRegularizer() {}
 
+    /*!
+     * @param p    Current voxel coordinates.
+     * @param step Distance to the neighbours.
+     * @param def0 Displacement at the previous voxel.
+     * @param def1 Displacement at the current voxel.
+     * @param def2 Displacement at the next voxel.
+     */
     virtual double operator()(
             const int3& p,
             const int3& step,
             const float3& def0,
             const float3& def1,
-            const float3& = {}) const
+            const float3& def2 = {}) const
     {
         float3 step_in_mm {
             step.x*_spacing.x,
@@ -32,10 +43,15 @@ struct DiffusionRegularizer : public Regularizer
         };
 
         // The diff should be relative to the initial displacement diff
-        float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
+        float3 diff = -2.0f * (def1 - _initial(p))
+                      + (def0 - _initial(p - step))
+                      + (def2 - _initial(p + step));
 
+        // NOTE: the denominator of the central difference approximation of
+        // the second derivative should be squared, but here it is not done
+        // for numerical stability.
         float dist_squared = stk::norm2(diff);
-        float step_squared = _scale * stk::norm2(step_in_mm);
+        float step_squared = stk::norm2(step_in_mm);
 
         float w = _weight;
 
@@ -51,11 +67,11 @@ struct DiffusionRegularizer : public Regularizer
             w = 0.5f*(_weight_map(p) + _weight_map(p+step));
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
-        return w * std::pow(dist_squared / step_squared, _half_exponent);
+        return w * std::pow(_scale * dist_squared / step_squared, _half_exponent);
     }
 
-    virtual Settings::Regularizer type() const{
-        return Settings::Regularizer::Diffusion;
+    virtual Settings::Regularizer type() const {
+        return Settings::Regularizer::Bending;
     }
 };
 

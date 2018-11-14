@@ -13,6 +13,7 @@ pyramid_levels: 4
 pyramid_stop_level: 2
 
 solver: gc
+reduction_mode: elc_hocr
 block_size: [20, 24, 38]
 block_energy_epsilon: 0.00000000009
 max_iteration_count: 100
@@ -27,6 +28,7 @@ constraints_weight: 1234.1234
 levels:
     3:
         solver: qpbo
+        reduction_mode: approximate
         block_size: [9,9,9]
         block_energy_epsilon: 0.9
         max_iteration_count: 99
@@ -130,10 +132,10 @@ TEST_CASE("parse_registration_settings")
         REQUIRE(parse_registration_settings(settings_str, settings));
 
         REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[0].normalize == true);
         REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[0].cost_functions[0].weight == 1.0f);
     }
     SECTION("test_cost_function_multi_component_1")
@@ -150,10 +152,10 @@ TEST_CASE("parse_registration_settings")
         REQUIRE(parse_registration_settings(settings_str, settings));
 
         REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[0].normalize == true);
         REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.3f);
     }
     SECTION("test_ncc_window")
@@ -172,7 +174,7 @@ TEST_CASE("parse_registration_settings")
         REQUIRE(parse_registration_settings(settings_str, settings));
 
         REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "cube");
         REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "3");
 
@@ -187,7 +189,7 @@ TEST_CASE("parse_registration_settings")
         REQUIRE(parse_registration_settings(settings_str, settings));
 
         REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "sphere");
         REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "4");
     }
@@ -207,13 +209,13 @@ TEST_CASE("parse_registration_settings")
         REQUIRE(parse_registration_settings(settings_str, settings));
 
         REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[0].normalize == true);
         REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.5f);
         REQUIRE(settings.image_slots[0].cost_functions[1].function ==
-                Settings::ImageSlot::CostFunction_SSD);
+                Settings::ImageSlot::CostFunction::SSD);
         REQUIRE(settings.image_slots[0].cost_functions[1].weight == 0.8f);
     }
     SECTION("test_cost_function_broken_1")
@@ -311,7 +313,8 @@ TEST_CASE("parse_registration_file", "")
 
         for (int i = 0; i < settings.num_pyramid_levels; ++i) {
             if (i == 3) {
-                REQUIRE(settings.levels[i].solver == Settings::Solver::Solver_QPBO);
+                REQUIRE(settings.levels[i].solver == Settings::Solver::QPBO);
+                REQUIRE(settings.levels[i].reduction_mode == Settings::ELCReductionMode::Approximate);
 
                 REQUIRE(settings.levels[i].block_size.x == 9);
                 REQUIRE(settings.levels[i].block_size.y == 9);
@@ -323,14 +326,15 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].step_size.y == Approx(9.9f));
                 REQUIRE(settings.levels[i].step_size.z == Approx(9.9f));
 
-                REQUIRE(settings.levels[i].regularizer == Settings::Regularizer::Regularizer_Diffusion);
+                REQUIRE(settings.levels[i].regularizer == Settings::Regularizer::Diffusion);
                 REQUIRE(settings.levels[i].regularization_weight == Approx(9.0f));
                 REQUIRE(settings.levels[i].regularization_scale == Approx(0.9f));
                 REQUIRE(settings.levels[i].regularization_exponent == Approx(2.0f));
                 REQUIRE(settings.levels[i].constraints_weight == Approx(999.999f));
             }
             else {
-                REQUIRE(settings.levels[i].solver == Settings::Solver::Solver_GC);
+                REQUIRE(settings.levels[i].solver == Settings::Solver::GC);
+                REQUIRE(settings.levels[i].reduction_mode == Settings::ELCReductionMode::ELC_HOCR);
 
                 REQUIRE(settings.levels[i].block_size.x == 20);
                 REQUIRE(settings.levels[i].block_size.y == 24);
@@ -342,7 +346,7 @@ TEST_CASE("parse_registration_file", "")
                 REQUIRE(settings.levels[i].step_size.y == Approx(10.5f));
                 REQUIRE(settings.levels[i].step_size.z == Approx(10.5f));
 
-                REQUIRE(settings.levels[i].regularizer == Settings::Regularizer::Regularizer_Diffusion);
+                REQUIRE(settings.levels[i].regularizer == Settings::Regularizer::Diffusion);
                 REQUIRE(settings.levels[i].regularization_weight == Approx(0.5f));
                 REQUIRE(settings.levels[i].regularization_scale == Approx(1.1f));
                 REQUIRE(settings.levels[i].regularization_exponent == Approx(1.5f));
@@ -351,70 +355,70 @@ TEST_CASE("parse_registration_file", "")
         }
 
         REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[0].normalize == true);
         REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_None);
+                Settings::ImageSlot::CostFunction::None);
         REQUIRE(settings.image_slots[0].cost_functions[0].weight ==
                 1.0f);
 
         REQUIRE(settings.image_slots[1].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[1].normalize == true);
         REQUIRE(settings.image_slots[1].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_SSD);
+                Settings::ImageSlot::CostFunction::SSD);
         REQUIRE(settings.image_slots[1].cost_functions[0].weight ==
                 1.0f);
 
         REQUIRE(settings.image_slots[2].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[2].normalize == true);
         REQUIRE(settings.image_slots[2].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[2].cost_functions[0].weight ==
                 1.0f);
 
         REQUIRE(settings.image_slots[3].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[3].normalize == false);
         REQUIRE(settings.image_slots[3].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_None);
+                Settings::ImageSlot::CostFunction::None);
         REQUIRE(settings.image_slots[3].cost_functions[0].weight ==
                 1.0f);
 
         REQUIRE(settings.image_slots[4].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[4].normalize == false);
         REQUIRE(settings.image_slots[4].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_SSD);
+                Settings::ImageSlot::CostFunction::SSD);
         REQUIRE(settings.image_slots[4].cost_functions[0].weight ==
                 0.4f);
         REQUIRE(settings.image_slots[4].cost_functions[1].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[4].cost_functions[1].weight ==
                 0.3f);
 
         REQUIRE(settings.image_slots[5].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[5].normalize == false);
         REQUIRE(settings.image_slots[5].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
+                Settings::ImageSlot::CostFunction::NCC);
         REQUIRE(settings.image_slots[5].cost_functions[0].weight ==
                 1.0f);
 
         REQUIRE(settings.image_slots[6].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[6].normalize == false);
         REQUIRE(settings.image_slots[6].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_SSD);
+                Settings::ImageSlot::CostFunction::SSD);
         REQUIRE(settings.image_slots[6].cost_functions[0].weight ==
                 1.0f);
 
         REQUIRE(settings.image_slots[7].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
+                Settings::ImageSlot::ResampleMethod::Gaussian);
         REQUIRE(settings.image_slots[7].normalize == false);
         REQUIRE(settings.image_slots[7].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_None);
+                Settings::ImageSlot::CostFunction::None);
         REQUIRE(settings.image_slots[7].cost_functions[0].weight ==
                 1.0f);
     }

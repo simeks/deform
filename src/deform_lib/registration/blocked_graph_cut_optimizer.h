@@ -10,7 +10,7 @@
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm,
+    typename TRegularizer,
     typename TSolver
     >
 class BlockedGraphCutOptimizer
@@ -26,14 +26,14 @@ public:
     /// step_size : Step size in [mm]
     void execute(
         TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
+        TRegularizer& regularizer_fn,
         float3 step_size,
         stk::VolumeFloat3& def);
 
 private:
     bool do_block(
         TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
+        TRegularizer& regularizer_fn,
         const int3& block_p,
         const int3& block_dims,
         const int3& block_offset,
@@ -43,7 +43,31 @@ private:
 
     double calculate_energy(
         TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
+        TRegularizer& regularizer_fn,
+        stk::VolumeFloat3& def
+    );
+
+    template<typename FlowType>
+    FlowType compute_block_diffusion(
+        TUnaryTerm& unary_fn,
+        TRegularizer& regularizer_fn,
+        TSolver& graph,
+        const int3& block_p,
+        const int3& block_dims,
+        const int3& block_offset,
+        const float3& delta,
+        stk::VolumeFloat3& def
+    );
+
+    template<typename FlowType>
+    FlowType compute_block_bending(
+        TUnaryTerm& unary_fn,
+        TRegularizer& regularizer_fn,
+        TSolver& graph,
+        const int3& block_p,
+        const int3& block_dims,
+        const int3& block_offset,
+        const float3& delta,
         stk::VolumeFloat3& def
     );
 

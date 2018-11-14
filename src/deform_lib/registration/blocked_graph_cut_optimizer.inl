@@ -1,6 +1,8 @@
 #include "block_change_flags.h"
 #include "../config.h"
 #include "../profiler/profiler.h"
+#include "../regularization/diffusion_regularizer.h"
+#include "../regularization/bending_regularizer.h"
 
 #include <stk/common/log.h>
 
@@ -8,10 +10,10 @@
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm,
+    typename TRegularizer,
     typename TSolver
 >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::BlockedGraphCutOptimizer(
+BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::BlockedGraphCutOptimizer(
     const int3& block_size,
     double block_energy_epsilon,
     int max_iteration_count) :
@@ -28,20 +30,20 @@ BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::BlockedGraphCutOptim
 }
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm,
+    typename TRegularizer,
     typename TSolver
     >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::~BlockedGraphCutOptimizer()
+BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::~BlockedGraphCutOptimizer()
 {
 }
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm,
+    typename TRegularizer,
     typename TSolver
     >
-void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
+void BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::execute(
     TUnaryTerm& unary_fn,
-    TBinaryTerm& binary_fn,
+    TRegularizer& regularizer_fn,
     float3 step_size,
     stk::VolumeFloat3& def)
 {
@@ -66,7 +68,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
     BlockChangeFlags change_flags(block_count);
 
     int num_iterations = 0;
-    LOG(Info) << "Initial Energy: " << calculate_energy(unary_fn, binary_fn, def);
+    LOG(Info) << "Initial Energy: " << calculate_energy(unary_fn, regularizer_fn, def);
 
     bool done = false;
     while (!done) {
@@ -148,7 +150,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
 
                         block_changed |= do_block(
                             unary_fn,
-                            binary_fn,
+                            regularizer_fn,
                             block_p,
                             block_dims,
                             block_offset,
@@ -172,24 +174,330 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
         LOG(Verbose) << "Iteration " << num_iterations << ", "
                      << "Changed " << num_blocks_changed << " blocks, "
                      << "Energy: " << std::fixed << std::setprecision(9)
-                                   << calculate_energy(unary_fn, binary_fn, def);
+                                   << calculate_energy(unary_fn, regularizer_fn, def);
 
         ++num_iterations;
 
         PROFILER_FLIP();
     }
-    LOG(Info) << "Energy: " << calculate_energy(unary_fn, binary_fn, def) << ", "
+    LOG(Info) << "Energy: " << calculate_energy(unary_fn, regularizer_fn, def) << ", "
               << "Iterations: " << num_iterations;
 }
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm,
+    typename TRegularizer,
+    typename TSolver
+    >
+template<typename FlowType>
+FlowType BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::compute_block_diffusion(
+    TUnaryTerm& unary_fn,
+    TRegularizer& regularizer_fn,
+    TSolver& graph,
+    const int3& block_p,
+    const int3& block_dims,
+    const int3& block_offset,
+    const float3& delta, // delta in mm
+    stk::VolumeFloat3& def
+    )
+{
+    FlowType energy = 0;
+    dim3 dims = def.size();
+    for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
+        for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+            for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+                // Global coordinates
+                int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
+                int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
+                int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
+
+                // Skip voxels outside volume
+                if (gx < 0 || gx >= int(dims.x) ||
+                    gy < 0 || gy >= int(dims.y) ||
+                    gz < 0 || gz >= int(dims.z)) {
+                    graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
+                    continue;
+                }
+
+                int3 p{gx, gy, gz};
+                float3 def1 = def(p);
+
+                double f0 = unary_fn(p, def1);
+                double f1 = unary_fn(p, def1 + delta);
+
+                // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
+
+                if (sub_x == 0 && gx != 0) {
+                    int3 step{-1, 0, 0};
+                    float3 def2 = def(gx - 1, gy, gz);
+                    f0 += regularizer_fn(p, step, def1, def2);
+                    f1 += regularizer_fn(p, step, def1 + delta, def2);
+                }
+                else if (sub_x == block_dims.x - 1 && gx < int(dims.x) - 1) {
+                    int3 step{1, 0, 0};
+                    float3 def2 = def(gx + 1, gy, gz);
+                    f0 += regularizer_fn(p, step, def1, def2);
+                    f1 += regularizer_fn(p, step, def1 + delta, def2);
+                }
+
+                if (sub_y == 0 && gy != 0) {
+                    int3 step{0, -1, 0};
+                    float3 def2 = def(gx, gy - 1, gz);
+                    f0 += regularizer_fn(p, step, def1, def2);
+                    f1 += regularizer_fn(p, step, def1 + delta, def2);
+                }
+                else if (sub_y == block_dims.y - 1 && gy < int(dims.y) - 1) {
+                    int3 step{0, 1, 0};
+                    float3 def2 = def(gx, gy + 1, gz);
+                    f0 += regularizer_fn(p, step, def1, def2);
+                    f1 += regularizer_fn(p, step, def1 + delta, def2);
+                }
+
+                if (sub_z == 0 && gz != 0) {
+                    int3 step{0, 0, -1};
+                    float3 def2 = def(gx, gy, gz - 1);
+                    f0 += regularizer_fn(p, step, def1, def2);
+                    f1 += regularizer_fn(p, step, def1 + delta, def2);
+                }
+                else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
+                    int3 step{0, 0, 1};
+                    float3 def2 = def(gx, gy, gz + 1);
+                    f0 += regularizer_fn(p, step, def1, def2);
+                    f1 += regularizer_fn(p, step, def1 + delta, def2);
+                }
+
+                graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
+
+                energy += f0;
+
+                if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.x)) {
+                    int3 step{1, 0, 0};
+                    float3 def2 = def(p + step);
+                    double f_same = regularizer_fn(p, step, def1, def2);
+                    double f01 = regularizer_fn(p, step, def1, def2 + delta);
+                    double f10 = regularizer_fn(p, step, def1 + delta, def2);
+
+                    graph.add_term2(
+                        sub_x, sub_y, sub_z,
+                        sub_x + 1, sub_y, sub_z,
+                        f_same, f01, f10, f_same);
+
+                    energy += f_same;
+                }
+                if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
+                    int3 step{0, 1, 0};
+                    float3 def2 = def(p + step);
+                    double f_same = regularizer_fn(p, step, def1, def2);
+                    double f01 = regularizer_fn(p, step, def1, def2 + delta);
+                    double f10 = regularizer_fn(p, step, def1 + delta, def2);
+
+                    graph.add_term2(
+                        sub_x, sub_y, sub_z,
+                        sub_x, sub_y + 1, sub_z,
+                        f_same, f01, f10, f_same);
+
+                    energy += f_same;
+                }
+                if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
+                    int3 step{0, 0, 1};
+                    float3 def2 = def(p + step);
+                    double f_same = regularizer_fn(p, step, def1, def2);
+                    double f01 = regularizer_fn(p, step, def1, def2 + delta);
+                    double f10 = regularizer_fn(p, step, def1 + delta, def2);
+
+                    graph.add_term2(
+                        sub_x, sub_y, sub_z,
+                        sub_x, sub_y, sub_z + 1,
+                        f_same, f01, f10, f_same);
+
+                    energy += f_same;
+                }
+            }
+        }
+    }
+    return energy;
+}
+
+template<
+    typename TUnaryTerm,
+    typename TRegularizer,
+    typename TSolver
+    >
+template<typename FlowType>
+FlowType BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::compute_block_bending(
+    TUnaryTerm& unary_fn,
+    TRegularizer& regularizer_fn,
+    TSolver& graph,
+    const int3& block_p,
+    const int3& block_dims,
+    const int3& block_offset,
+    const float3& delta, // delta in mm
+    stk::VolumeFloat3& def
+    )
+{
+    FlowType energy = 0;
+    dim3 dims = def.size();
+    for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
+        for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+            for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+                // Global coordinates
+                int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
+                int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
+                int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
+
+                // Skip voxels outside volume
+                if (gx < 0 || gx >= int(dims.x) ||
+                    gy < 0 || gy >= int(dims.y) ||
+                    gz < 0 || gz >= int(dims.z)) {
+                    graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
+                    continue;
+                }
+
+                int3 p{gx, gy, gz};
+                float3 def_this = def(p);
+
+                // Unary
+
+                double f0 = unary_fn(p, def_this);
+                double f1 = unary_fn(p, def_this + delta);
+
+                graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
+
+                energy += f0;
+
+                // The second derivative is not defined on volume boundaries
+                if (gx == 0 || gx == int(dims.x) - 1 ||
+                    gy == 0 || gy == int(dims.y) - 1 ||
+                    gz == 0 || gz == int(dims.z) - 1)
+                {
+                    continue;
+                }
+
+                // Binary (block border)
+                //
+                // NOTE: binary terms (p1, p2) must be sorted for ELC such that
+                //       get_index(p1) < get_index(p2)
+
+                if (sub_x == 0 || sub_x == block_dims.x - 1) {
+                    const int3 step{1, 0, 0};
+                    const float3 def_prev = def(gx - 1, gy, gz);
+                    const float3 def_next = def(gx + 1, gy, gz);
+                    double f_same = regularizer_fn(p, step, def_prev, def_this, def_next);
+                    energy += f_same;
+                    if (sub_x == 0) {
+                        double f001 = regularizer_fn(p, step, def_prev, def_this,         def_next + delta);
+                        double f010 = regularizer_fn(p, step, def_prev, def_this + delta, def_next);
+                        graph.add_term2(sub_x,     sub_y, sub_z,
+                                        sub_x + 1, sub_y, sub_z,
+                                        f_same, f010, f001, f_same);
+                    }
+                    else {
+                        double f100 = regularizer_fn(p, step, def_prev + delta, def_this,         def_next);
+                        double f010 = regularizer_fn(p, step, def_prev,         def_this + delta, def_next);
+                        graph.add_term2(sub_x - 1, sub_y, sub_z,
+                                        sub_x,     sub_y, sub_z,
+                                        f_same, f100, f010, f_same);
+                    }
+                }
+
+                if (sub_y == 0 || sub_y == block_dims.y - 1) {
+                    const int3 step{0, 1, 0};
+                    const float3 def_prev = def(gx, gy - 1, gz);
+                    const float3 def_next = def(gx, gy + 1, gz);
+                    double f_same = regularizer_fn(p, step, def_prev, def_this, def_next);
+                    energy += f_same;
+                    if (sub_y == 0) {
+                        double f001 = regularizer_fn(p, step, def_prev, def_this,         def_next + delta);
+                        double f010 = regularizer_fn(p, step, def_prev, def_this + delta, def_next);
+                        graph.add_term2(sub_x, sub_y,     sub_z,
+                                        sub_x, sub_y + 1, sub_z,
+                                        f_same, f010, f001, f_same);
+                    }
+                    else {
+                        double f100 = regularizer_fn(p, step, def_prev + delta, def_this,         def_next);
+                        double f010 = regularizer_fn(p, step, def_prev,         def_this + delta, def_next);
+                        graph.add_term2(sub_x, sub_y - 1, sub_z,
+                                        sub_x, sub_y,     sub_z,
+                                        f_same, f100, f010, f_same);
+                    }
+                }
+
+                if (sub_z == 0 || sub_z == block_dims.z - 1) {
+                    const int3 step{0, 0, 1};
+                    const float3 def_prev = def(gx, gy, gz - 1);
+                    const float3 def_next = def(gx, gy, gz + 1);
+                    double f_same = regularizer_fn(p, step, def_prev, def_this, def_next);
+                    energy += f_same;
+                    if (sub_z == 0) {
+                        double f001 = regularizer_fn(p, step, def_prev, def_this,         def_next + delta);
+                        double f010 = regularizer_fn(p, step, def_prev, def_this + delta, def_next);
+                        graph.add_term2(sub_x, sub_y, sub_z,
+                                        sub_x, sub_y, sub_z + 1,
+                                        f_same, f010, f001, f_same);
+                    }
+                    else {
+                        double f100 = regularizer_fn(p, step, def_prev + delta, def_this,         def_next);
+                        double f010 = regularizer_fn(p, step, def_prev,         def_this + delta, def_next);
+                        graph.add_term2(sub_x, sub_y, sub_z - 1,
+                                        sub_x, sub_y, sub_z,
+                                        f_same, f100, f010, f_same);
+                    }
+                }
+
+                // Ternary
+                // NOTE: f_000 == f_111, f_100 == f_001, f_110 == f_011
+
+                #define TERNARY_TERM(step) {\
+                    const float3 def_prev = def(p - step); \
+                    const float3 def_next = def(p + step); \
+                    const float3& d = delta; \
+                    double f_000 = regularizer_fn(p, step, def_prev,     def_this,     def_next    ); \
+                    double f_001 = regularizer_fn(p, step, def_prev,     def_this,     def_next + d); \
+                    double f_010 = regularizer_fn(p, step, def_prev,     def_this + d, def_next    ); \
+                    double f_011 = regularizer_fn(p, step, def_prev,     def_this + d, def_next + d); \
+                    double f_101 = regularizer_fn(p, step, def_prev + d, def_this,     def_next + d); \
+                    const double f[8] = { \
+                        f_000, /* 000 */ \
+                        f_001, /* 001 */ \
+                        f_010, /* 010 */ \
+                        f_011, /* 011 */ \
+                        f_001, /* 100 */ \
+                        f_101, /* 101 */ \
+                        f_011, /* 110 */ \
+                        f_000, /* 111 */ \
+                    }; \
+                    const int3 sub_p = {sub_x, sub_y, sub_z}; \
+                    const int3 points[3] = {sub_p - step, sub_p, sub_p + step}; \
+                    graph.template add_term<3>(points, f); \
+                    energy += f[0]; \
+                }
+
+                if (sub_x > 0 && sub_x < block_dims.x - 1) {
+                    const int3 step{1, 0, 0};
+                    TERNARY_TERM(step);
+                }
+                if (sub_y > 0 && sub_y < block_dims.y - 1) {
+                    const int3 step{0, 1, 0};
+                    TERNARY_TERM(step);
+                }
+                if (sub_z > 0 && sub_z < block_dims.z - 1) {
+                    const int3 step{0, 0, 1};
+                    TERNARY_TERM(step);
+                }
+            }
+        }
+    }
+    return energy;
+}
+
+template<
+    typename TUnaryTerm,
+    typename TRegularizer,
     typename TSolver
 >
-bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
+bool BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::do_block(
     TUnaryTerm& unary_fn,
-    TBinaryTerm& binary_fn,
+    TRegularizer& regularizer_fn,
     const int3& block_p,
     const int3& block_dims,
     const int3& block_offset,
@@ -206,118 +514,17 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
     FlowType current_energy = 0;
     {
         PROFILER_SCOPE("build", 0xFF228844);
-
-        for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
-            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
-                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
-                    // Global coordinates
-                    int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
-                    int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
-                    int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
-
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(dims.x) ||
-                        gy < 0 || gy >= int(dims.y) ||
-                        gz < 0 || gz >= int(dims.z)) {
-                        graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
-                        continue;
-                    }
-
-                    int3 p{gx, gy, gz};
-                    float3 def1 = def(p);
-
-                    double f0 = unary_fn(p, def1);
-                    double f1 = unary_fn(p, def1 + delta);
-
-                    // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
-
-                    if (sub_x == 0 && gx != 0) {
-                        int3 step{-1, 0, 0};
-                        float3 def2 = def(gx - 1, gy, gz);
-                        f0 += binary_fn(p, step, def1, def2);
-                        f1 += binary_fn(p, step, def1 + delta, def2);
-                    }
-                    else if (sub_x == block_dims.x - 1 && gx < int(dims.x) - 1) {
-                        int3 step{1, 0, 0};
-                        float3 def2 = def(gx + 1, gy, gz);
-                        f0 += binary_fn(p, step, def1, def2);
-                        f1 += binary_fn(p, step, def1 + delta, def2);
-                    }
-
-                    if (sub_y == 0 && gy != 0) {
-                        int3 step{0, -1, 0};
-                        float3 def2 = def(gx, gy - 1, gz);
-                        f0 += binary_fn(p, step, def1, def2);
-                        f1 += binary_fn(p, step, def1 + delta, def2);
-                    }
-                    else if (sub_y == block_dims.y - 1 && gy < int(dims.y) - 1) {
-                        int3 step{0, 1, 0};
-                        float3 def2 = def(gx, gy + 1, gz);
-                        f0 += binary_fn(p, step, def1, def2);
-                        f1 += binary_fn(p, step, def1 + delta, def2);
-                    }
-
-                    if (sub_z == 0 && gz != 0) {
-                        int3 step{0, 0, -1};
-                        float3 def2 = def(gx, gy, gz - 1);
-                        f0 += binary_fn(p, step, def1, def2);
-                        f1 += binary_fn(p, step, def1 + delta, def2);
-                    }
-                    else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
-                        int3 step{0, 0, 1};
-                        float3 def2 = def(gx, gy, gz + 1);
-                        f0 += binary_fn(p, step, def1, def2);
-                        f1 += binary_fn(p, step, def1 + delta, def2);
-                    }
-
-                    graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
-
-                    current_energy += f0;
-
-                    if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.x)) {
-                        int3 step{1, 0, 0};
-                        float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, step, def1, def2);
-                        double f01 = binary_fn(p, step, def1, def2 + delta);
-                        double f10 = binary_fn(p, step, def1 + delta, def2);
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x + 1, sub_y, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
-                        int3 step{0, 1, 0};
-                        float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, step, def1, def2);
-                        double f01 = binary_fn(p, step, def1, def2 + delta);
-                        double f10 = binary_fn(p, step, def1 + delta, def2);
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y + 1, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
-                        int3 step{0, 0, 1};
-                        float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, step, def1, def2);
-                        double f01 = binary_fn(p, step, def1, def2 + delta);
-                        double f10 = binary_fn(p, step, def1 + delta, def2);
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y, sub_z + 1,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                }
-            }
+        switch (regularizer_fn.type()) {
+        case Settings::Regularizer::Diffusion:
+            current_energy = compute_block_diffusion<FlowType>(
+                    unary_fn, regularizer_fn, graph, block_p, block_dims, block_offset, delta, def);
+            break;
+        case Settings::Regularizer::Bending:
+            current_energy = compute_block_bending<FlowType>(
+                    unary_fn, regularizer_fn, graph, block_p, block_dims, block_offset, delta, def);
+            break;
+        default:
+            ASSERT(false && "This line should be unreachable");
         }
     }
 
@@ -365,41 +572,83 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm,
+    typename TRegularizer,
     typename TSolver
 >
-double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::calculate_energy(
+double BlockedGraphCutOptimizer<TUnaryTerm, TRegularizer, TSolver>::calculate_energy(
     TUnaryTerm& unary_fn,
-    TBinaryTerm& binary_fn,
+    TRegularizer& regularizer_fn,
     stk::VolumeFloat3& def
 )
 {
     dim3 dims = def.size();
 
     double total_energy = 0;
-    #pragma omp parallel for schedule(dynamic) reduction(+:total_energy)
-    for (int gz = 0; gz < int(dims.z); ++gz) {
-        for (int gy = 0; gy < int(dims.y); ++gy) {
-            for (int gx = 0; gx < int(dims.x); ++gx) {
-                int3 p{gx, gy, gz};
-                float3 def1 = def(p);
+    if (regularizer_fn.type() == Settings::Regularizer::Diffusion) {
+        #pragma omp parallel for schedule(dynamic) reduction(+:total_energy)
+        for (int gz = 0; gz < int(dims.z); ++gz) {
+            for (int gy = 0; gy < int(dims.y); ++gy) {
+                for (int gx = 0; gx < int(dims.x); ++gx) {
+                    int3 p{gx, gy, gz};
+                    float3 def1 = def(p);
 
-                total_energy += unary_fn(p, def1);
+                    total_energy += unary_fn(p, def1);
 
-                if (gx + 1 < int(dims.x)) {
-                    int3 step{1, 0, 0};
-                    float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, step, def1, def2);
+                    if (gx + 1 < int(dims.x)) {
+                        int3 step{1, 0, 0};
+                        float3 def2 = def(p + step);
+                        total_energy += regularizer_fn(p, step, def1, def2);
+                    }
+                    if (gy + 1 < int(dims.y)) {
+                        int3 step{0, 1, 0};
+                        float3 def2 = def(p + step);
+                        total_energy += regularizer_fn(p, step, def1, def2);
+                    }
+                    if (gz + 1 < int(dims.z)) {
+                        int3 step{0, 0, 1};
+                        float3 def2 = def(p + step);
+                        total_energy += regularizer_fn(p, step, def1, def2);
+                    }
                 }
-                if (gy + 1 < int(dims.y)) {
-                    int3 step{0, 1, 0};
-                    float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, step, def1, def2);
-                }
-                if (gz + 1 < int(dims.z)) {
-                    int3 step{0, 0, 1};
-                    float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, step, def1, def2);
+            }
+        }
+    }
+    else if (regularizer_fn.type() == Settings::Regularizer::Bending) {
+        #pragma omp parallel for schedule(dynamic) reduction(+:total_energy)
+        for (int gz = 0; gz < int(dims.z); ++gz) {
+            for (int gy = 0; gy < int(dims.y); ++gy) {
+                for (int gx = 0; gx < int(dims.x); ++gx) {
+                    int3 p{gx, gy, gz};
+                    float3 def1 = def(p);
+
+                    total_energy += unary_fn(p, def1);
+
+                    // The second derivative is not defined on volume boundaries
+                    if (gx == 0 || gx == int(dims.x) - 1 ||
+                        gy == 0 || gy == int(dims.y) - 1 ||
+                        gz == 0 || gz == int(dims.z) - 1)
+                    {
+                        continue;
+                    }
+
+                    if (gx + 1 < int(dims.x)) {
+                        int3 step{1, 0, 0};
+                        float3 def0 = def(p - step);
+                        float3 def2 = def(p + step);
+                        total_energy += regularizer_fn(p, step, def0, def1, def2);
+                    }
+                    if (gy + 1 < int(dims.y)) {
+                        int3 step{0, 1, 0};
+                        float3 def0 = def(p - step);
+                        float3 def2 = def(p + step);
+                        total_energy += regularizer_fn(p, step, def0, def1, def2);
+                    }
+                    if (gz + 1 < int(dims.z)) {
+                        int3 step{0, 0, 1};
+                        float3 def0 = def(p - step);
+                        float3 def2 = def(p + step);
+                        total_energy += regularizer_fn(p, step, def0, def1, def2);
+                    }
                 }
             }
         }

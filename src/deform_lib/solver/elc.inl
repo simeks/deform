@@ -92,6 +92,8 @@ void ELC<T, mode>::convert()
     else if constexpr (mode == ELCReductionMode::Approximate) {
         quadratic_pbf = _pbf;
         quadratic_pbf.reduceHigherApprox();
+    }
+    else {
         ASSERT(false && "This line should be unreachable");
     }
 

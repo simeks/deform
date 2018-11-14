@@ -15,6 +15,7 @@ set(DEFORM_LIB_SRCS
     "filters/resample.cpp"
     "filters/resample.h"
 
+    "regularization/bending_regularizer.h"
     "regularization/regularizer.h"
     "regularization/diffusion_regularizer.h"
 

@@ -73,7 +73,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
 
         ASSERT(fixed.voxel_type() == moving.voxel_type());
         for (auto& fn : _settings.image_slots[i].cost_functions) {
-            if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
+            if (Settings::ImageSlot::CostFunction::SSD == fn.function) {
                 if (!fn.parameters.empty()) {
                     throw std::invalid_argument("[GPU] SSDFunction: unrecognised parameter "
                                                 "'" + fn.parameters.begin()->first + "' with value '"
@@ -91,7 +91,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
 
                 unary_fn.add_function(function, fn.weight);
             }
-            else if (Settings::ImageSlot::CostFunction_NCC == fn.function) {
+            else if (Settings::ImageSlot::CostFunction::NCC == fn.function) {
                 int radius = 2;
 
                 for (const auto& [k, v] : fn.parameters) {
