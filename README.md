@@ -94,6 +94,7 @@ block_size: [12, 12, 12]
 block_energy_epsilon: 1e-7
 max_iteration_count: -1
 step_size: 0.5
+regularizer: diffusion
 regularization_weight: 0.1
 regularization_scale: 1.0
 regularization_exponent: 2.0
@@ -165,6 +166,11 @@ is guaranteed to be part of an optimal solution. `elc` can operate on higher
 order cliques, reducing the energy to a quadratic form [[1]](#1) and solving
 the resulting problem with `qpbo`.
 
+`reduction_mode` sets the algorithm used to reduce higher order terms in the
+energy to a quadratic form. Only relevant when using `elc` solver. Available
+modes are `hocr`, `elc_hocr`, and `approximate`. For details please refer to
+[[1]](#1).
+
 `block_size` size of the block (in voxels) for the block-wise solver. A block
 size of (0,0,0) will result in a single block for the whole volume.
 
@@ -179,6 +185,10 @@ level. Setting this to -1 (default) allows an unlimited number of iterations.
 single `float` value, in that case the same step size will be used in all
 directions, or a sequence `[sx, sy, sz]` of three `float` specifying the size
 for each direction.
+
+`regularizer` allows to select which regularisation function to use. Available
+functions are `diffusion` (minimise first derivative) and `bending` (minimise
+second non-mixed derivatives).
 
 `regularization_weight`, `regularization_scale`, and `regularization_exponent`
 control the importance of the regularization term. The cost function is
