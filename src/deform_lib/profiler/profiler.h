@@ -62,7 +62,13 @@ namespace cuda {
     };
 
     inline void register_thread(const char* name) {
-        nvtxNameOsThread(::GetCurrentThreadId(), name);
+        nvtxNameOsThread(
+        #ifdef _WIN32
+            ::GetCurrentThreadId(), 
+        #else
+            pthread_self(),
+        #endif
+            name);
     }
 }
 }

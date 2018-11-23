@@ -21,9 +21,31 @@ if (WIN32)
         PATHS
             $ENV{NvToolsExt_PATH})
 
-    include(SelectLibraryConfigurations)
-    select_library_configurations(NvToolsExt)
+else ()
+    find_path(NvToolsExt_INCLUDE_DIR
+        NAMES
+            nvToolsExt.h
+        PATH_SUFFIXES
+            include
+        PATHS
+            "/opt/cuda/")
+
+    find_library(NvToolsExt_LIBRARY_RELEASE "libnvToolsExt.so"
+        PATH_SUFFIXES
+            "lib64/"
+        PATHS
+            "/opt/cuda/")
+
+    find_library(NvToolsExt_LIBRARY_DEBUG "libnvToolsExt.so"
+        PATH_SUFFIXES
+            "lib64/"
+        PATHS
+            "/opt/cuda/")
+
 endif ()
+
+include(SelectLibraryConfigurations)
+select_library_configurations(NvToolsExt)
 
 find_package_handle_standard_args(
     NvToolsExt 
