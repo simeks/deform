@@ -11,6 +11,11 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+# Set location of outputs
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 set(DF_VERSION_FILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/src/deform_lib/version.h.in")
 message(${DF_VERSION_FILE_IN})
 set(DF_VERSION_FILE_OUT "src/deform_lib/version.h")
