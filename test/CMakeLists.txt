@@ -8,7 +8,7 @@ set(DEFORM_TEST_SRCS
 )
 
 add_executable(deform_test ${DEFORM_TEST_SRCS})
-add_test(deform_test deform_test)
+add_test(deform_test ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/deform_test)
 
 target_link_libraries(deform_test Catch deform_lib)
 
