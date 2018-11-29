@@ -58,6 +58,7 @@ namespace
                   << "Computes the Jacobian determinants of a displacement field" << std::endl;
         std::cout << std::string(4, ' ') << std::setw(30) << std::left << "divergence"
                   << "Computes the divergence of a displacement field" << std::endl;
+        std::cout << std::endl;
     }
 
 } // namespace
