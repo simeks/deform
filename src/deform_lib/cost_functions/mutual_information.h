@@ -217,8 +217,7 @@ public:
                 for (uint32_t x = 0; x < size.x; ++x) {
                     // [1] -> [world] -> [2]
                     float3 p1 {float(x), float(y), float(z)};
-                    float3 pw = volume1.origin() + p1 * volume1.spacing();
-                    float3 p2 = (pw - volume2.origin()) / volume2.spacing();
+                    float3 p2 = volume2.point2index(volume1.index2point(p1));
 
                     T v1 = volume1(x, y, z);
                     T v2 = volume2.linear_at(p2, stk::Border_Replicate);
