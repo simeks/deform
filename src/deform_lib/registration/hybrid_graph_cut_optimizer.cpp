@@ -291,6 +291,7 @@ void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
 {
     _worker_pool.push_back([this, block](){
         this->minimize_block_task(block);
+        this->dispatch_label_upload(block);
     });
 }
 void HybridGraphCutOptimizer::dispatch_label_upload(const Block& block)
@@ -578,6 +579,4 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         _block_change_flags.set_block(block.idx, changed_flag, block.shift);
         ++_num_blocks_changed;
     }
-
-    dispatch_label_upload(block);
 }
