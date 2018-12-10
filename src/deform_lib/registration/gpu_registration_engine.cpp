@@ -1,3 +1,4 @@
+#include "deform_lib/profiler/profiler.h"
 #include "gpu_registration_engine.h"
 #include "gpu/cost_functions/cost_function.h"
 #include "hybrid_graph_cut_optimizer.h"

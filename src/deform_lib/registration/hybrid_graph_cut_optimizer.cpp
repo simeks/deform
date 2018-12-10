@@ -212,7 +212,7 @@ void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
     _gpu_binary_cost_y = stk::GpuVolume(size, stk::Type_Float4);
     _gpu_binary_cost_z = stk::GpuVolume(size, stk::Type_Float4);
 
-    _labels = stk::VolumeUChar(size, uint8_t{});
+    _labels = stk::Volume(size, stk::Type_UChar, nullptr, stk::Usage_Pinned);
     _gpu_labels = stk::GpuVolume(size, stk::Type_UChar);
 }
 void HybridGraphCutOptimizer::reset_unary_cost()
@@ -264,7 +264,7 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
 
     {
         PROFILER_SCOPE("apply", 0xFF532439);
-        _gpu_labels.upload(_labels);
+        //_gpu_labels.upload(_labels);
         apply_displacement_delta(stk::cuda::Stream::null());
     }
 
@@ -290,6 +290,17 @@ void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
 {
     _worker_pool.push_back([this, block](){
         this->minimize_block_task(block);
+    });
+}
+void HybridGraphCutOptimizer::dispatch_label_upload(const Block& block)
+{
+    auto& stream = _stream_pool[rand() % _stream_pool.size()];
+
+    upload_subvolume(_labels, _gpu_labels, block, stream);
+    
+    stream.add_callback([this](stk::cuda::Stream , int){
+        // Finalize block
+        --this->_num_blocks_remaining;
     });
 }
 
@@ -323,6 +334,29 @@ void HybridGraphCutOptimizer::download_subvolume(
     );
 
     sub_src.download(sub_tgt, stream);
+}
+void HybridGraphCutOptimizer::upload_subvolume(
+    const stk::Volume& src,
+    stk::GpuVolume& tgt,
+    const Block& block,
+    stk::cuda::Stream stream
+)
+{
+    ASSERT(src.size() == tgt.size());
+
+    stk::Volume sub_src(src,
+        { block.begin.x, block.end.x },
+        { block.begin.y, block.end.y },
+        { block.begin.z, block.end.z }
+    );
+
+    stk::GpuVolume sub_tgt(tgt,
+        { block.begin.x, block.end.x },
+        { block.begin.y, block.end.y },
+        { block.begin.z, block.end.z }
+    );
+
+    sub_tgt.upload(sub_src, stream);
 }
 void HybridGraphCutOptimizer::block_cost_task(
     const Block& block,
@@ -543,5 +577,6 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         _block_change_flags.set_block(block.idx, changed_flag, block.shift);
         ++_num_blocks_changed;
     }
-    --_num_blocks_remaining;
+
+    dispatch_label_upload(block);
 }
