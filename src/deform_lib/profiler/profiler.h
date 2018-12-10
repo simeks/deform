@@ -28,6 +28,8 @@
 #define VC_EXTRALEAN
 #define NOMINMAX
 #include <windows.h>
+#else
+#include <pthread.h>
 #endif
 
 #define PROFILER_INIT()

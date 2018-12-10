@@ -58,6 +58,9 @@ private:
     // Dispatches a minimize block task
     void dispatch_minimize_block(const Block& block);
 
+    // Dispatches the label upload
+    void dispatch_label_upload(const Block& block);
+
     // Applies delta based on labels in _gpu_labels.
     void apply_displacement_delta(stk::cuda::Stream stream);
 
@@ -66,6 +69,13 @@ private:
         stk::Volume& tgt,
         const Block& block,
         bool pad, // Pad all axes by 1 in negative direction for binary cost
+        stk::cuda::Stream stream
+    );
+
+    void upload_subvolume(
+        const stk::Volume& src,
+        stk::GpuVolume& tgt,
+        const Block& block,
         stk::cuda::Stream stream
     );
 

@@ -157,7 +157,7 @@ GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
     _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
 
     // Create CUDA streams
-    _stream_pool.resize(4);
+    _stream_pool.resize(5);
 }
 GpuRegistrationEngine::~GpuRegistrationEngine()
 {
