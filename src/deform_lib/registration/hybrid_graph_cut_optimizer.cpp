@@ -240,7 +240,8 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
     _num_blocks_changed = 0;
     _num_blocks_remaining = _block_queue.size();
 
-    for (int i = 0; i < (int) _stream_pool.size(); ++i) {
+    // Reserve first stream for uploading labels
+    for (int i = 1; i < (int) _stream_pool.size(); ++i) {
         stk::cuda::Stream stream = _stream_pool[i];
         std::scoped_lock lock(_block_queue_lock);
         if (!_block_queue.empty()) {
@@ -294,7 +295,7 @@ void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
 }
 void HybridGraphCutOptimizer::dispatch_label_upload(const Block& block)
 {
-    auto& stream = _stream_pool[rand() % _stream_pool.size()];
+    auto& stream = _stream_pool[0];
 
     upload_subvolume(_labels, _gpu_labels, block, stream);
     
