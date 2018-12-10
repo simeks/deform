@@ -197,9 +197,14 @@ void GpuRegistrationEngine::set_image_pair(
 
     auto downsample_fn = filters::gpu::downsample_volume_by_2;
 
-    // Upload
-    stk::GpuVolume gpu_fixed(fixed);
-    stk::GpuVolume gpu_moving(moving);
+    stk::GpuVolume gpu_fixed(fixed.size(), fixed.voxel_type());
+    stk::GpuVolume gpu_moving(moving.size(), moving.voxel_type());
+
+    {
+        PROFILER_SCOPE("upload_image_pair", 0xFF532439);
+        gpu_fixed.upload(fixed);
+        gpu_moving.upload(moving);
+    }
 
     _fixed_pyramids[i].build_from_base(gpu_fixed, downsample_fn);
     _moving_pyramids[i].build_from_base(gpu_moving, downsample_fn);
