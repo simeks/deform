@@ -232,7 +232,7 @@ TEST_CASE("args", "")
             std::vector<const char*> strings;
             std::for_each(ss.begin(), ss.end(), [&](const std::string& s) {strings.push_back(s.c_str());});
 
-            ArgParser parser(strings.size(), const_cast<char**>(strings.data()));
+            ArgParser parser((int)strings.size(), const_cast<char**>(strings.data()));
             init_parser(parser);
             parser.parse();
 
