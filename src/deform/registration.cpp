@@ -32,8 +32,8 @@ bool RegistrationCommand::_parse_arguments(void)
     _args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
     _args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
     _args.add_group();
-    _args.add_flag("do_jacobian", "-j, --jacobian",  "Enable output of the resulting jacobian");
-    _args.add_flag("do_transform", "-t, --transform",  "Will output the transformed version of the first moving volume");
+    _args.add_option("jacobian", "-j, --jacobian",  "Path to the resulting jacobian");
+    _args.add_option("transform", "-t, --transform",  "Path to the transformed version of the first moving volume");
     _args.add_group();
     _args.add_option("num_threads", "--num-threads", "Maximum number of threads");
 
@@ -207,16 +207,18 @@ int RegistrationCommand::_execute(void)
     LOG(Info) << "Writing displacement field to '" << out_file << "'";
     stk::write_volume(out_file.c_str(), def);
 
-    if (_args.is_set("do_jacobian")) {
-        LOG(Info) << "Writing jacobian to 'result_jac.vtk'";
+    if (_args.is_set("jacobian")) {
+        std::string jac_file = _args.get<std::string>("jacobian", "result_jac.vtk");
+        LOG(Info) << "Writing jacobian to '" << jac_file << "'";
         stk::Volume jac = calculate_jacobian(def);
-        stk::write_volume("result_jac.vtk", jac);
+        stk::write_volume(jac_file, jac);
     }
 
-    if (_args.is_set("do_transform")) {
-        LOG(Info) << "Writing transformed image to 'result.vtk'";
+    if (_args.is_set("transform")) {
+        std::string transform_file = _args.get<std::string>("transform", "result.vtk");
+        LOG(Info) << "Writing transformed image to '" << transform_file << "'";
         stk::Volume t = transform_volume(moving_volumes[0], def);
-        stk::write_volume("result.vtk", t);
+        stk::write_volume(transform_file, t);
     }
 
     return EXIT_SUCCESS;
