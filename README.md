@@ -73,7 +73,10 @@ To perform a registration
 | `-constraint_values <file>` | Filename for constraint values.             |
 | `-p <file>`                 | Filename of the parameter file.             |
 | `-o <file>`                 | Filename of the resulting deformation field |
+| `-j <file>`                 | Filename of the resulting jacobian map      |
+| `-t <file>`                 | Filename of the transformed moving volume   |
 | `--gpu`                     | Enables GPU assisted registration.          |
+
 
 † Requires a matching number of fixed and moving images.
 
