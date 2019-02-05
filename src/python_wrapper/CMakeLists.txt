@@ -5,7 +5,6 @@ set_target_properties(_pydeform PROPERTIES
     SUFFIX "${PYTHON_MODULE_EXTENSION}"
     CXX_VISIBILITY_PRESET "hidden"
     CUDA_VISIBILITY_PRESET "hidden"
-    LINKER_LANGUAGE "C"
     )
 
 target_include_directories(_pydeform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
