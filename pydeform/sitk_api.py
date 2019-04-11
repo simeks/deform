@@ -134,9 +134,9 @@ def register(
         moving image(s).
     """
 
-    if not isinstance(fixed_images, list):
+    if not isinstance(fixed_images, (list, tuple)):
         fixed_images = [fixed_images]
-    if not isinstance(moving_images, list):
+    if not isinstance(moving_images, (list, tuple)):
         moving_images = [moving_images]
 
     fixed_origin = fixed_images[0].GetOrigin()
