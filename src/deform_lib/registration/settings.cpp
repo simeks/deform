@@ -1,6 +1,7 @@
 #include "settings.h"
 
 #include <stk/common/log.h>
+#include <stk/math/float3.h>
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -320,6 +321,14 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
                         "expected float or sequence of three floats"
                         );
             }
+        }
+        
+        float len = stk::norm(out.step_size);
+        if (len == 0 ||
+            out.step_size.x < 0 ||
+            out.step_size.y < 0 ||
+            out.step_size.z < 0) {
+            throw ValidationError("Settings: Invalid step_size, step_size should be greater than zero");
         }
     }
 
