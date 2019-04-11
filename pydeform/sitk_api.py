@@ -195,6 +195,28 @@ def register(
 
     return displacement
 
+def transform(image, df, interp=sitk.sitkLinear):
+    R""" Resample an image with a given displacement field.
+    
+    Parameters
+    ----------
+    image: SimpleITK.Image
+        Image to resample.
+        
+    df:
+        Displacementfield, in reference space coordinates, to apply
+    
+    interp: pydeform.Interpolator
+        Interpolator used in the resampling. E.g. SimpleITK.sitkLinear
+
+    Returns
+    -------
+    SimpleITK.Image
+        Resampled image
+    """
+    t = sitk.DisplacementFieldTransform(sitk.Cast(df, sitk.sitkVectorFloat64))
+    return sitk.Resample(image, df, t, interp)
+    
 
 def jacobian(image):
     R""" Compute the Jacobian determinant of a 3D 3-vector field.
