@@ -194,6 +194,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     stk::VolumeFloat3& def
 )
 {
+    float3 deltav = float3{
+        delta.x / def.spacing().x,
+        delta.y / def.spacing().y,
+        delta.z / def.spacing().z
+    };
+
     dim3 dims = def.size();
 
     typedef double FlowType;
@@ -221,10 +227,13 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     }
 
                     int3 p{gx, gy, gz};
+                    float3 p_delta{gx + deltav.x, gy + deltav.y, gz + deltav.z};
+
                     float3 def1 = def(p);
+                    float3 def1d = def.linear_at(p_delta, stk::Border_Replicate) + delta;
 
                     double f0 = unary_fn(p, def1);
-                    double f1 = unary_fn(p, def1 + delta);
+                    double f1 = unary_fn(p, def1d);
 
                     // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
 
@@ -232,39 +241,39 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         int3 step{-1, 0, 0};
                         float3 def2 = def(gx - 1, gy, gz);
                         f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f1 += binary_fn(p, def1d, def2, step);
                     }
                     else if (sub_x == block_dims.x - 1 && gx < int(dims.x) - 1) {
                         int3 step{1, 0, 0};
                         float3 def2 = def(gx + 1, gy, gz);
                         f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f1 += binary_fn(p, def1d, def2, step);
                     }
 
                     if (sub_y == 0 && gy != 0) {
                         int3 step{0, -1, 0};
                         float3 def2 = def(gx, gy - 1, gz);
                         f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f1 += binary_fn(p, def1d, def2, step);
                     }
                     else if (sub_y == block_dims.y - 1 && gy < int(dims.y) - 1) {
                         int3 step{0, 1, 0};
                         float3 def2 = def(gx, gy + 1, gz);
                         f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f1 += binary_fn(p, def1d, def2, step);
                     }
 
                     if (sub_z == 0 && gz != 0) {
                         int3 step{0, 0, -1};
                         float3 def2 = def(gx, gy, gz - 1);
                         f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f1 += binary_fn(p, def1d, def2, step);
                     }
                     else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
                         int3 step{0, 0, 1};
                         float3 def2 = def(gx, gy, gz + 1);
                         f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
+                        f1 += binary_fn(p, def1d, def2, step);
                     }
 
                     graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
@@ -273,10 +282,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
                     if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.x)) {
                         int3 step{1, 0, 0};
+                        float3 stepf{1, 0, 0};
                         float3 def2 = def(p + step);
+                        float3 def2d = def.linear_at(p_delta + stepf, stk::Border_Replicate) + delta;
                         double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f01 = binary_fn(p, def1, def2d, step);
+                        double f10 = binary_fn(p, def1d, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -287,10 +298,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     }
                     if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
                         int3 step{0, 1, 0};
+                        float3 stepf{0, 1, 0};
                         float3 def2 = def(p + step);
+                        float3 def2d = def.linear_at(p_delta + stepf, stk::Border_Replicate) + delta;
                         double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f01 = binary_fn(p, def1, def2d, step);
+                        double f10 = binary_fn(p, def1d, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
@@ -301,10 +314,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     }
                     if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
                         int3 step{0, 0, 1};
+                        float3 stepf{0, 0, 1};
                         float3 def2 = def(p + step);
+                        float3 def2d = def.linear_at(p_delta + stepf, stk::Border_Replicate) + delta;
                         double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
+                        double f01 = binary_fn(p, def1, def2d, step);
+                        double f10 = binary_fn(p, def1d, def2, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
