@@ -285,48 +285,51 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         float3 stepf{1, 0, 0};
                         float3 def2 = def(p + step);
                         float3 def2d = def.linear_at(p_delta + stepf, stk::Border_Replicate) + delta;
-                        double f_same = binary_fn(p, def1, def2, step);
+                        double f00 = binary_fn(p, def1, def2, step);
                         double f01 = binary_fn(p, def1, def2d, step);
                         double f10 = binary_fn(p, def1d, def2, step);
+                        double f11 = binary_fn(p, def1d, def2d, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
                             sub_x + 1, sub_y, sub_z,
-                            f_same, f01, f10, f_same);
+                            f00, f01, f10, f11);
 
-                        current_energy += f_same;
+                        current_energy += f00;
                     }
                     if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
                         int3 step{0, 1, 0};
                         float3 stepf{0, 1, 0};
                         float3 def2 = def(p + step);
                         float3 def2d = def.linear_at(p_delta + stepf, stk::Border_Replicate) + delta;
-                        double f_same = binary_fn(p, def1, def2, step);
+                        double f00 = binary_fn(p, def1, def2, step);
                         double f01 = binary_fn(p, def1, def2d, step);
                         double f10 = binary_fn(p, def1d, def2, step);
+                        double f11 = binary_fn(p, def1d, def2d, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
                             sub_x, sub_y + 1, sub_z,
-                            f_same, f01, f10, f_same);
+                            f00, f01, f10, f11);
 
-                        current_energy += f_same;
+                        current_energy += f00;
                     }
                     if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
                         int3 step{0, 0, 1};
                         float3 stepf{0, 0, 1};
                         float3 def2 = def(p + step);
                         float3 def2d = def.linear_at(p_delta + stepf, stk::Border_Replicate) + delta;
-                        double f_same = binary_fn(p, def1, def2, step);
+                        double f00 = binary_fn(p, def1, def2, step);
                         double f01 = binary_fn(p, def1, def2d, step);
                         double f10 = binary_fn(p, def1d, def2, step);
+                        double f11 = binary_fn(p, def1d, def2d, step);
 
                         graph.add_term2(
                             sub_x, sub_y, sub_z,
                             sub_x, sub_y, sub_z + 1,
-                            f_same, f01, f10, f_same);
+                            f00, f01, f10, f11);
 
-                        current_energy += f_same;
+                        current_energy += f00;
                     }
                 }
             }
