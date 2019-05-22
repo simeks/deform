@@ -366,7 +366,12 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
                     if (graph.get_var(sub_x, sub_y, sub_z) == 1)
                     {
-                        def(gx, gy, gz) = def(gx, gy, gz) + delta;
+                        float3 p = float3{
+                            gx + deltav.x,
+                            gy + deltav.y,
+                            gz + deltav.z
+                        };
+                        def(gx, gy, gz) = def.linear_at(p, stk::Border_Replicate) + delta;
                         changed_flag = true;
                     }
                 }

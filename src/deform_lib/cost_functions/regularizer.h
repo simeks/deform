@@ -65,7 +65,7 @@ struct Regularizer
         };
 
         // The diff should be relative to the initial displacement diff
-        float3 diff = (def0-_initial(p)) - (def1-_initial(p+step));
+        float3 diff = (def0) - (def1);
 
         float dist_squared = stk::norm2(diff);
         float step_squared = stk::norm2(step_in_mm);
