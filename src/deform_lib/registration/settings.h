@@ -91,8 +91,8 @@ struct Settings
 
         Level() :
             block_size(int3{16, 16, 16}),
-            block_energy_epsilon(1e-7f),
-            max_iteration_count(-1),
+            block_energy_epsilon(1e-5f),
+            max_iteration_count(100),
             regularization_weight(0.25f),
             regularization_scale(1.0f),
             regularization_exponent(2.0f),
