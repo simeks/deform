@@ -46,7 +46,7 @@ private:
     void allocate_cost_buffers(const dim3& size);
 
     // Sets the unary cost buffer to all zeros
-    void reset_unary_cost();
+    void reset_terminal_capacities();
 
     // Dispatches all queues block
     // Returns the number of changed blocks
@@ -90,20 +90,25 @@ private:
     WorkerPool& _worker_pool;
     std::vector<stk::cuda::Stream>& _stream_pool;
 
-    // Buffers for unary cost
+    stk::VolumeFloat _cap_source;
+    stk::VolumeFloat _cap_sink;
 
-    stk::VolumeFloat2 _unary_cost;
-    stk::GpuVolume _gpu_unary_cost;
+    stk::GpuVolume _gpu_cap_source;
+    stk::GpuVolume _gpu_cap_sink;
 
-    // Buffers for binary cost
+    stk::VolumeFloat _cap_lee;
+    stk::VolumeFloat _cap_gee;
+    stk::VolumeFloat _cap_ele;
+    stk::VolumeFloat _cap_ege;
+    stk::VolumeFloat _cap_eel;
+    stk::VolumeFloat _cap_eeg;
 
-    stk::VolumeFloat4 _binary_cost_x;
-    stk::VolumeFloat4 _binary_cost_y;
-    stk::VolumeFloat4 _binary_cost_z;
-
-    stk::GpuVolume _gpu_binary_cost_x;
-    stk::GpuVolume _gpu_binary_cost_y;
-    stk::GpuVolume _gpu_binary_cost_z;
+    stk::GpuVolume _gpu_cap_lee;
+    stk::GpuVolume _gpu_cap_gee;
+    stk::GpuVolume _gpu_cap_ele;
+    stk::GpuVolume _gpu_cap_ege;
+    stk::GpuVolume _gpu_cap_eel;
+    stk::GpuVolume _gpu_cap_eeg;
 
     // Labels from the minimization
 

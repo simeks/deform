@@ -166,9 +166,14 @@ void GpuBinaryFunction::operator()(
         const float3& delta,
         const int3& offset,
         const int3& dims,
-        stk::GpuVolume& cost_x,
-        stk::GpuVolume& cost_y,
-        stk::GpuVolume& cost_z,
+        stk::GpuVolume& cap_source,
+        stk::GpuVolume& cap_sink,
+        stk::GpuVolume& cap_lee,
+        stk::GpuVolume& cap_gee,
+        stk::GpuVolume& cap_ele,
+        stk::GpuVolume& cap_ege,
+        stk::GpuVolume& cap_eel,
+        stk::GpuVolume& cap_eeg,
         stk::cuda::Stream& stream
         )
 {

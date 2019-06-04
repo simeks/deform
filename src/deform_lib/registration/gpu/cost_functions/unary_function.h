@@ -22,13 +22,15 @@ public:
         const float3& delta,
         const int3& offset,
         const int3& dims,
-        stk::GpuVolume& cost_acc,
+        stk::GpuVolume& cap_source,
+        stk::GpuVolume& cap_sink,
         stk::cuda::Stream& stream
     )
     {
         for (auto& fn : _functions) {
             fn.function->cost(df, delta, fn.weight,
-                              offset, dims, cost_acc, stream);
+                              offset, dims, cap_source, cap_sink,
+                              stream);
         }
     }
 

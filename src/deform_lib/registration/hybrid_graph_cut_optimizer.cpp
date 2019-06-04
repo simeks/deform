@@ -195,43 +195,57 @@ void HybridGraphCutOptimizer::execute()
 }
 void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
 {
-    _unary_cost = stk::Volume(size, stk::Type_Float2, nullptr, stk::Usage_Pinned);
-    _unary_cost.fill({});
+    _cap_source = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_source.fill({});
+    _cap_sink = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_sink.fill({});
 
-    _binary_cost_x = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
-    _binary_cost_x.fill({});
+    _cap_lee = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_lee.fill({});
+    _cap_gee = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_gee.fill({});
 
-    _binary_cost_y = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
-    _binary_cost_y.fill({});
+    _cap_ele = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_ele.fill({});
+    _cap_ege = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_ege.fill({});
 
-    _binary_cost_z = stk::Volume(size, stk::Type_Float4, nullptr, stk::Usage_Pinned);
-    _binary_cost_z.fill({});
+    _cap_eel = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_eel.fill({});
+    _cap_eeg = stk::Volume(size, stk::Type_Float, nullptr, stk::Usage_Pinned);
+    _cap_eeg.fill({});
 
-    _gpu_unary_cost = stk::GpuVolume(size, stk::Type_Float2);
-    _gpu_binary_cost_x = stk::GpuVolume(size, stk::Type_Float4);
-    _gpu_binary_cost_y = stk::GpuVolume(size, stk::Type_Float4);
-    _gpu_binary_cost_z = stk::GpuVolume(size, stk::Type_Float4);
+    _gpu_cap_source = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_sink = stk::GpuVolume(size, stk::Type_Float);
+
+    _cap_lee = stk::GpuVolume(size, stk::Type_Float);
+    _cap_gee = stk::GpuVolume(size, stk::Type_Float);
+    _cap_ele = stk::GpuVolume(size, stk::Type_Float);
+    _cap_ege = stk::GpuVolume(size, stk::Type_Float);
+    _cap_eel = stk::GpuVolume(size, stk::Type_Float);
+    _cap_eeg = stk::GpuVolume(size, stk::Type_Float);
 
     _labels = stk::Volume(size, stk::Type_UChar, nullptr, stk::Usage_Pinned);
     _gpu_labels = stk::GpuVolume(size, stk::Type_UChar);
 }
-void HybridGraphCutOptimizer::reset_unary_cost()
+void HybridGraphCutOptimizer::reset_terminal_capacities()
 {
     // TODO: Just a temp solution until GpuVolume::fill()
 
     cudaExtent extent = make_cudaExtent(
-        _gpu_unary_cost.size().x * sizeof(float2),
-        _gpu_unary_cost.size().y,
-        _gpu_unary_cost.size().z
+        _gpu_cap_source.size().x * sizeof(float),
+        _gpu_cap_source.size().y,
+        _gpu_cap_source.size().z
     );
-    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_unary_cost.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_source.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_sink.pitched_ptr(), 0, extent));
 }
 
 size_t HybridGraphCutOptimizer::dispatch_blocks()
 {
-    // Unary cost volumes are used as accumulators, compared to binary cost which are not.
+    // Terminal capacity volumes are used as accumulators, compared to edge capacities which are not.
     //  Therefore we need to reset them between each iteration.
-    reset_unary_cost();
+    reset_terminal_capacities();
 
     // Reset labels
     _labels.fill(0);
@@ -358,16 +372,14 @@ void HybridGraphCutOptimizer::block_cost_task(
     int3 block_dims = block.end - block.begin;
 
     // Compute unary terms for block
-    _unary_fn(_df, _current_delta, block.begin, block_dims, _gpu_unary_cost, stream);
-
-    // Download the unary terms for the block into the large unary term volume.
-    download_subvolume(
-        _gpu_unary_cost,
-        _unary_cost,
-        block,
-        false, // No padding for unary term
-        stream
-    );
+    _unary_fn(
+        _df,
+        _current_delta,
+        block.begin,
+        block_dims,
+        _gpu_cap_source,
+        _gpu_cap_sink,
+        stream);
 
     // Compute binary terms
     _binary_fn(
@@ -375,36 +387,80 @@ void HybridGraphCutOptimizer::block_cost_task(
         _current_delta,
         block.begin,
         block_dims,
-        _gpu_binary_cost_x,
-        _gpu_binary_cost_y,
-        _gpu_binary_cost_z,
+        _gpu_cap_source,
+        _gpu_cap_sink,
+        _gpu_cap_lee,
+        _gpu_cap_gee,
+        _gpu_cap_ele,
+        _gpu_cap_ege,
+        _gpu_cap_eel,
+        _gpu_cap_eeg,
         stream
     );
 
-    // Download binary terms, since we're dependent on neighbouring terms at
+    // Download the terminal capacities for the block into the large unary term volume.
+    download_subvolume(
+        _gpu_cap_source,
+        _cap_source,
+        block,
+        false, // No padding for unary term
+        stream
+    );
+    download_subvolume(
+        _gpu_cap_sink,
+        _cap_sink,
+        block,
+        false, // No padding for unary term
+        stream
+    );
+
+    // Download edge capacities, since we're dependent on neighbouring terms at
     //  block borders we make sure to download them as well by padding
     //  negative directions by 1. This shouldn't affect the end results since
     //  these blocks are disabled anyways because of the red-black ordering.
 
     download_subvolume(
-        _gpu_binary_cost_x,
-        _binary_cost_x,
+        _gpu_cap_lee,
+        _cap_lee,
         block,
         true,
         stream
     );
 
     download_subvolume(
-        _gpu_binary_cost_y,
-        _binary_cost_y,
+        _gpu_cap_gee,
+        _cap_gee,
         block,
         true,
         stream
     );
 
     download_subvolume(
-        _gpu_binary_cost_z,
-        _binary_cost_z,
+        _gpu_cap_ele,
+        _cap_ele,
+        block,
+        true,
+        stream
+    );
+    download_subvolume(
+        _gpu_cap_ege,
+        _cap_ege,
+        block,
+        true,
+        stream
+    );
+
+    download_subvolume(
+        _gpu_cap_eel,
+        _cap_eel,
+        block,
+        true,
+        stream
+    );
+
+    download_subvolume(
+        _gpu_cap_eeg,
+        _cap_eeg,
         block,
         true,
         stream

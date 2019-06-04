@@ -44,17 +44,27 @@ public:
     // weight       : Regularization weight
     // offset       : Offset to region to compute terms in
     // dims         : Size of region
-    // cost_x       : Destination for cost in x+ direction {E00, E01, E10, E11}
-    // cost_y       : Destination for cost in y+ direction {E00, E01, E10, E11}
-    // cost_z       : Destination for cost in z+ direction {E00, E01, E10, E11}
+    // cap_source   : Destination for source capacities
+    // cap_sink     : Destination for sink capacities
+    // cap_lee      : Destination for edge capacities [-1,  0,  0]
+    // cap_gee      : Destination for edge capacities [ 1,  0,  0]
+    // cap_ele      : Destination for edge capacities [ 0, -1,  0]
+    // cap_ege      : Destination for edge capacities [ 0,  1,  0]
+    // cap_eel      : Destination for edge capacities [ 0,  0, -1]
+    // cap_eeg      : Destination for edge capacities [ 0,  0,  1]
     void operator()(
         const stk::GpuVolume& df,
         const float3& delta,
         const int3& offset,
         const int3& dims,
-        stk::GpuVolume& cost_x,
-        stk::GpuVolume& cost_y,
-        stk::GpuVolume& cost_z,
+        stk::GpuVolume& cap_source,
+        stk::GpuVolume& cap_sink,
+        stk::GpuVolume& cap_lee,
+        stk::GpuVolume& cap_gee,
+        stk::GpuVolume& cap_ele,
+        stk::GpuVolume& cap_ege,
+        stk::GpuVolume& cap_eel,
+        stk::GpuVolume& cap_eeg,
         stk::cuda::Stream& stream
     );
 
