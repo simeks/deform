@@ -488,135 +488,126 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         block.end.z - block.begin.z
     };
 
-    GraphCut<double> graph(block_dims);
+    //GraphCut<double> graph(block_dims);
+    gco::Graph<double, double, double> graph(
+        block_dims.x * block_dims.y * block_dims.z,
+        block_dims.x * block_dims.y * block_dims.z * 3
+    );
+    graph.add_node(block_dims.x * block_dims.y * block_dims.z);
 
-    double current_energy = 0;
-    {
-        for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
-            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
-                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
-                    // Global coordinates
-                    int gx = block.begin.x + sub_x;
-                    int gy = block.begin.y + sub_y;
-                    int gz = block.begin.z + sub_z;
+    auto get_index = [&](int x, int y, int z){
+        return x + y*block_dims.x + z*block_dims.x*block_dims.y;
+    };
 
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(full_dims.x) ||
-                        gy < 0 || gy >= int(full_dims.y) ||
-                        gz < 0 || gz >= int(full_dims.z)) {
-                        graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
-                        continue;
-                    }
+    // TODO: What about this?
+    // double current_energy = 0;
+    
+    for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
+    for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+    for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+        // Global coordinates
+        int gx = block.begin.x + sub_x;
+        int gy = block.begin.y + sub_y;
+        int gz = block.begin.z + sub_z;
 
-                    double f0 = _unary_cost(gx, gy, gz).x;
-                    double f1 = _unary_cost(gx, gy, gz).y;
+        // Skip voxels outside volume
+        if (gx < 0 || gx >= int(full_dims.x) ||
+            gy < 0 || gy >= int(full_dims.y) ||
+            gz < 0 || gz >= int(full_dims.z)) {
+            graph.add_tweights(get_index(sub_x, sub_y, sub_z), 0, 0);
+            continue;
+        }
 
-                    // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
+        double f0 = _cap_source(gx, gy, gz);
+        double f1 = _cap_sink(gx, gy, gz);
 
-                    if (sub_x == 0 && gx != 0) {
-                        f0 += _binary_cost_x(gx-1,gy,gz).x;
-                        f1 += _binary_cost_x(gx-1,gy,gz).y;
-                    }
-                    else if (sub_x == block_dims.x - 1 && gx < int(full_dims.x) - 1) {
-                        f0 += _binary_cost_x(gx,gy,gz).x;
-                        f1 += _binary_cost_x(gx,gy,gz).z;
-                    }
+        // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
 
-                    if (sub_y == 0 && gy != 0) {
-                        f0 += _binary_cost_y(gx,gy-1,gz).x;
-                        f1 += _binary_cost_y(gx,gy-1,gz).y;
-                    }
-                    else if (sub_y == block_dims.y - 1 && gy < int(full_dims.y) - 1) {
-                        f0 += _binary_cost_y(gx,gy,gz).x;
-                        f1 += _binary_cost_y(gx,gy,gz).z;
-                    }
+        // if (sub_x == 0 && gx != 0) {
+        //     f0 += _binary_cost_x(gx-1,gy,gz).x;
+        //     f1 += _binary_cost_x(gx-1,gy,gz).y;
+        // }
+        // else if (sub_x == block_dims.x - 1 && gx < int(full_dims.x) - 1) {
+        //     f0 += _binary_cost_x(gx,gy,gsub_xz).x;
+        //     f1 += _binary_cost_x(gx,gy,gz).z;
+        // }
 
-                    if (sub_z == 0 && gz != 0) {
-                        f0 += _binary_cost_z(gx,gy,gz-1).x;
-                        f1 += _binary_cost_z(gx,gy,gz-1).y;
-                    }
-                    else if (sub_z == block_dims.z - 1 && gz < int(full_dims.z) - 1) {
-                        f0 += _binary_cost_z(gx,gy,gz).x;
-                        f1 += _binary_cost_z(gx,gy,gz).z;
-                    }
+        // if (sub_y == 0 && gy != 0) {
+        //     f0 += _binary_cost_y(gx,gy-1,gz).x;
+        //     f1 += _binary_cost_y(gx,gy-1,gz).y;
+        // }
+        // else if (sub_y == block_dims.y - 1 && gy < int(full_dims.y) - 1) {
+        //     f0 += _binary_cost_y(gx,gy,gz).x;
+        //     f1 += _binary_cost_y(gx,gy,gz).z;
+        // }
 
-                    graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
+        // if (sub_z == 0 && gz != 0) {
+        //     f0 += _binary_cost_z(gx,gy,gz-1).x;
+        //     f1 += _binary_cost_z(gx,gy,gz-1).y;
+        // }
+        // else if (sub_z == block_dims.z - 1 && gz < int(full_dims.z) - 1) {
+        //     f0 += _binary_cost_z(gx,gy,gz).x;
+        //     f1 += _binary_cost_z(gx,gy,gz).z;
+        // }sub_xsub_xsub_x
 
-                    current_energy += f0;
+        graph.add_tweights(get_index(sub_x, sub_y, sub_z), f0, f1);
 
-                    if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
-                        double f_same = _binary_cost_x(gx,gy,gz).x;
-                        double f01 = _binary_cost_x(gx,gy,gz).y;
-                        double f10 = _binary_cost_x(gx,gy,gz).z;
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x + 1, sub_y, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_y + 1 < block_dims.y && gy + 1 < int(full_dims.y)) {
-                        double f_same = _binary_cost_y(gx,gy,gz).x;
-                        double f01 = _binary_cost_y(gx,gy,gz).y;
-                        double f10 = _binary_cost_y(gx,gy,gz).z;
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y + 1, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_z + 1 < block_dims.z && gz + 1 < int(full_dims.z)) {
-                        double f_same = _binary_cost_z(gx,gy,gz).x;
-                        double f01 = _binary_cost_z(gx,gy,gz).y;
-                        double f10 = _binary_cost_z(gx,gy,gz).z;
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y, sub_z + 1,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                }
-            }
+        if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
+            graph.add_edge(
+                get_index(sub_x, sub_y, sub_z),
+                get_index(sub_x + 1, sub_y, sub_z),
+                _cap_lee(gx, gy, gz),
+                _cap_gee(gx, gy, gz)
+            );
+        }
+        if (sub_y + 1 < block_dims.y && gy + 1 < int(full_dims.y)) {
+            graph.add_edge(
+                get_index(sub_x, sub_y, sub_z),
+                get_index(sub_x, sub_y + 1, sub_z),
+                _cap_ele(gx, gy, gz),
+                _cap_ege(gx, gy, gz)
+            );
+        }
+        if (sub_z + 1 < block_dims.z && gz + 1 < int(full_dims.z)) {
+            graph.add_edge(
+                get_index(sub_x, sub_y, sub_z),
+                get_index(sub_x, sub_y, sub_z+ 1),
+                _cap_eel(gx, gy, gz),
+                _cap_eeg(gx, gy, gz)
+            );
         }
     }
-
-
-    double current_emin;
-    {
-        current_emin = graph.minimize();
+    }
     }
 
-    bool changed_flag = false;
 
-    if (1.0 - current_emin / current_energy > _settings.block_energy_epsilon) // Accept solution
+    double current_emin = graph.minimize();
+
+    bool changed_flag = false;
+    //if (1.0 - current_emin / current_energy > _settings.block_energy_epsilon) // Accept solution
     {
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
-            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
-                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
-                    // Global coordinates
-                    int gx = block.begin.x + sub_x;
-                    int gy = block.begin.y + sub_y;
-                    int gz = block.begin.z + sub_z;
+        for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+        for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+            // Global coordinates
+            int gx = block.begin.x + sub_x;
+            int gy = block.begin.y + sub_y;
+            int gz = block.begin.z + sub_z;
 
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(full_dims.x) ||
-                        gy < 0 || gy >= int(full_dims.y) ||
-                        gz < 0 || gz >= int(full_dims.z))
-                    {
-                        continue;
-                    }
-
-                    if (graph.get_var(sub_x, sub_y, sub_z) == 1) {
-                        _labels(gx,gy,gz) = 1;
-                        changed_flag = true;
-                    }
-                }
+            // Skip voxels outside volume
+            if (gx < 0 || gx >= int(full_dims.x) ||
+                gy < 0 || gy >= int(full_dims.y) ||
+                gz < 0 || gz >= int(full_dims.z))
+            {
+                continue;
             }
+
+            if (graph.get_var(sub_x, sub_y, sub_z) == 1) {
+                _labels(gx,gy,gz) = 1;
+                changed_flag = true;
+            }
+        }
+        }
         }
     }
     if (changed_flag) {

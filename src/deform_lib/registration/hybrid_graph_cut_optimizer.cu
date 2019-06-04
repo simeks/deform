@@ -109,64 +109,83 @@ __global__ void reduce_total_energy(
 
 double HybridGraphCutOptimizer::calculate_energy()
 {
-    reset_unary_cost();
+    // reset_terminal_capacities();
 
-    dim3 dims = _gpu_unary_cost.size();
-    int3 begin {0, 0, 0};
-    int3 end {(int)dims.x, (int)dims.y, (int)dims.z};
+    // dim3 dims = _gpu_unary_cost.size();
+    // int3 begin {0, 0, 0};
+    // int3 end {(int)dims.x, (int)dims.y, (int)dims.z};
 
-    cuda::Stream& stream = stk::cuda::Stream::null();
-    _unary_fn(_df, {0,0,0}, begin, end, _gpu_unary_cost, stream);
+    // cuda::Stream& stream = stk::cuda::Stream::null();
 
-    // Compute binary terms
-    _binary_fn(
-        _df,
-        {0, 0, 0},
-        begin,
-        end,
-        _gpu_binary_cost_x,
-        _gpu_binary_cost_y,
-        _gpu_binary_cost_z,
-        stream
-    );
+    // // Compute unary terms for block
+    // _unary_fn(
+    //     _df,
+    //     {0,0,0},
+    //     begin,
+    //     end,
+    //     _gpu_cap_source,
+    //     _gpu_cap_sink,
+    //     stream);
 
-    dim3 block_size{32,32,1};
+    // // Compute binary terms
+    // _binary_fn(
+    //     _df,
+    //     {0, 0, 0},
+    //     begin,
+    //     end,
+    //     _gpu_cap_source,
+    //     _gpu_cap_sink,
+    //     _gpu_cap_lee,
+    //     _gpu_cap_gee,
+    //     _gpu_cap_ele,
+    //     _gpu_cap_ege,
+    //     _gpu_cap_eel,
+    //     _gpu_cap_eeg,
+    //     stream
+    // );
 
-    dim3 grid_size {
-        (dims.x + block_size.x - 1) / block_size.x,
-        (dims.y + block_size.y - 1) / block_size.y,
-        (dims.z + block_size.z - 1) / block_size.z
-    };
-    uint32_t n_blocks = grid_size.x * grid_size.y * grid_size.z;
+    // dim3 block_size{32,32,1};
 
-    float* d_block_sum;
-    CUDA_CHECK_ERRORS(cudaMalloc(&d_block_sum, n_blocks*sizeof(float)));
+    // dim3 grid_size {
+    //     (dims.x + block_size.x - 1) / block_size.x,
+    //     (dims.y + block_size.y - 1) / block_size.y,
+    //     (dims.z + block_size.z - 1) / block_size.z
+    // };
+    // uint32_t n_blocks = grid_size.x * grid_size.y * grid_size.z;
 
-    reduce_total_energy<<<grid_size, block_size,
-        uint32_t(sizeof(float)*1024)>>>
-    (
-        _gpu_unary_cost,
-        _gpu_binary_cost_x,
-        _gpu_binary_cost_y,
-        _gpu_binary_cost_z,
-        dims,
-        d_block_sum
-    );
+    // float* d_block_sum;
+    // CUDA_CHECK_ERRORS(cudaMalloc(&d_block_sum, n_blocks*sizeof(float)));
 
-    CUDA_CHECK_ERRORS(cudaPeekAtLastError());
-    CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
+    // reduce_total_energy<<<grid_size, block_size,
+    //     uint32_t(sizeof(float)*1024)>>>
+    // (
+    //     _gpu_cap_source,
+    //     _gpu_cap_sink,
+    //     _gpu_cap_lee,
+    //     _gpu_cap_gee,
+    //     _gpu_cap_ele,
+    //     _gpu_cap_ege,
+    //     _gpu_cap_eel,
+    //     _gpu_cap_eeg,
+    //     dims,
+    //     d_block_sum
+    // );
 
-    float* block_sum = new float[n_blocks];
-    CUDA_CHECK_ERRORS(cudaMemcpy(block_sum, d_block_sum, n_blocks*sizeof(float), cudaMemcpyDeviceToHost));
+    // CUDA_CHECK_ERRORS(cudaPeekAtLastError());
+    // CUDA_CHECK_ERRORS(cudaDeviceSynchronize());
 
-    // TODO: Perform all reduction on GPU
-    double total_energy = 0;
-    for (int i = 0; i < (int)n_blocks; ++i) {
-        total_energy += block_sum[i];
-    }
+    // float* block_sum = new float[n_blocks];
+    // CUDA_CHECK_ERRORS(cudaMemcpy(block_sum, d_block_sum, n_blocks*sizeof(float), cudaMemcpyDeviceToHost));
 
-    delete [] block_sum;
-    CUDA_CHECK_ERRORS(cudaFree(d_block_sum));
+    // // TODO: Perform all reduction on GPU
+    // double total_energy = 0;
+    // for (int i = 0; i < (int)n_blocks; ++i) {
+    //     total_energy += block_sum[i];
+    // }
 
-    return total_energy;
+    // delete [] block_sum;
+    // CUDA_CHECK_ERRORS(cudaFree(d_block_sum));
+
+    // return total_energy;
+    return 0;
 }
