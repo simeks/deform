@@ -528,7 +528,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         //     f1 += _binary_cost_x(gx-1,gy,gz).y;
         // }
         // else if (sub_x == block_dims.x - 1 && gx < int(full_dims.x) - 1) {
-        //     f0 += _binary_cost_x(gx,gy,gsub_xz).x;
+        //     f0 += _binary_cost_x(gx,gy,gz).x;
         //     f1 += _binary_cost_x(gx,gy,gz).z;
         // }
 

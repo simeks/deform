@@ -31,7 +31,8 @@ struct GpuSubFunction
         float weight,
         const int3& offset,
         const int3& dims,
-        stk::GpuVolume& cost_acc,
+        stk::GpuVolume& cap_source,
+        stk::GpuVolume& cap_sink,
         stk::cuda::Stream& stream
     ) = 0;
 

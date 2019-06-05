@@ -24,7 +24,8 @@ struct CostFunctionKernel
         const stk::GpuVolume& moving_mask,
         const stk::GpuVolume& df,
         float weight,
-        stk::GpuVolume& cost // float2
+        stk::GpuVolume& cap_source,
+        stk::GpuVolume& cap_sink
     ) :
         _impl(impl),
         _fixed(fixed),
@@ -41,7 +42,8 @@ struct CostFunctionKernel
         _inv_moving_spacing(float3{1.0f, 1.0f, 1.0f} / moving.spacing()),
         _inv_moving_direction(moving.inverse_direction()),
         _weight(weight),
-        _cost(cost)
+        _cap_source(cap_source),
+        _cap_sink(cap_sink)
     {
         ASSERT(cost.voxel_type() == stk::Type_Float2);
     }
@@ -87,7 +89,12 @@ struct CostFunctionKernel
         float c = _impl(_fixed, _moving, _fixed_dims, _moving_dims, int3{x,y,z}, moving_p);
         c *= _weight * fixed_mask_value * moving_mask_value;
 
-        reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += c;
+        if (cost_offset == 0) {
+            _cap_source(x,y,z) += c;
+        }
+        else {
+            _cap_sink(x,y,z) += c;            
+        }
     }
 
     TImpl _impl;
@@ -111,7 +118,8 @@ struct CostFunctionKernel
 
     float _weight;
 
-    cuda::VolumePtr<float2> _cost;
+    cuda::VolumePtr<float> _cap_source;
+    cuda::VolumePtr<float> _cap_sink;
 };
 
 template<typename TKernel>

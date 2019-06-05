@@ -92,7 +92,8 @@ void GpuCostFunction_NCC::cost(
     float weight,
     const int3& offset,
     const int3& dims,
-    stk::GpuVolume& cost_acc,
+    stk::GpuVolume& cap_source,
+    stk::GpuVolume& cap_sink,
     stk::cuda::Stream& stream
 )
 {
@@ -113,7 +114,8 @@ void GpuCostFunction_NCC::cost(
         _moving_mask,
         df,
         weight,
-        cost_acc
+        cap_source,
+        cap_sink
     );
 
     invoke_cost_function_kernel(kernel, delta, offset, dims, stream);
