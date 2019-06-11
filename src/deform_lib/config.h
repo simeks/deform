@@ -7,7 +7,7 @@
 // Does not make any real difference in performance on msvc2017
 // #define DF_ENABLE_SSE_LINEAR_AT
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     #define DF_OUTPUT_VOLUME_ENERGY
     //#define DF_OUTPUT_DEBUG_VOLUMES
 #endif

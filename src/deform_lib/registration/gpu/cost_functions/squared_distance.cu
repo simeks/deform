@@ -39,7 +39,8 @@ void GpuCostFunction_SSD::cost(
 )
 {
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
-    ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
+    ASSERT(cap_source.voxel_type() == stk::Type_Float);
+    ASSERT(cap_sink.voxel_type() == stk::Type_Float);
 
     FATAL_IF(_fixed.voxel_type() != stk::Type_Float ||
              _moving.voxel_type() != stk::Type_Float ||

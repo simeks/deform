@@ -15,7 +15,8 @@ __global__ void landmarks_kernel(
     const float3 fixed_origin,
     const float3 fixed_spacing,
     const Matrix3x3f fixed_direction,
-    cuda::VolumePtr<float2> cost_acc,
+    cuda::VolumePtr<float> cap_source,
+    cuda::VolumePtr<float> cap_sink,
     const float half_decay,
     const float epsilon = 1e-6f
 )
@@ -43,8 +44,8 @@ __global__ void landmarks_kernel(
 
     for (size_t i = 0; i < landmark_count; ++i) {
         const float inv_den = 1.0f / (pow(stk::norm2(landmarks[i] - world_p), half_decay) + epsilon);
-        cost_acc(x,y,z).x += weight * stk::norm2(d0 - displacements[i]) * inv_den;
-        cost_acc(x,y,z).y += weight * stk::norm2(d1 - displacements[i]) * inv_den;
+        cap_source(x,y,z) += weight * stk::norm2(d0 - displacements[i]) * inv_den;
+        cap_sink(x,y,z) += weight * stk::norm2(d1 - displacements[i]) * inv_den;
     }
 }
 
@@ -72,12 +73,14 @@ void GpuCostFunction_Landmarks::cost(
     float weight,
     const int3& offset,
     const int3& dims,
-    stk::GpuVolume& cost_acc,
+    stk::GpuVolume& cap_sink,
+    stk::GpuVolume& cap_source,
     stk::cuda::Stream& stream
 )
 {
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
-    ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
+    ASSERT(cap_sink.voxel_type() == stk::Type_Float);
+    ASSERT(cap_source.voxel_type() == stk::Type_Float);
 
     dim3 block_size {32, 32, 1};
 
@@ -103,7 +106,8 @@ void GpuCostFunction_Landmarks::cost(
         _fixed.origin(),
         _fixed.spacing(),
         _fixed.direction(),
-        cost_acc,
+        cap_sink,
+        cap_source,
         _half_decay
     );
 

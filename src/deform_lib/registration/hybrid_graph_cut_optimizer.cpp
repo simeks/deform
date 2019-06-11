@@ -218,12 +218,12 @@ void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
     _gpu_cap_source = stk::GpuVolume(size, stk::Type_Float);
     _gpu_cap_sink = stk::GpuVolume(size, stk::Type_Float);
 
-    _cap_lee = stk::GpuVolume(size, stk::Type_Float);
-    _cap_gee = stk::GpuVolume(size, stk::Type_Float);
-    _cap_ele = stk::GpuVolume(size, stk::Type_Float);
-    _cap_ege = stk::GpuVolume(size, stk::Type_Float);
-    _cap_eel = stk::GpuVolume(size, stk::Type_Float);
-    _cap_eeg = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_lee = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_gee = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_ele = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_ege = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_eel = stk::GpuVolume(size, stk::Type_Float);
+    _gpu_cap_eeg = stk::GpuVolume(size, stk::Type_Float);
 
     _labels = stk::Volume(size, stk::Type_UChar, nullptr, stk::Usage_Pinned);
     _gpu_labels = stk::GpuVolume(size, stk::Type_UChar);
@@ -521,37 +521,9 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         double f0 = _cap_source(gx, gy, gz);
         double f1 = _cap_sink(gx, gy, gz);
 
-        // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
-
-        // if (sub_x == 0 && gx != 0) {
-        //     f0 += _binary_cost_x(gx-1,gy,gz).x;
-        //     f1 += _binary_cost_x(gx-1,gy,gz).y;
-        // }
-        // else if (sub_x == block_dims.x - 1 && gx < int(full_dims.x) - 1) {
-        //     f0 += _binary_cost_x(gx,gy,gz).x;
-        //     f1 += _binary_cost_x(gx,gy,gz).z;
-        // }
-
-        // if (sub_y == 0 && gy != 0) {
-        //     f0 += _binary_cost_y(gx,gy-1,gz).x;
-        //     f1 += _binary_cost_y(gx,gy-1,gz).y;
-        // }
-        // else if (sub_y == block_dims.y - 1 && gy < int(full_dims.y) - 1) {
-        //     f0 += _binary_cost_y(gx,gy,gz).x;
-        //     f1 += _binary_cost_y(gx,gy,gz).z;
-        // }
-
-        // if (sub_z == 0 && gz != 0) {
-        //     f0 += _binary_cost_z(gx,gy,gz-1).x;
-        //     f1 += _binary_cost_z(gx,gy,gz-1).y;
-        // }
-        // else if (sub_z == block_dims.z - 1 && gz < int(full_dims.z) - 1) {
-        //     f0 += _binary_cost_z(gx,gy,gz).x;
-        //     f1 += _binary_cost_z(gx,gy,gz).z;
-        // }sub_xsub_xsub_x
-
         graph.add_tweights(get_index(sub_x, sub_y, sub_z), f0, f1);
 
+        
         if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
             graph.add_edge(
                 get_index(sub_x, sub_y, sub_z),
@@ -580,8 +552,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
     }
     }
 
-
-    double current_emin = graph.minimize();
+    double current_emin = graph.maxflow();
 
     bool changed_flag = false;
     //if (1.0 - current_emin / current_energy > _settings.block_energy_epsilon) // Accept solution
@@ -602,7 +573,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
                 continue;
             }
 
-            if (graph.get_var(sub_x, sub_y, sub_z) == 1) {
+            if (graph.what_segment(get_index(sub_x, sub_y, sub_z)) == 1) {
                 _labels(gx,gy,gz) = 1;
                 changed_flag = true;
             }

@@ -45,7 +45,8 @@ struct CostFunctionKernel
         _cap_source(cap_source),
         _cap_sink(cap_sink)
     {
-        ASSERT(cost.voxel_type() == stk::Type_Float2);
+        ASSERT(cap_source.voxel_type() == stk::Type_Float);
+        ASSERT(cap_sink.voxel_type() == stk::Type_Float);
     }
     ~CostFunctionKernel()
     {
@@ -93,7 +94,7 @@ struct CostFunctionKernel
             _cap_source(x,y,z) += c;
         }
         else {
-            _cap_sink(x,y,z) += c;            
+            _cap_sink(x,y,z) += c;
         }
     }
 
