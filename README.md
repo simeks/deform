@@ -1,5 +1,7 @@
 # deform
 
+deform is an implementation of an efficient graph-cut based method for dense deformable image registration. If you find this useful, please cite https://arxiv.org/abs/1810.08427.
+
 ## Prerequisites
 * CMake : https://cmake.org/
 
