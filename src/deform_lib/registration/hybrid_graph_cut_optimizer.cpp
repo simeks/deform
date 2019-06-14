@@ -265,7 +265,7 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
 
     {
         PROFILER_SCOPE("apply", 0xFF532439);
-        //_gpu_labels.upload(_labels);
+        _gpu_labels.upload(_labels);
         apply_displacement_delta(stk::cuda::Stream::null());
     }
 
@@ -291,21 +291,9 @@ void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
 {
     _worker_pool.push_back([this, block](){
         this->minimize_block_task(block);
-        this->dispatch_label_upload(block);
-    });
-}
-void HybridGraphCutOptimizer::dispatch_label_upload(const Block& block)
-{
-    auto& stream = _stream_pool[0];
-
-    upload_subvolume(_labels, _gpu_labels, block, stream);
-    
-    stream.add_callback([this](stk::cuda::Stream , int){
-        // Finalize block
         --this->_num_blocks_remaining;
     });
 }
-
 void HybridGraphCutOptimizer::download_subvolume(
     const stk::GpuVolume& src,
     stk::Volume& tgt,

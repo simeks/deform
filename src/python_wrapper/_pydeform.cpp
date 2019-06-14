@@ -321,8 +321,9 @@ py::array registration_wrapper(
     // Handle logging
     std::unique_ptr<py::detail::pythonbuf> buffer;
     std::unique_ptr<std::ostream> out_stream;
-    stk::log_init(silent);
-    stk::log_add_stream(&std::cerr, log_level);
+    stk::log_init();
+    if (!silent)
+        stk::log_add_stream(&std::cerr, log_level);
     add_logger(log, log_level, buffer, out_stream);
     LOG(Info) << deform::version_string();
 
