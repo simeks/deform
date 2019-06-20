@@ -42,8 +42,6 @@ __global__ void regularizer_kernel_step(
         [Kolmogorov et al. "What Energy Functions Can Be Minimized via Graph Cuts?"]
     */
 
-    extern __shared__ float shared[];
-
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -55,8 +53,6 @@ __global__ void regularizer_kernel_step(
         return;
     }
 
-    float w_tmp = 0;
-    
     int vx = x + offset.x;
     int vy = y + offset.y;
     int vz = z + offset.z;
@@ -82,7 +78,6 @@ __global__ void regularizer_kernel_step(
 
     if (e01 < 0) {
         cap_sink(vx, vy, vz) += e01;
-        w_tmp += -e01;
 
         cap_edge_l(vx, vy, vz) = 0;
 
@@ -91,7 +86,6 @@ __global__ void regularizer_kernel_step(
     }
     else if (e10 < 0) {
         cap_sink(vx, vy, vz) += -e10;
-        w_tmp += e10;
 
         // Clamp to avoid < 0 due to rounding errors
         cap_edge_l(vx, vy, vz) = fmaxf(0, e01 + e10);
@@ -101,11 +95,74 @@ __global__ void regularizer_kernel_step(
         cap_edge_l(vx, vy, vz) = e01;
         cap_edge_g(vx, vy, vz) = e10;
     }
-    __syncthreads();
-
-        // Nope.
-    cap_sink(wx, wy, wz) += w_tmp;
 }
+
+// Accumulate the terminal capacities
+__global__ void regularizer_kernel_step2(
+    cuda::VolumePtr<float4> df,
+    cuda::VolumePtr<float4> initial_df,
+    int3 step,
+    float3 delta,
+    float weight,
+    float scale,
+    float half_exponent,
+    int3 offset,
+    int3 dims,
+    dim3 df_dims,
+    cuda::VolumePtr<float> cap_source,
+    cuda::VolumePtr<float> cap_sink,
+    cuda::VolumePtr<float> cap_edge_l,
+    cuda::VolumePtr<float> cap_edge_g
+)
+{
+    /*
+        When converting the binary potential for v,w to edge capacities we have to update
+        the terminal capacities (cap_source and cap_sink) for both v and w. For this reason
+        we can't update both simultaneously. To solve this we store all terminal capacities
+        for w in an intermediate buffer. The kernel will add these capacities at the end.
+
+        [Kolmogorov et al. "What Energy Functions Can Be Minimized via Graph Cuts?"]
+    */
+
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    int z = blockIdx.z*blockDim.z + threadIdx.z;
+
+    // Skip edges spanning block borders
+    if (x + step.x >= dims.x ||
+        y + step.y >= dims.y ||
+        z + step.z >= dims.z) {
+        return;
+    }
+
+    int vx = x + offset.x;
+    int vy = y + offset.y;
+    int vz = z + offset.z;
+
+    int wx = vx + step.x;
+    int wy = vy + step.y;
+    int wz = vz + step.z;
+
+    float4 dv = df(vx, vy, vz) - initial_df(vx, vy, vz);
+    float4 dw = df(wx, wy, wz) - initial_df(wx, wy, wz);
+    
+    float4 delta4 = {delta.x, delta.y, delta.z, 0.0f};
+
+    float e00 = weight*phi(dv, dw, delta4, scale, half_exponent, 0, 0);
+    float e01 = weight*phi(dv, dw, delta4, scale, half_exponent, 0, 1);
+    float e10 = weight*phi(dv, dw, delta4, scale, half_exponent, 1, 0);
+    float e11 = weight*phi(dv, dw, delta4, scale, half_exponent, 1, 1);
+
+    e01 -= e00; e10 -= e11;
+
+    if (e01 < 0) {
+        cap_sink(wx, wy, wz) += -e01;
+    }
+    else if (e10 < 0) {
+        cap_sink(wx, wy, wz) += e10;
+    }
+}
+
 
 __global__ void regularizer_kernel_borders_step(
     cuda::VolumePtr<float4> df,
@@ -235,6 +292,22 @@ void GpuBinaryFunction::operator()(
         cap_lee,
         cap_gee
     );
+    regularizer_kernel_step2<<<grid_size, block_size, 0, stream>>>(
+        df,
+        _initial,
+        int3{1, 0, 0},
+        delta,
+        weight.x,
+        _scale,
+        _half_exponent,
+        offset, // block offset
+        dims, // block size
+        df.size(),
+        cap_source,
+        cap_sink,
+        cap_lee,
+        cap_gee
+    );
     regularizer_kernel_step<<<grid_size, block_size, 0, stream>>>(
         df,
         _initial,
@@ -251,7 +324,39 @@ void GpuBinaryFunction::operator()(
         cap_ele,
         cap_ege
     );
+    regularizer_kernel_step2<<<grid_size, block_size, 0, stream>>>(
+        df,
+        _initial,
+        int3{0, 1, 0},
+        delta,
+        weight.y,
+        _scale,
+        _half_exponent,
+        offset, // block offset
+        dims, // block size
+        df.size(),
+        cap_source,
+        cap_sink,
+        cap_ele,
+        cap_ege
+    );
     regularizer_kernel_step<<<grid_size, block_size, 0, stream>>>(
+        df,
+        _initial,
+        int3{0, 0, 1},
+        delta,
+        weight.z,
+        _scale,
+        _half_exponent,
+        offset, // block offset
+        dims, // block size
+        df.size(),
+        cap_source,
+        cap_sink,
+        cap_eel,
+        cap_eeg
+    );
+    regularizer_kernel_step2<<<grid_size, block_size, 0, stream>>>(
         df,
         _initial,
         int3{0, 0, 1},
