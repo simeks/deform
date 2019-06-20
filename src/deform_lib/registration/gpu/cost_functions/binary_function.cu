@@ -15,7 +15,6 @@ __device__ inline float phi(
     return powf(scale * stk::norm2(dv + lv * delta - dw - lw * delta), half_exponent);
 }
 
-// Accumulate the terminal capacities
 __global__ void regularizer_kernel_step(
     cuda::VolumePtr<float4> df,
     cuda::VolumePtr<float4> initial_df,
@@ -97,7 +96,6 @@ __global__ void regularizer_kernel_step(
     }
 }
 
-// Accumulate the terminal capacities
 __global__ void regularizer_kernel_step2(
     cuda::VolumePtr<float4> df,
     cuda::VolumePtr<float4> initial_df,
@@ -197,35 +195,36 @@ __global__ void regularizer_kernel_borders_step(
     // First index for block in step axis
     int first = step.x * vx + step.y * vy + step.z * vz;
     // Last index for block in step axis
-    int last = first + step.x * dims.x + step.y * dims.y + step.z * dims.z;
+    int last = first + step.x * dims.x + step.y * dims.y + step.z * dims.z - 1;
     
     float4 delta4 = {delta.x, delta.y, delta.z, 0.0f};
-    float4 dv = df(vx, vy, vz) - initial_df(vx, vy, vz);
     
     // We don't want to add any edges to the outside of the volume
     if (first > 0) {
         // Add an edge to node outside block, assuming it has a static label
 
-        float4 du = df(vx-step.x, vy-step.y, vz-step.z) - 
+        float4 dv = df(vx, vy, vz) - initial_df(vx, vy, vz);
+        float4 du = df(vx-step.x, vy-step.y, vz-step.z) -
                     initial_df(vx-step.x, vy-step.y, vz-step.z);
 
         float e00 = weight*phi(dv, du, delta4, scale, half_exponent, 0, 0);
         float e10 = weight*phi(dv, du, delta4, scale, half_exponent, 1, 0);
 
-        cap_source(vx, vy, vz) += e00;
-        cap_sink(vx, vy, vz) += e10;
+        cap_source(vx, vy, vz) += e10;
+        cap_sink(vx, vy, vz) += e00;
     }
     // Same goes here
     if (last < (df_dims.x * step.x + df_dims.y * step.y + df_dims.z * step.z)-1) {
-
-        float4 dw = df(vx+step.x, vy+step.y, vz+step.z) - 
-                    initial_df(vx+step.x, vy+step.y, vz+step.z);
+        float4 dv = df(vx+step.x*(dims.x-1), vy+step.y*(dims.y-1), vz+step.z*(dims.z-1)) -
+                    initial_df(vx+step.x*(dims.x-1), vy+step.y*(dims.y-1), vz+step.z*(dims.z-1));
+        float4 dw = df(vx+step.x*dims.x, vy+step.y*dims.y, vz+step.z*dims.z) -
+                    initial_df(vx+step.x*dims.x, vy+step.y*dims.y, vz+step.z*dims.z);
 
         float e00 = weight*phi(dv, dw, delta4, scale, half_exponent, 0, 0);
         float e10 = weight*phi(dv, dw, delta4, scale, half_exponent, 1, 0);
 
-        cap_source(vx, vy, vz) += e00;
-        cap_sink(vx, vy, vz) += e10;
+        cap_source(vx+step.x*(dims.x-1), vy+step.y*(dims.y-1), vz+step.z*(dims.z-1)) += e10;
+        cap_sink(vx+step.x*(dims.x-1), vy+step.y*(dims.y-1), vz+step.z*(dims.z-1)) += e00;
     }
 }
 
@@ -256,16 +255,10 @@ void GpuBinaryFunction::operator()(
     ASSERT(cap_eel.voxel_type() == stk::Type_Float);
     ASSERT(cap_eeg.voxel_type() == stk::Type_Float);
 
-    float3 inv_spacing2_exp {
-        1.0f / pow(_spacing.x*_spacing.x, _half_exponent),
-        1.0f / pow(_spacing.y*_spacing.y, _half_exponent),
-        1.0f / pow(_spacing.z*_spacing.z, _half_exponent)
-    };
-
-    float3 weight{
-        _weight * inv_spacing2_exp.x,
-        _weight * inv_spacing2_exp.y,
-        _weight * inv_spacing2_exp.z
+    float3 scale {
+        _scale / (_spacing.x*_spacing.x),
+        _scale / (_spacing.y*_spacing.y),
+        _scale / (_spacing.z*_spacing.z)
     };
 
     dim3 block_size {8, 8, 8};
@@ -281,8 +274,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{1, 0, 0},
         delta,
-        weight.x,
-        _scale,
+        _weight,
+        scale.x,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -297,8 +290,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{1, 0, 0},
         delta,
-        weight.x,
-        _scale,
+        _weight,
+        scale.x,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -313,8 +306,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{0, 1, 0},
         delta,
-        weight.y,
-        _scale,
+        _weight,
+        scale.y,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -329,8 +322,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{0, 1, 0},
         delta,
-        weight.y,
-        _scale,
+        _weight,
+        scale.y,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -345,8 +338,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{0, 0, 1},
         delta,
-        weight.z,
-        _scale,
+        _weight,
+        scale.z,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -361,8 +354,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{0, 0, 1},
         delta,
-        weight.z,
-        _scale,
+        _weight,
+        scale.z,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -387,8 +380,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{1, 0, 0},
         delta,
-        weight.x,
-        _scale,
+        _weight,
+        scale.x,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -409,8 +402,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{0, 1, 0},
         delta,
-        weight.y,
-        _scale,
+        _weight,
+        scale.y,
         _half_exponent,
         offset, // block offset
         dims, // block size
@@ -422,8 +415,8 @@ void GpuBinaryFunction::operator()(
     block_size = {16,1,16};
     grid_size = {
         (dims.x + block_size.x - 1) / block_size.x,
-        1,
-        (dims.z + block_size.z - 1) / block_size.z
+        (dims.y + block_size.y - 1) / block_size.y,
+        1
     };
 
     regularizer_kernel_borders_step<<<grid_size, block_size, 0, stream>>>(
@@ -431,8 +424,8 @@ void GpuBinaryFunction::operator()(
         _initial,
         int3{0, 0, 1},
         delta,
-        weight.z,
-        _scale,
+        _weight,
+        scale.z,
         _half_exponent,
         offset, // block offset
         dims, // block size

@@ -239,6 +239,12 @@ void HybridGraphCutOptimizer::reset_terminal_capacities()
     );
     CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_source.pitched_ptr(), 0, extent));
     CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_sink.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_lee.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_gee.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_ele.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_ege.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_eel.pitched_ptr(), 0, extent));
+    CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_cap_eeg.pitched_ptr(), 0, extent));
 }
 
 size_t HybridGraphCutOptimizer::dispatch_blocks()
@@ -423,7 +429,7 @@ void HybridGraphCutOptimizer::block_cost_task(
         _gpu_cap_lee,
         _cap_lee,
         block,
-        true,
+        false,
         stream
     );
 
@@ -431,7 +437,7 @@ void HybridGraphCutOptimizer::block_cost_task(
         _gpu_cap_gee,
         _cap_gee,
         block,
-        true,
+        false,
         stream
     );
 
@@ -439,14 +445,14 @@ void HybridGraphCutOptimizer::block_cost_task(
         _gpu_cap_ele,
         _cap_ele,
         block,
-        true,
+        false,
         stream
     );
     download_subvolume(
         _gpu_cap_ege,
         _cap_ege,
         block,
-        true,
+        false,
         stream
     );
 
@@ -454,7 +460,7 @@ void HybridGraphCutOptimizer::block_cost_task(
         _gpu_cap_eel,
         _cap_eel,
         block,
-        true,
+        false,
         stream
     );
 
@@ -462,7 +468,7 @@ void HybridGraphCutOptimizer::block_cost_task(
         _gpu_cap_eeg,
         _cap_eeg,
         block,
-        true,
+        false,
         stream
     );
 
@@ -523,7 +529,6 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
 
         graph.add_tweights(get_index(sub_x, sub_y, sub_z), f0, f1);
 
-        
         if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
             graph.add_edge(
                 get_index(sub_x, sub_y, sub_z),
@@ -543,7 +548,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         if (sub_z + 1 < block_dims.z && gz + 1 < int(full_dims.z)) {
             graph.add_edge(
                 get_index(sub_x, sub_y, sub_z),
-                get_index(sub_x, sub_y, sub_z+ 1),
+                get_index(sub_x, sub_y, sub_z + 1),
                 _cap_eel(gx, gy, gz),
                 _cap_eeg(gx, gy, gz)
             );

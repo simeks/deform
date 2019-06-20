@@ -54,7 +54,12 @@ struct CostFunctionKernel
 
     // x,y,z        : Global image coordinates
     // cost_offset  :  Where in `cost` to store the results (0 or 1).
-    __device__ void operator()(int x, int y, int z, float3 delta, int cost_offset)
+    __device__ void operator()(
+        int x,
+        int y,
+        int z,
+        float3 delta,
+        cuda::VolumePtr<float> out)
     {
         // Check if the fixed voxel is masked out
         float fixed_mask_value = 1.0f;
@@ -90,12 +95,7 @@ struct CostFunctionKernel
         float c = _impl(_fixed, _moving, _fixed_dims, _moving_dims, int3{x,y,z}, moving_p);
         c *= _weight * fixed_mask_value * moving_mask_value;
 
-        if (cost_offset == 0) {
-            _cap_source(x,y,z) += c;
-        }
-        else {
-            _cap_sink(x,y,z) += c;
-        }
+        out(x,y,z) += c;
     }
 
     TImpl _impl;
@@ -129,7 +129,7 @@ __global__ void cost_function_kernel(
     int3 offset,
     int3 dims,
     float3 delta,
-    int cost_offset)
+    cuda::VolumePtr<float> out)
 {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -146,7 +146,7 @@ __global__ void cost_function_kernel(
     y += offset.y;
     z += offset.z;
 
-    kernel(x, y, z, delta, cost_offset);
+    kernel(x, y, z, delta, out);
 }
 
 template<typename TKernel>
@@ -176,7 +176,7 @@ void invoke_cost_function_kernel(
         offset,
         dims,
         float3{0,0,0},
-        0
+        kernel._cap_sink
     );
 
     // E(u(x)+d)
@@ -185,7 +185,7 @@ void invoke_cost_function_kernel(
         offset,
         dims,
         delta,
-        1
+        kernel._cap_source
     );
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
