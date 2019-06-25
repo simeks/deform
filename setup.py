@@ -20,7 +20,9 @@ cmake_cmd_args = []
 for f in sys.argv:
     if f.startswith('-D'):
         cmake_cmd_args.append(f)
-        sys.argv.remove(f)
+
+for f in cmake_cmd_args:
+    sys.argv.remove(f)
 
 
 class CMakeExtension(Extension):
