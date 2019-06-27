@@ -70,8 +70,8 @@ __global__ void regularizer_kernel_step(
     float e10 = weight*phi(dv, dw, delta4, scale, half_exponent, 1, 0);
     float e11 = weight*phi(dv, dw, delta4, scale, half_exponent, 1, 1);
 
-    cap_source(vx, vy, vz) += e00;
-    cap_sink(vx, vy, vz) += e11;
+    cap_source(vx, vy, vz) += e11;
+    cap_sink(vx, vy, vz) += e00;
     
     e01 -= e00; e10 -= e11;
 
@@ -108,9 +108,7 @@ __global__ void regularizer_kernel_step2(
     int3 dims,
     dim3 df_dims,
     cuda::VolumePtr<float> cap_source,
-    cuda::VolumePtr<float> cap_sink,
-    cuda::VolumePtr<float> cap_edge_l,
-    cuda::VolumePtr<float> cap_edge_g
+    cuda::VolumePtr<float> cap_sink
 )
 {
     /*
@@ -297,9 +295,7 @@ void GpuBinaryFunction::operator()(
         dims, // block size
         df.size(),
         cap_source,
-        cap_sink,
-        cap_lee,
-        cap_gee
+        cap_sink
     );
     regularizer_kernel_step<<<grid_size, block_size, 0, stream>>>(
         df,
@@ -329,9 +325,7 @@ void GpuBinaryFunction::operator()(
         dims, // block size
         df.size(),
         cap_source,
-        cap_sink,
-        cap_ele,
-        cap_ege
+        cap_sink
     );
     regularizer_kernel_step<<<grid_size, block_size, 0, stream>>>(
         df,
@@ -361,9 +355,7 @@ void GpuBinaryFunction::operator()(
         dims, // block size
         df.size(),
         cap_source,
-        cap_sink,
-        cap_eel,
-        cap_eeg
+        cap_sink
     );
 
     // Borders
@@ -412,7 +404,7 @@ void GpuBinaryFunction::operator()(
         cap_sink
     );
 
-    block_size = {16,1,16};
+    block_size = {16,16,1};
     grid_size = {
         (dims.x + block_size.x - 1) / block_size.x,
         (dims.y + block_size.y - 1) / block_size.y,
