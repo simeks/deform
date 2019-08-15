@@ -280,7 +280,8 @@ int ArgParser::count_instances(const std::string& name) const
             std::next(matchers.begin()),
             matchers.end(),
             "(" + matchers[0].substr(0, matchers[0].size()-3) + ")",
-            [](auto& a, auto& b) {return (a + "|(" + b.substr(0, b.size()-3) + ")");});
+            [](const std::string& a, const std::string& b) 
+            {return (a + "|(" + b.substr(0, b.size()-3) + ")");});
     std::regex re("^" + pattern + "[0-9]*$");
 
     // Count instances

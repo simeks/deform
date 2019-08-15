@@ -96,13 +96,13 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
             else if (Settings::ImageSlot::CostFunction_NCC == fn.function) {
                 int radius = 2;
 
-                for (const auto& [k, v] : fn.parameters) {
-                    if (k == "radius") {
-                        radius = str_to_num<int>("NCCFunction", k, v);
+                for (const auto& p : fn.parameters) {
+                    if (p.first == "radius") {
+                        radius = str_to_num<int>("NCCFunction", p.first, p.second);
                     }
                     else {
                         throw std::invalid_argument("[GPU] NCCFunction: unrecognised parameter "
-                                                    "'" + k + "' with value '" + v + "'");
+                                                    "'" + p.first + "' with value '" + p.second + "'");
                     }
                 }
 

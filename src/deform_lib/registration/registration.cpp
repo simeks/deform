@@ -70,7 +70,9 @@ void validate_volume_properties(
     }
 
     // Validate direction
-    if (stk::nonzero(vol.direction() - ref_vol.direction()))
+    if (stk::nonzero(vol.direction()[0] - ref_vol.direction()[0]) ||
+        stk::nonzero(vol.direction()[1] - ref_vol.direction()[1]) ||
+        stk::nonzero(vol.direction()[2] - ref_vol.direction()[2]))
     {
         osstr << "Direction mismatch for " << name
               << " (direction: " << vol.direction() << ", expected: "
