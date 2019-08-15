@@ -384,23 +384,14 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
         for (size_t j = 0; j < slot.cost_functions.size(); ++j) {
             s << "    " << cost_function_to_str(slot.cost_functions[j].function) << ": " << std::endl;
             s << "      weight: " << slot.cost_functions[j].weight << std::endl;
-            for (const auto& [k, v] : slot.cost_functions[j].parameters) {
-                s << "      " << k << ": " << v << std::endl;
+            for (const auto& p : slot.cost_functions[j].parameters) {
+                s << "      " << p.first << ": " << p.second << std::endl;
             }
         }
         s << "  }" << std::endl;
         s << "}" << std::endl;
     }
 }
-
-
-std::stringstream print_registration_settings(const Settings& settings)
-{
-    std::stringstream os;
-    print_registration_settings(settings, os);
-    return os;
-}
-
 
 bool parse_registration_settings(const std::string& str, Settings& settings)
 {

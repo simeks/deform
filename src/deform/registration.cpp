@@ -69,7 +69,11 @@ int RegistrationCommand::_execute(void)
         LOG(Info) << "Parameters:" << std::endl << param_str.str();
 
         // Print all settings to Verbose
-        LOG(Verbose) << print_registration_settings(settings).rdbuf();
+        
+        std::stringstream settings_str;
+        print_registration_settings(settings, settings_str);
+
+        LOG(Verbose) << settings_str.rdbuf();
     }
     else {
         LOG(Info) << "Running with default settings.";
