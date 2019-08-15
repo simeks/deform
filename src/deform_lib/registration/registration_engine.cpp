@@ -1,6 +1,7 @@
 #include "../config.h"
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
+#include "../make_unique.h"
 
 #include "blocked_graph_cut_optimizer.h"
 #include "registration_engine.h"
@@ -60,7 +61,7 @@ namespace
                                         + parameters.begin()->second + "'");
         }
 
-        std::unique_ptr<SubFunction> function = std::make_unique<SquaredDistanceFunction<T>>(fixed, moving);
+        std::unique_ptr<SubFunction> function = make_unique<SquaredDistanceFunction<T>>(fixed, moving);
         if (moving_mask.valid()) {
             function->set_moving_mask(moving_mask);
         }
@@ -98,13 +99,13 @@ namespace
 
         std::unique_ptr<SubFunction> function;
         if ("sphere" == window) {
-            function = std::make_unique<NCCFunction_sphere<T>>(fixed, moving, radius);
+            function = make_unique<NCCFunction_sphere<T>>(fixed, moving, radius);
             if (moving_mask.valid()) {
                 function->set_moving_mask(moving_mask);
             }
         }
         else if ("cube" == window) {
-            function = std::make_unique<NCCFunction_cube<T>>(fixed, moving, radius);
+            function = make_unique<NCCFunction_cube<T>>(fixed, moving, radius);
             if (moving_mask.valid()) {
                 function->set_moving_mask(moving_mask);
             }
@@ -186,7 +187,7 @@ namespace
         }
 
         std::unique_ptr<SubFunction> function =
-            std::make_unique<GradientSSDFunction<T>>(fixed, moving, sigma);
+            make_unique<GradientSSDFunction<T>>(fixed, moving, sigma);
         if (moving_mask.valid()) {
             function->set_moving_mask(moving_mask);
         }
@@ -476,7 +477,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         auto& fixed = _fixed_pyramids[0].volume(level);
 
         unary_fn.add_function(
-            std::make_unique<LandmarksFunction>(
+            make_unique<LandmarksFunction>(
                 _fixed_landmarks,
                 _moving_landmarks,
                 fixed,
@@ -488,7 +489,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
 
     if (_constraints_mask_pyramid.volume(level).valid()) {
         unary_fn.add_function(
-            std::make_unique<SoftConstraintsFunction>(
+            make_unique<SoftConstraintsFunction>(
                 _constraints_mask_pyramid.volume(level),
                 _constraints_pyramid.volume(level)
             ),

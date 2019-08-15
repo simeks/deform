@@ -11,6 +11,7 @@
 
 #include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
+#include <deform_lib/make_unique.h>
 #include <deform_lib/version.h>
 
 #include <deform_lib/registration/settings.h>
@@ -212,8 +213,8 @@ void add_logger(
     }
     catch (py::cast_error &) {
         try {
-            buffer = std::make_unique<py::detail::pythonbuf>(log);
-            out_stream = std::make_unique<std::ostream>(buffer.get());
+            buffer = make_unique<py::detail::pythonbuf>(log);
+            out_stream = make_unique<std::ostream>(buffer.get());
             stk::log_add_stream(out_stream.get(), level);
         }
         catch (...) {
