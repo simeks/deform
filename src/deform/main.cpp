@@ -26,7 +26,6 @@
 #include <iostream>
 #include <map>
 #include <omp.h>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>

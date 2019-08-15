@@ -115,13 +115,19 @@ int RegistrationCommand::_execute(void)
     const std::string fixed_mask_file = _args.get<std::string>("fixed_mask", "");
     const std::string moving_mask_file = _args.get<std::string>("moving_mask", "");
 
-    std::optional<stk::Volume> fixed_mask;
-    std::optional<stk::Volume> moving_mask;
+    stk::Volume fixed_mask;
+    stk::Volume moving_mask;
+
     if (!fixed_mask_file.empty()) {
         fixed_mask = stk::read_volume(fixed_mask_file);
+        if (!fixed_mask.valid()) 
+            return EXIT_FAILURE;
     }
+
     if (!moving_mask_file.empty()) {
         moving_mask = stk::read_volume(moving_mask_file);
+        if (!moving_mask.valid()) 
+            return EXIT_FAILURE;
     }
 
     LOG(Info) << "Fixed mask: '" << fixed_mask_file << "'";
@@ -131,9 +137,11 @@ int RegistrationCommand::_execute(void)
     std::string init_deform_file = _args.get<std::string>("init_deform", "");
     LOG(Info) << "Initial displacement: '" << init_deform_file << "'";
 
-    std::optional<stk::Volume> initial_displacement;
+    stk::Volume initial_displacement;
     if (!init_deform_file.empty()) {
         initial_displacement = stk::read_volume(init_deform_file.c_str());
+        if (!initial_displacement.valid()) 
+            return EXIT_FAILURE;
     }
 
     // Constraints
@@ -143,11 +151,16 @@ int RegistrationCommand::_execute(void)
     LOG(Info) << "Constraint mask: '" << constraint_mask_file << "'";
     LOG(Info) << "Constraint values: '" << constraint_values_file << "'";
 
-    std::optional<stk::Volume> constraint_mask;
-    std::optional<stk::Volume> constraint_values;
+    stk::Volume constraint_mask;
+    stk::Volume constraint_values;
     if (!constraint_mask_file.empty() && !constraint_values_file.empty()) {
         constraint_mask = stk::read_volume(constraint_mask_file.c_str());
+        if (!constraint_mask.valid()) 
+            return EXIT_FAILURE;
+
         constraint_values = stk::read_volume(constraint_values_file.c_str());
+        if (!constraint_values.valid()) 
+            return EXIT_FAILURE;
     }
     else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
         // Just a check to make sure the user didn't forget something
@@ -162,8 +175,8 @@ int RegistrationCommand::_execute(void)
     LOG(Info) << "Fixed landmarks: '" << fixed_landmarks_file << "'";
     LOG(Info) << "Moving landmarks: '" << moving_landmarks_file << "'";
 
-    std::optional<std::vector<float3>> fixed_landmarks;
-    std::optional<std::vector<float3>> moving_landmarks;
+    std::vector<float3> fixed_landmarks;
+    std::vector<float3> moving_landmarks;
     try{
         if (!fixed_landmarks_file.empty()) {
             fixed_landmarks = parse_landmarks_file(fixed_landmarks_file.c_str());

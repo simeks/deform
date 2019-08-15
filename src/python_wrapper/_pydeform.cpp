@@ -5,7 +5,6 @@
 
 #include <cassert>
 #include <map>
-#include <optional>
 #include <string>
 
 #include <stk/filters/vector_calculus.h>
@@ -365,7 +364,7 @@ py::array registration_wrapper(
     // Convert optional arguments. Try to cast to the correct numeric
     // type if possible.
 
-    std::optional<stk::VolumeFloat> fixed_mask_;
+    stk::VolumeFloat fixed_mask_;
     if (!fixed_mask.is_none()) {
         fixed_mask_ = image_to_volume(py::cast<py::array_t<float>>(fixed_mask),
                                       fixed_origin,
@@ -373,7 +372,7 @@ py::array registration_wrapper(
                                       fixed_direction);
     }
 
-    std::optional<stk::VolumeFloat> moving_mask_;
+    stk::VolumeFloat moving_mask_;
     if (!moving_mask.is_none()) {
         moving_mask_ = image_to_volume(py::cast<py::array_t<float>>(moving_mask),
                                        moving_origin,
@@ -381,17 +380,17 @@ py::array registration_wrapper(
                                        moving_direction);
     }
 
-    std::optional<std::vector<float3>> fixed_landmarks_;
+    std::vector<float3> fixed_landmarks_;
     if (!fixed_landmarks.is_none()) {
         fixed_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(fixed_landmarks));
     }
 
-    std::optional<std::vector<float3>> moving_landmarks_;
+    std::vector<float3> moving_landmarks_;
     if (!moving_landmarks.is_none()) {
         moving_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(moving_landmarks));
     }
 
-    std::optional<stk::Volume> initial_displacement_;
+    stk::Volume initial_displacement_;
     if (!initial_displacement.is_none()) {
         initial_displacement_ = image_to_volume(py::cast<py::array_t<float>>(initial_displacement),
                                                 fixed_origin,
@@ -399,7 +398,7 @@ py::array registration_wrapper(
                                                 fixed_direction);
     }
 
-    std::optional<stk::Volume> constraint_mask_;
+    stk::Volume constraint_mask_;
     if (!constraint_mask.is_none()) {
         constraint_mask_ = image_to_volume(py::cast<py::array_t<unsigned char>>(constraint_mask),
                                            fixed_origin,
@@ -407,7 +406,7 @@ py::array registration_wrapper(
                                            fixed_direction);
     }
 
-    std::optional<stk::Volume> constraint_values_;
+    stk::Volume constraint_values_;
     if (!constraint_values.is_none()) {
         constraint_values_ = image_to_volume(py::cast<py::array_t<float>>(constraint_values),
                                              fixed_origin,
