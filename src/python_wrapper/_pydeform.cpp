@@ -426,11 +426,11 @@ py::array registration_wrapper(
         // Print only contents of parameter file to Info
         LOG(Info) << "Parameters:" << std::endl << settings_str;
 
-        std::stringstream settings_str;
-        print_registration_settings(settings_, settings_str);
+        std::stringstream settings_ss;
+        print_registration_settings(settings_, settings_ss);
 
         // Print all settings to Verbose
-        LOG(Verbose) << settings_str.rdbuf();
+        LOG(Verbose) << settings_ss.rdbuf();
     }
 
     // Check number of image slots
