@@ -23,11 +23,11 @@ environment:
 install:
 - git submodule update --init --recursive
 - SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
-- SET LIB=%PYTHON%\\libs;%LIB%
 - pip install -r requirements.txt
 
 before_build:
 - if "%PLATFORM%"=="x64" call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+- SET LIB=%PYTHON%\\libs;%LIB%
 - mkdir build
 - cd build
 - if "%PLATFORM%"=="x64" set GENERATOR="Visual Studio 15 2017 Win64"
