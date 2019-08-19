@@ -35,7 +35,7 @@ before_build:
 - cmake .. -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G%GENERATOR% -DSTK_BUILD_TESTS=1 -DSTK_WARNINGS_ARE_ERRORS=1 -DDF_BUILD_PYTHON_WRAPPER=ON
 
 build_script:
-- echo %LIB%
+- ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 - cmake --build . --config %CONFIGURATION%
 - cd ..
 - python setup.py install -DCMAKE_GENERATOR_PLATFORM=%PLATFORM%
