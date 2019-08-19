@@ -12,7 +12,6 @@ matrix:
     dist: xenial
   - name: g++8
     os: linux
-    name: 
     addons:
       apt:
         sources:
