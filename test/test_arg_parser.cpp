@@ -19,6 +19,7 @@ namespace {
         parser.add_flag("flag_option3", "-f3,--flag3", "flag option");
         parser.add_group();
         parser.add_option("array{i}", "-a{i},--array{i}", "array option");
+        parser.add_flag("flag{i}", "-f{i},--flag{i}", "array option");
     }
 }
 
@@ -215,7 +216,7 @@ TEST_CASE("args", "")
     }
     SECTION("count_instances")
     {
-        auto const test_case = [](const std::initializer_list<std::string> args, const int expected) {
+        auto const test_case = [](const std::initializer_list<std::string> args, const char* name, const int expected) {
             std::vector<std::string> ss {
                 "test.exe",
 
@@ -236,12 +237,13 @@ TEST_CASE("args", "")
             init_parser(parser);
             parser.parse();
 
-            REQUIRE(parser.count_instances("array{i}") == expected);
+            REQUIRE(parser.count_instances(name) == expected);
         };
 
-        test_case({"-a0"}, 1);
-        test_case({"-a0", "foo"}, 1);
-        test_case({"-a0", "-a1", "-a2", "-a3"}, 4);
+        test_case({"-a0", "a"}, "array{i}", 1);
+        test_case({"-f0"}, "flag{i}", 1);
+        test_case({"-a0", "a", "-a1", "b", "-a2", "c", "-a3", "d"}, "array{i}", 4);
+        test_case({"-f0", "-f1", "-f3"}, "flag{i}", 3);
     }
 
 }
