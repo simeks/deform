@@ -21,6 +21,8 @@
 pyramid_levels: 6
 pyramid_stop_level: 0
 
+regularize_initial_displacement: false
+
 constraints_weight: 1000
 
 block_size: [12, 12, 12]
@@ -352,6 +354,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
     s << "pyramid_stop_level = " << settings.pyramid_stop_level << std::endl;
     s << "num_pyramid_levels = " << settings.num_pyramid_levels << std::endl;
     s << "landmarks_stop_level = " << settings.landmarks_stop_level << std::endl;
+    s << "regularize_initial_displacement = " << settings.regularize_initial_displacement << std::endl;
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         s << "level[" << l << "] = {" << std::endl;
@@ -433,6 +436,11 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
 
         if (root["landmarks_stop_level"]) {
             settings.landmarks_stop_level = root["landmarks_stop_level"].as<int>();
+        }
+
+        if (root["regularize_initial_displacement"]) {
+            settings.regularize_initial_displacement
+                = root["regularize_initial_displacement"].as<bool>();
         }
 
         auto is = root["image_slots"];
