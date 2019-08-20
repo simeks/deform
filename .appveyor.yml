@@ -18,7 +18,7 @@ matrix:
 
 environment:
   matrix:
-  - PYTHON: "C:\\Python35-x64"
+  - PYTHON: "C:\\Python36-x64"
 
 install:
 - git submodule update --init --recursive
@@ -28,7 +28,7 @@ install:
 before_build:
 - mkdir build
 - cd build
-- cmake .. -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_GENERATOR_PLATFORM=%PLATFORM% -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1 -DDF_BUILD_PYTHON_WRAPPER=ON
+- cmake .. -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_GENERATOR_PLATFORM=%PLATFORM% -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1
 
 build_script:
 - cmake --build . --config %CONFIGURATION%
