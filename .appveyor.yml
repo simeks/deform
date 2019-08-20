@@ -22,15 +22,13 @@ environment:
 
 install:
 - git submodule update --init --recursive
-- SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
+- set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
 - pip install -r requirements.txt
 
 before_build:
-- if "%PLATFORM%"=="x64" call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 - mkdir build
 - cd build
-- if "%PLATFORM%"=="x64" set GENERATOR="Visual Studio 15 2017 Win64"
-- cmake .. -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G%GENERATOR% -DSTK_BUILD_TESTS=1 -DSTK_WARNINGS_ARE_ERRORS=1 -DDF_BUILD_PYTHON_WRAPPER=ON
+- cmake .. -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_GENERATOR_PLATFORM=%PLATFORM% -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1
 
 build_script:
 - cmake --build . --config %CONFIGURATION%
@@ -38,5 +36,7 @@ build_script:
 - python setup.py install -DCMAKE_GENERATOR_PLATFORM=%PLATFORM%
 
 test_script:
+- cd build
 - ctest --output-on-failure
+- cd ..
 - python -m unittest discover test

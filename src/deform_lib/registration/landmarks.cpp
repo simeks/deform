@@ -1,7 +1,18 @@
 #include <deform_lib/registration/landmarks.h>
 
 #include <fstream>
-#include <regex>
+
+namespace {
+    std::string trim_string(const std::string& str)
+    {
+        size_t i = 0, j = str.size() - 1; 
+
+        while (i < j && isspace(str[i])) i++;
+        while (j > i && isspace(str[j])) j--;
+
+        return std::string(str, i, j-2 );
+    }
+}
 
 std::vector<float3> parse_landmarks_file(const std::string& filename)
 {
@@ -22,9 +33,11 @@ std::vector<float3> parse_landmarks_file(const std::string& filename)
 
     // Read second line, must be the number of points (but tolerate stray whitespace)
     std::getline(f, line);
-    std::smatch matches;
-    if (std::regex_match(line, matches, std::regex(R"(^\s*([0-9]+)\s*$)"))) {
-        n = std::stol(matches[0].str());
+
+    line = trim_string(line);
+    if (line.find_first_of(" \t") == std::string::npos) {
+        // No whitespace signals that there are no other numbers in string
+        n = std::stol(line);
     }
     else {
         throw ValidationError("Invalid point file, expected number of points at line 2");

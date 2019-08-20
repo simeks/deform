@@ -29,7 +29,6 @@
 #include <iostream>
 #include <map>
 #include <omp.h>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -71,7 +70,9 @@ void validate_volume_properties(
     }
 
     // Validate direction
-    if (stk::nonzero(vol.direction() - ref_vol.direction()))
+    if (stk::nonzero(vol.direction()[0] - ref_vol.direction()[0]) ||
+        stk::nonzero(vol.direction()[1] - ref_vol.direction()[1]) ||
+        stk::nonzero(vol.direction()[2] - ref_vol.direction()[2]))
     {
         osstr << "Direction mismatch for " << name
               << " (direction: " << vol.direction() << ", expected: "
@@ -85,13 +86,13 @@ stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
-        const std::optional<stk::Volume> fixed_mask,
-        const std::optional<stk::Volume> moving_mask,
-        const std::optional<std::vector<float3>> fixed_landmarks,
-        const std::optional<std::vector<float3>> moving_landmarks,
-        const std::optional<stk::Volume> initial_deformation,
-        const std::optional<stk::Volume> constraint_mask,
-        const std::optional<stk::Volume> constraint_values,
+        const stk::Volume& fixed_mask,
+        const stk::Volume& moving_mask,
+        const std::vector<float3>& fixed_landmarks,
+        const std::vector<float3>& moving_landmarks,
+        const stk::Volume& initial_deformation,
+        const stk::Volume& constraint_mask,
+        const stk::Volume& constraint_values,
         const int num_threads
 )
 {
@@ -172,59 +173,41 @@ stk::Volume registration(
     }
 
     // Fixed mask
-    if (fixed_mask.has_value()) {
-        if (!fixed_mask.value().valid()) {
-            throw ValidationError("Invalid fixed mask");
-        }
-        validate_volume_properties(fixed_mask.value(), fixed_ref, "fixed mask");
-        engine.set_fixed_mask(fixed_mask.value());
+    if (fixed_mask.valid()) {
+        validate_volume_properties(fixed_mask, fixed_ref, "fixed mask");
+        engine.set_fixed_mask(fixed_mask);
     }
 
     // Moving mask
-    if (moving_mask.has_value()) {
-        if (!moving_mask.value().valid()) {
-            throw ValidationError("Invalid moving mask");
-        }
-        validate_volume_properties(moving_mask.value(), moving_ref, "moving mask");
-        engine.set_moving_mask(moving_mask.value());
+    if (moving_mask.valid()) {
+        validate_volume_properties(moving_mask, moving_ref, "moving mask");
+        engine.set_moving_mask(moving_mask);
     }
 
     // Initial deformation
-    if (initial_deformation.has_value()) {
-        if (!initial_deformation.value().valid()) {
-            throw ValidationError("Invalid initial deformation volume");
-        }
-
-        validate_volume_properties(initial_deformation.value(), fixed_ref, "initial deformation field");
-        engine.set_initial_deformation(initial_deformation.value());
+    if (initial_deformation.valid()) {
+        validate_volume_properties(initial_deformation, fixed_ref, "initial deformation field");
+        engine.set_initial_deformation(initial_deformation);
     }
 
     // Constraints
-    if (constraint_mask.has_value() && constraint_values.has_value()) {
-        if (!constraint_mask.value().valid()) {
-            throw ValidationError("Invalid constraint mask volume");
-        }
-
-        if (!constraint_values.value().valid()) {
-            throw ValidationError("Invalid constraint values volume");
-        }
-
-        validate_volume_properties(constraint_mask.value(), fixed_ref, "constraint mask");
-        validate_volume_properties(constraint_values.value(), fixed_ref, "constraint values");
-        engine.set_voxel_constraints(constraint_mask.value(), constraint_values.value());
+    if (constraint_mask.valid() && constraint_values.valid()) {
+        validate_volume_properties(constraint_mask, fixed_ref, "constraint mask");
+        validate_volume_properties(constraint_values, fixed_ref, "constraint values");
+        engine.set_voxel_constraints(constraint_mask, constraint_values);
     }
 
     // Landmarks
-    if (fixed_landmarks.has_value() || moving_landmarks.has_value()) {
-        if (!fixed_landmarks.has_value() || !moving_landmarks.has_value()) {
+    if (!fixed_landmarks.empty() || !moving_landmarks.empty()) {
+        if (fixed_landmarks.empty() || moving_landmarks.empty()) {
             throw ValidationError("Landmarks must be specified for both fixed and moving");
         }
 
-        if (fixed_landmarks.value().size() != moving_landmarks.value().size()) {
+        if (fixed_landmarks.size() != moving_landmarks.size()) {
             throw ValidationError("The number of fixed and moving landmarks must match");
         }
 
-        engine.set_landmarks(fixed_landmarks.value(), moving_landmarks.value());
+        engine.set_landmarks(fixed_landmarks, moving_landmarks);
     }
 
     using namespace std::chrono;
@@ -244,13 +227,13 @@ stk::Volume registration(
         const Settings& settings,
         std::vector<stk::Volume>& fixed_volumes,
         std::vector<stk::Volume>& moving_volumes,
-        const std::optional<stk::Volume> fixed_mask,
-        const std::optional<stk::Volume> moving_mask,
-        const std::optional<std::vector<float3>> fixed_landmarks,
-        const std::optional<std::vector<float3>> moving_landmarks,
-        const std::optional<stk::Volume> initial_deformation,
-        const std::optional<stk::Volume> constraint_mask,
-        const std::optional<stk::Volume> constraint_values,
+        const stk::Volume& fixed_mask,
+        const stk::Volume& moving_mask,
+        const std::vector<float3>& fixed_landmarks,
+        const std::vector<float3>& moving_landmarks,
+        const stk::Volume& initial_deformation,
+        const stk::Volume& constraint_mask,
+        const stk::Volume& constraint_values,
         const int num_threads
 #ifdef DF_USE_CUDA
         , bool use_gpu

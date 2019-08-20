@@ -1,6 +1,7 @@
 #include "../config.h"
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
+#include "../make_unique.h"
 
 #include "blocked_graph_cut_optimizer.h"
 #include "registration_engine.h"
@@ -60,7 +61,7 @@ namespace
                                         + parameters.begin()->second + "'");
         }
 
-        std::unique_ptr<SubFunction> function = std::make_unique<SquaredDistanceFunction<T>>(fixed, moving);
+        std::unique_ptr<SubFunction> function = make_unique<SquaredDistanceFunction<T>>(fixed, moving);
         if (moving_mask.valid()) {
             function->set_moving_mask(moving_mask);
         }
@@ -79,32 +80,32 @@ namespace
         int radius = 2;
         std::string window = "sphere";
 
-        for (const auto& [k, v] : parameters) {
-            if (k == "radius") {
-                radius = str_to_num<int>("NCCFunction", k, v);
+        for (const auto& p : parameters) {
+            if (p.first == "radius") {
+                radius = str_to_num<int>("NCCFunction", p.first, p.second);
             }
-            else if (k == "window") {
-                if (v != "cube" && v != "sphere") {
-                    throw std::invalid_argument("NCCFunction: invalid value '" + v +
-                                                "' for parameter '" + k + "'");
+            else if (p.first == "window") {
+                if (p.second != "cube" && p.second != "sphere") {
+                    throw std::invalid_argument("NCCFunction: invalid value '" + p.second +
+                                                "' for parameter '" + p.first + "'");
                 }
-                window = v;
+                window = p.second;
             }
             else {
                 throw std::invalid_argument("NCCFunction: unrecognised parameter "
-                                            "'" + k + "' with value '" + v + "'");
+                                            "'" + p.first + "' with value '" + p.second + "'");
             }
         }
 
         std::unique_ptr<SubFunction> function;
         if ("sphere" == window) {
-            function = std::make_unique<NCCFunction_sphere<T>>(fixed, moving, radius);
+            function = make_unique<NCCFunction_sphere<T>>(fixed, moving, radius);
             if (moving_mask.valid()) {
                 function->set_moving_mask(moving_mask);
             }
         }
         else if ("cube" == window) {
-            function = std::make_unique<NCCFunction_cube<T>>(fixed, moving, radius);
+            function = make_unique<NCCFunction_cube<T>>(fixed, moving, radius);
             if (moving_mask.valid()) {
                 function->set_moving_mask(moving_mask);
             }
@@ -129,35 +130,35 @@ namespace
         int update_interval = 1;
         transform::Interp interpolator = transform::Interp_NN;
 
-        for (const auto& [k, v] : parameters) {
-            if (k == "bins") {
-                bins = str_to_num<int>("MIFunction", k, v);
+        for (const auto& p : parameters) {
+            if (p.first == "bins") {
+                bins = str_to_num<int>("MIFunction", p.first, p.second);
             }
-            else if (k == "sigma") {
-                sigma = str_to_num<double>("MIFunction", k, v);
+            else if (p.first == "sigma") {
+                sigma = str_to_num<double>("MIFunction", p.first, p.second);
             }
-            else if (k == "update_interval") {
-                update_interval = str_to_num<int>("MIFunction", k, v);
+            else if (p.first == "update_interval") {
+                update_interval = str_to_num<int>("MIFunction", p.first, p.second);
             }
-            else if (k == "interpolator") {
-                if (v == "linear") {
+            else if (p.first == "interpolator") {
+                if (p.second == "linear") {
                     interpolator = transform::Interp_Linear;
                 }
-                else if (v == "nearest" || v == "nn") {
+                else if (p.second == "nearest" || p.second == "nn") {
                     interpolator = transform::Interp_NN;
                 }
                 else {
-                    throw std::invalid_argument("MIFunction: invalid interpolator '" + v + "'");
+                    throw std::invalid_argument("MIFunction: invalid interpolator '" + p.second + "'");
                 }
             }
             else {
                 throw std::invalid_argument("MIFunction: unrecognised parameter "
-                                            "'" + k + "' with value '" + v + "'");
+                                            "'" + p.first + "' with p.secondalue '" + p.second + "'");
             }
         }
 
         std::unique_ptr<SubFunction> function =
-            std::make_unique<MIFunction<T>>(fixed, moving, bins, sigma, update_interval, interpolator);
+            make_unique<MIFunction<T>>(fixed, moving, bins, sigma, update_interval, interpolator);
         if (moving_mask.valid()) {
             function->set_moving_mask(moving_mask);
         }
@@ -175,18 +176,18 @@ namespace
     {
         float sigma = 0.0f;
 
-        for (const auto& [k, v] : parameters) {
-            if (k == "sigma") {
-                sigma = str_to_num<float>("GradientSSDFunction", k, v);
+        for (const auto& p : parameters) {
+            if (p.first == "sigma") {
+                sigma = str_to_num<float>("GradientSSDFunction", p.first, p.second);
             }
             else {
                 throw std::invalid_argument("GradientSSDFunction: unrecognised parameter "
-                                            "'" + k + "' with value '" + v + "'");
+                                            "'" + p.first + "' with value '" + p.second + "'");
             }
         }
 
         std::unique_ptr<SubFunction> function =
-            std::make_unique<GradientSSDFunction<T>>(fixed, moving, sigma);
+            make_unique<GradientSSDFunction<T>>(fixed, moving, sigma);
         if (moving_mask.valid()) {
             function->set_moving_mask(moving_mask);
         }
@@ -476,7 +477,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
         auto& fixed = _fixed_pyramids[0].volume(level);
 
         unary_fn.add_function(
-            std::make_unique<LandmarksFunction>(
+            make_unique<LandmarksFunction>(
                 _fixed_landmarks,
                 _moving_landmarks,
                 fixed,
@@ -488,7 +489,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
 
     if (_constraints_mask_pyramid.volume(level).valid()) {
         unary_fn.add_function(
-            std::make_unique<SoftConstraintsFunction>(
+            make_unique<SoftConstraintsFunction>(
                 _constraints_mask_pyramid.volume(level),
                 _constraints_pyramid.volume(level)
             ),

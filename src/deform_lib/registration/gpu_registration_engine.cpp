@@ -1,3 +1,4 @@
+#include "deform_lib/make_unique.h"
 #include "deform_lib/profiler/profiler.h"
 #include "gpu_registration_engine.h"
 #include "gpu/cost_functions/cost_function.h"
@@ -81,7 +82,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                                                 + fn.parameters.begin()->second + "'");
                 }
 
-                FunctionPtr function = std::make_unique<GpuCostFunction_SSD>(fixed, moving);
+                FunctionPtr function = make_unique<GpuCostFunction_SSD>(fixed, moving);
 
                 if (_fixed_mask_pyramid.levels() > 0) {
                     function->set_fixed_mask(_fixed_mask_pyramid.volume(level));
@@ -95,17 +96,17 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
             else if (Settings::ImageSlot::CostFunction_NCC == fn.function) {
                 int radius = 2;
 
-                for (const auto& [k, v] : fn.parameters) {
-                    if (k == "radius") {
-                        radius = str_to_num<int>("NCCFunction", k, v);
+                for (const auto& p : fn.parameters) {
+                    if (p.first == "radius") {
+                        radius = str_to_num<int>("NCCFunction", p.first, p.second);
                     }
                     else {
                         throw std::invalid_argument("[GPU] NCCFunction: unrecognised parameter "
-                                                    "'" + k + "' with value '" + v + "'");
+                                                    "'" + p.first + "' with value '" + p.second + "'");
                     }
                 }
 
-                FunctionPtr function = std::make_unique<GpuCostFunction_NCC>(fixed, moving, radius);
+                FunctionPtr function = make_unique<GpuCostFunction_NCC>(fixed, moving, radius);
 
                 if (_fixed_mask_pyramid.levels() > 0) {
                     function->set_fixed_mask(_fixed_mask_pyramid.volume(level));
@@ -126,7 +127,7 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
         ASSERT(_fixed_landmarks.size() == _moving_landmarks.size());
 
         auto& fixed = _fixed_pyramids[0].volume(level);
-        FunctionPtr f = std::make_unique<GpuCostFunction_Landmarks>(
+        FunctionPtr f = make_unique<GpuCostFunction_Landmarks>(
                 _fixed_landmarks,
                 _moving_landmarks,
                 fixed,

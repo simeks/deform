@@ -3,6 +3,7 @@
 #include <deform_lib/defer.h>
 #include <deform_lib/filters/resample.h>
 #include <deform_lib/jacobian.h>
+#include <deform_lib/make_unique.h>
 #include <deform_lib/profiler/profiler.h>
 #include <deform_lib/registration/landmarks.h>
 #include <deform_lib/registration/registration.h>
@@ -26,7 +27,6 @@
 #include <iostream>
 #include <map>
 #include <omp.h>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -82,19 +82,19 @@ int main(int argc, char* argv[])
 
     std::unique_ptr<DeformCommand> command;
     if (argc >= 2 && std::strcmp(argv[1], "registration") == 0) {
-        command = std::make_unique<RegistrationCommand>(argc, argv, true);
+        command = make_unique<RegistrationCommand>(argc, argv, true);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "transform") == 0) {
-        command = std::make_unique<TransformCommand>(argc, argv);
+        command = make_unique<TransformCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "regularize") == 0) {
-        command = std::make_unique<RegularisationCommand>(argc, argv);
+        command = make_unique<RegularisationCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "jacobian") == 0) {
-        command = std::make_unique<JacobianCommand>(argc, argv);
+        command = make_unique<JacobianCommand>(argc, argv);
     }
     else if (argc >= 2 && std::strcmp(argv[1], "divergence") == 0) {
-        command = std::make_unique<DivergenceCommand>(argc, argv);
+        command = make_unique<DivergenceCommand>(argc, argv);
     }
     else {
         print_command_help(argv[0]);
