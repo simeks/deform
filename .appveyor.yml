@@ -33,7 +33,7 @@ before_build:
 build_script:
 - cmake --build . --config %CONFIGURATION%
 - cd ..
-- python setup.py install-DCMAKE_GENERATOR_PLATFORM=%PLATFORM%
+- python setup.py install -DCMAKE_GENERATOR_PLATFORM=%PLATFORM%
 
 test_script:
 - ctest --output-on-failure
