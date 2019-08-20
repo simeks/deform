@@ -90,6 +90,7 @@ To perform a registration
 ```yaml
 pyramid_levels: 6
 pyramid_stop_level: 0
+regularize_initial_displacement: false
 constraints_weight: 1000.0
 landmarks_weight: 1.0
 landmarks_decay: 2.0
@@ -142,6 +143,10 @@ size of the pyramid and at which level to stop the registration. Each level
 halves the resolution of the input volumes. Setting `pyramid_stop_level` to > 0
 specifies that the registration should not be run on the original resolution
 (level 0).
+
+`regularize_initial_displacement` controls whether to include the initial
+displacement in the regularization. This is disabled by default, meaning the
+initial displacement have no effect on the regularization.
 
 `constraints_weight` sets the weight that is applied for constrained voxels. A
 really high value means hard constraints while a lower value may allow

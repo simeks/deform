@@ -117,10 +117,14 @@ struct Settings
 
     std::vector<ImageSlot> image_slots;
 
+    // Should the regularization also apply on the initial displacement?
+    bool regularize_initial_displacement;
+
     Settings() :
         pyramid_stop_level(0),
         num_pyramid_levels(6),
-        landmarks_stop_level(0)
+        landmarks_stop_level(0),
+        regularize_initial_displacement(false)
     {
         levels.resize(num_pyramid_levels);
     }
