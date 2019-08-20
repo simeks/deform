@@ -36,5 +36,7 @@ build_script:
 - python setup.py install -DCMAKE_GENERATOR_PLATFORM=%PLATFORM%
 
 test_script:
+- cd build
 - ctest --output-on-failure
+- cd ..
 - python -m unittest discover test
