@@ -5,8 +5,8 @@
 #include <deque>
 #include <functional>
 #include <mutex>
-#include <optional>
 #include <thread>
+#include <vector>
 
 class WorkerPool
 {
@@ -63,11 +63,12 @@ public:
     }
 
     // Attempts to pop a task from the queue
-    std::optional<std::function<void()>> try_pop()
+    // returns nullptr if no task was available
+    std::function<void()> try_pop()
     {
         std::unique_lock<std::mutex> lock(_queue_lock);
         if (_queue.empty())
-            return std::nullopt;
+            return nullptr;
 
         auto task = std::move(_queue.front());
         _queue.pop_front();

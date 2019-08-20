@@ -243,7 +243,7 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
     // Reserve first stream for uploading labels
     for (int i = 1; i < (int) _stream_pool.size(); ++i) {
         stk::cuda::Stream stream = _stream_pool[i];
-        std::scoped_lock lock(_block_queue_lock);
+        std::lock_guard<std::mutex> lock(_block_queue_lock);
         if (!_block_queue.empty()) {
             Block block = _block_queue.front();
             _block_queue.pop_front();
@@ -258,7 +258,7 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
         // Attempt to assist worker pool
         auto task = _worker_pool.try_pop();
         if (task)
-            (*task)();
+            task();
         else
             std::this_thread::yield();
     }
@@ -274,7 +274,7 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
 void HybridGraphCutOptimizer::dispatch_next_cost_block(stk::cuda::Stream stream)
 {
     // Dispatch next cost block (if any)
-    std::scoped_lock lock(_block_queue_lock);
+    std::lock_guard<std::mutex> lock(_block_queue_lock);
 
     if (!_block_queue.empty()) {
         Block block = _block_queue.front();

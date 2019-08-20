@@ -1,0 +1,42 @@
+version: '{branch}-{build}'
+
+image:
+- Visual Studio 2017
+
+platform:
+- x64
+
+configuration:
+- Release
+
+build:
+  parallel: true
+  verbosity: minimal
+
+matrix:
+  fast_finish: true
+
+environment:
+  matrix:
+  - PYTHON: "C:\\Python36-x64"
+
+install:
+- git submodule update --init --recursive
+- set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+- pip install -r requirements.txt
+
+before_build:
+- mkdir build
+- cd build
+- cmake .. -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_GENERATOR_PLATFORM=%PLATFORM% -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1
+
+build_script:
+- cmake --build . --config %CONFIGURATION%
+- cd ..
+- python setup.py install -DCMAKE_GENERATOR_PLATFORM=%PLATFORM%
+
+test_script:
+- cd build
+- ctest --output-on-failure
+- cd ..
+- python -m unittest discover test

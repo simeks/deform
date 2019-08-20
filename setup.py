@@ -8,6 +8,9 @@ from pprint import pprint
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+with open("README.md", encoding="utf-8") as f:
+    readme = f.read()
+
 # Parse command line flags
 flags = {k: 'OFF' for k in ['--debug', '--use-cuda', '--use-ispc', '--use-itk']}
 for flag in flags.keys():
@@ -20,7 +23,9 @@ cmake_cmd_args = []
 for f in sys.argv:
     if f.startswith('-D'):
         cmake_cmd_args.append(f)
-        sys.argv.remove(f)
+
+for f in cmake_cmd_args:
+    sys.argv.remove(f)
 
 
 class CMakeExtension(Extension):
@@ -74,11 +79,11 @@ class CMakeBuild(build_ext):
 
 setup(
     name='pydeform',
-    version='0.0.1',
+    version='0.4',
     author='Simon Ekström',
     author_email='',
     description='',
-    long_description=open('README.md').read(),
+    long_description=readme,
     long_description_content_type='text/markdown',
     install_requires=['numpy', 'PyYAML'],
     packages=['pydeform'],

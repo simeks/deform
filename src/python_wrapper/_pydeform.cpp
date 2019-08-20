@@ -5,13 +5,13 @@
 
 #include <cassert>
 #include <map>
-#include <optional>
 #include <string>
 
 #include <stk/filters/vector_calculus.h>
 
 #include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
+#include <deform_lib/make_unique.h>
 #include <deform_lib/version.h>
 
 #include <deform_lib/registration/settings.h>
@@ -213,8 +213,8 @@ void add_logger(
     }
     catch (py::cast_error &) {
         try {
-            buffer = std::make_unique<py::detail::pythonbuf>(log);
-            out_stream = std::make_unique<std::ostream>(buffer.get());
+            buffer = make_unique<py::detail::pythonbuf>(log);
+            out_stream = make_unique<std::ostream>(buffer.get());
             stk::log_add_stream(out_stream.get(), level);
         }
         catch (...) {
@@ -365,7 +365,7 @@ py::array registration_wrapper(
     // Convert optional arguments. Try to cast to the correct numeric
     // type if possible.
 
-    std::optional<stk::VolumeFloat> fixed_mask_;
+    stk::VolumeFloat fixed_mask_;
     if (!fixed_mask.is_none()) {
         fixed_mask_ = image_to_volume(py::cast<py::array_t<float>>(fixed_mask),
                                       fixed_origin,
@@ -373,7 +373,7 @@ py::array registration_wrapper(
                                       fixed_direction);
     }
 
-    std::optional<stk::VolumeFloat> moving_mask_;
+    stk::VolumeFloat moving_mask_;
     if (!moving_mask.is_none()) {
         moving_mask_ = image_to_volume(py::cast<py::array_t<float>>(moving_mask),
                                        moving_origin,
@@ -381,17 +381,17 @@ py::array registration_wrapper(
                                        moving_direction);
     }
 
-    std::optional<std::vector<float3>> fixed_landmarks_;
+    std::vector<float3> fixed_landmarks_;
     if (!fixed_landmarks.is_none()) {
         fixed_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(fixed_landmarks));
     }
 
-    std::optional<std::vector<float3>> moving_landmarks_;
+    std::vector<float3> moving_landmarks_;
     if (!moving_landmarks.is_none()) {
         moving_landmarks_ = convert_landmarks(py::cast<py::array_t<float>>(moving_landmarks));
     }
 
-    std::optional<stk::Volume> initial_displacement_;
+    stk::Volume initial_displacement_;
     if (!initial_displacement.is_none()) {
         initial_displacement_ = image_to_volume(py::cast<py::array_t<float>>(initial_displacement),
                                                 fixed_origin,
@@ -399,7 +399,7 @@ py::array registration_wrapper(
                                                 fixed_direction);
     }
 
-    std::optional<stk::Volume> constraint_mask_;
+    stk::Volume constraint_mask_;
     if (!constraint_mask.is_none()) {
         constraint_mask_ = image_to_volume(py::cast<py::array_t<unsigned char>>(constraint_mask),
                                            fixed_origin,
@@ -407,7 +407,7 @@ py::array registration_wrapper(
                                            fixed_direction);
     }
 
-    std::optional<stk::Volume> constraint_values_;
+    stk::Volume constraint_values_;
     if (!constraint_values.is_none()) {
         constraint_values_ = image_to_volume(py::cast<py::array_t<float>>(constraint_values),
                                              fixed_origin,
@@ -426,8 +426,11 @@ py::array registration_wrapper(
         // Print only contents of parameter file to Info
         LOG(Info) << "Parameters:" << std::endl << settings_str;
 
+        std::stringstream settings_ss;
+        print_registration_settings(settings_, settings_ss);
+
         // Print all settings to Verbose
-        LOG(Verbose) << print_registration_settings(settings_).rdbuf();
+        LOG(Verbose) << settings_ss.rdbuf();
     }
 
     // Check number of image slots

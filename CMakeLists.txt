@@ -70,7 +70,7 @@ if(DF_STACK_TRACE)
 endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -124,6 +124,7 @@ if (DF_USE_CUDA)
     add_definitions(-DDF_USE_CUDA)
     add_definitions(-DSTK_USE_CUDA)
     enable_language(CUDA)
+    set(CMAKE_CUDA_STANDARD 14)
 
     if (DF_ENABLE_FAST_MATH)
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math")
