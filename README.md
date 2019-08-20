@@ -2,13 +2,27 @@
 
 deform is an implementation of an efficient graph-cut based method for dense deformable image registration. If you find this useful, please cite https://arxiv.org/abs/1810.08427.
 
-## Prerequisites
+The method can be used either as a module through Python (recommended) or a standalone executable. Currently no pre-built binaries for the standalone executable are provided, but the Python module (excluding GPU support) can be installed through pip.
+
+## Install
+
+To download and install the pre-compiled Python module from pip:
+
+```
+pip install pydeform
+```
+
+Note: to enable GPU-supported registration you're currently required to compile the software yourself. See the section below. 
+
+## Building
+
+### Prerequisites
 * CMake : https://cmake.org/
 
 Optional
 * ISPC : https://ispc.github.io/
 
-## Download
+### Download
 
 Retrieve the repository and associated dependencies by running
 
@@ -18,7 +32,7 @@ $ cd deform
 $ git submodule update --init --recursive
 ```
 
-## Build
+### Build
 
 Use CMake (>=3.8) to generate build options of your own choosing.
 
@@ -26,7 +40,7 @@ If CMake cannot find the ISPC executable on your installation, it is possible
 to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
 full path to the executable with `-DISPC_EXECUTABLE`.
 
-### Build options
+#### Build options
 
 The build can be configured with the following CMake boolean options:
 
@@ -45,7 +59,7 @@ The build can be configured with the following CMake boolean options:
 + `DF_ENABLE_MICROPROFILE`: Enable `microprofile` profiler (default: `OFF`)
 + `DF_ENABLE_NVTOOLSEXT`: Enable `nvtoolsext` profiler (default: `OFF`)
 
-## Build and install Python wrapper
+### Build and install Python wrapper
 ```
 # python setup.py install
 ```
@@ -58,8 +72,9 @@ Flags accepted by `setup.py`:
 
 Additional flags starting with `-D` are also recognised and forwarded to CMake.
 
-## Run
-To perform a registration
+# Run
+To perform a registration using the standalone executable
+
 `deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
 
 | Argument                    |                                             |
