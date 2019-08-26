@@ -16,7 +16,7 @@ struct DeformCommand
         , _log_to_file{log_to_file}
     {}
 
-    ~DeformCommand() {
+    virtual ~DeformCommand() {
         stk::log_shutdown();
     }
 
