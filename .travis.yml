@@ -35,7 +35,7 @@ matrix:
     - virtualenv venv -p python3
     - source venv/bin/activate
     env: 
-      - PYTHON_EXECUTABLE=venv/bin/python
+      - PYTHON_EXECUTABLE=../venv/bin/python
 
 install:
 - pip install -r requirements.txt
