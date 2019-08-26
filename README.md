@@ -101,7 +101,7 @@ To perform a registration using the standalone executable
 
 ### Parameter file example
 
-```
+```yaml
 pyramid_levels: 6
 pyramid_stop_level: 0
 regularize_initial_displacement: false
