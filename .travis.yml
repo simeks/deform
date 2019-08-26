@@ -21,6 +21,8 @@ matrix:
     before_install:
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 90
     - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 90
+  - name: osx
+    os: osx
 
 install:
 - pip install -r requirements.txt
