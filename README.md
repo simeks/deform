@@ -47,7 +47,6 @@ The build can be configured with the following CMake boolean options:
 + `DF_BUILD_TESTS`: Build unit tests (default: `OFF`)
 + `DF_BUILD_DOCS`: Build Sphinx docs (default: `OFF`)
 + `DF_BUILD_EXECUTABLE`: Build registration executable (default: `ON`)
-+ `DF_BUILD_UTILS`: Build utils executable (default: `ON`)
 + `DF_BUILD_PYTHON_WRAPPER`: Build Python wrapper (default: `OFF`)
 + `DF_USE_CUDA`: Enable CUDA support (default: `OFF`)
 + `DF_USE_ISPC`: Enable ISPC support (default: `OFF`)

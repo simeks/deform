@@ -53,7 +53,6 @@ class CMakeBuild(build_ext):
         cmake_args = [
             '-DDF_BUILD_PYTHON_WRAPPER=ON',
             '-DDF_BUILD_EXECUTABLE=OFF',
-            '-DDF_BUILD_UTILS=OFF',
             '-DDF_BUILD_TESTS=OFF',
             '-DDF_BUILD_WITH_DEBUG_INFO=%s' % ('ON' if cfg == 'Debug' else 'OFF'),
             '-DCMAKE_BUILD_TYPE=%s' % cfg,
