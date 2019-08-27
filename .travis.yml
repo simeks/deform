@@ -31,12 +31,14 @@ matrix:
     os: osx
     language: generic
     before_install:
-    - brew install libomp
+    - brew install clang-omp
     - python3 -m pip install virtualenv
     - virtualenv venv -p python3
     - source venv/bin/activate
     env: 
       - PYTHON_EXECUTABLE=../venv/bin/python
+      - CC=clang-omp
+      - CXX=clang-omp++
 
 install:
 - pip install -r requirements.txt
