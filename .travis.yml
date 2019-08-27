@@ -31,14 +31,14 @@ matrix:
     os: osx
     language: generic
     before_install:
-    - brew install libomp gcc48
+    - brew install libomp gcc
     - python3 -m pip install virtualenv
     - virtualenv venv -p python3
     - source venv/bin/activate
     env: 
       - PYTHON_EXECUTABLE=../venv/bin/python
-      - CC=gcc-4.8
-      - CXX=g++-4.8
+      - CC=gcc-9.2
+      - CXX=g++-9.2
 
 install:
 - pip install -r requirements.txt
