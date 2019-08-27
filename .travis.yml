@@ -37,8 +37,8 @@ matrix:
     - source venv/bin/activate
     env: 
       - PYTHON_EXECUTABLE=../venv/bin/python
-      - CC=gcc
-      - CXX=g++
+      - CC=gcc-4.8
+      - CXX=g++-4.8
 
 install:
 - pip install -r requirements.txt
