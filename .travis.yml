@@ -31,14 +31,14 @@ matrix:
     os: osx
     language: generic
     before_install:
-    - brew install clang-omp
+    - brew install gcc
     - python3 -m pip install virtualenv
     - virtualenv venv -p python3
     - source venv/bin/activate
     env: 
       - PYTHON_EXECUTABLE=../venv/bin/python
-      - CC=clang-omp
-      - CXX=clang-omp++
+      - CC=gcc
+      - CXX=g++
 
 install:
 - pip install -r requirements.txt
