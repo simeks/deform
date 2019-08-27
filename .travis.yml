@@ -32,7 +32,6 @@ matrix:
     language: generic
     before_install:
     - brew install libomp gcc@7
-    - xcode-select --install
     - python3 -m pip install virtualenv
     - virtualenv venv -p python3
     - source venv/bin/activate
