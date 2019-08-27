@@ -31,7 +31,7 @@ matrix:
     os: osx
     language: generic
     before_install:
-    - brew install gcc
+    - brew install libomp gcc
     - python3 -m pip install virtualenv
     - virtualenv venv -p python3
     - source venv/bin/activate
