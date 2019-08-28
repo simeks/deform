@@ -7,9 +7,13 @@ matrix:
   - name: trusty
     os: linux
     dist: trusty
+    env: 
+      - PYTHON_EXECUTABLE=~/virtualenv/python3.6/bin/python
   - name: xenial
     os: linux
     dist: xenial
+    env: 
+      - PYTHON_EXECUTABLE=~/virtualenv/python3.6/bin/python
   - name: g++8
     os: linux
     addons:
@@ -21,6 +25,20 @@ matrix:
     before_install:
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 90
     - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 90
+    env: 
+      - PYTHON_EXECUTABLE=~/virtualenv/python3.6/bin/python
+  - name: osx
+    os: osx
+    language: generic
+    before_install:
+    - brew install llvm libomp
+    - python3 -m pip install virtualenv
+    - virtualenv venv -p python3
+    - source venv/bin/activate
+    env: 
+      - PYTHON_EXECUTABLE=../venv/bin/python
+      - CC=/usr/local/opt/llvm/bin/clang
+      - CXX=/usr/local/opt/llvm/bin/clang++
 
 install:
 - pip install -r requirements.txt
@@ -29,7 +47,7 @@ script:
 - mkdir build
 - cd build
 - cmake .. -DCMAKE_BUILD_TYPE=Release -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1
-  -DDF_BUILD_PYTHON_WRAPPER=ON -DPYTHON_EXECUTABLE=~/virtualenv/python3.6/bin/python
+  -DDF_BUILD_PYTHON_WRAPPER=ON -DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE
 - cmake --build . --config Release
 - ctest --output-on-failure
 - cd ..
