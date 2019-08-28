@@ -35,8 +35,9 @@ matrix:
     - python3 -m pip install virtualenv
     - virtualenv venv -p python3
     - source venv/bin/activate
-    env: 
+    env:
       - PYTHON_EXECUTABLE=../venv/bin/python
+      - HOMEBREW_NO_AUTO_UPDATE=1
       - CC=/usr/local/opt/llvm/bin/clang
       - CXX=/usr/local/opt/llvm/bin/clang++
 
