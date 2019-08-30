@@ -41,7 +41,7 @@ int TransformCommand::_execute(void)
 
     LOG(Info) << "Interpolation method: " << ((interp == transform::Interp_Linear) ? "linear" : "nn");
     LOG(Info) << "Input: '" << _args.positional("source") << "'";
-    LOG(Info) << "displacement: '" << _args.positional("displacement") << "'";
+    LOG(Info) << "Displacement: '" << _args.positional("displacement") << "'";
 
     stk::Volume src = stk::read_volume(_args.positional("source").c_str());
     if (!src.valid())
@@ -53,6 +53,9 @@ int TransformCommand::_execute(void)
     ASSERT(def.voxel_type() == stk::Type_Float3);
 
     stk::Volume result = transform_volume(src, def, interp);
+    if (!result.valid())
+        return EXIT_FAILURE;
+
     LOG(Info) << "Writing to '" << _args.positional("output") << "'";
     stk::write_volume(_args.positional("output").c_str(), result);
 
