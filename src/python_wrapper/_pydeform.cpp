@@ -133,6 +133,10 @@ stk::Volume image_to_volume(
         const std::vector<double>& direction
         )
 {
+    if (image.flags() & py::array::f_style) {
+        throw std::invalid_argument("The arrays must be C-contiguous.");
+    }
+    
     float3 origin_ {
         float(origin[0]),
         float(origin[1]),
