@@ -15,7 +15,7 @@ TEST_CASE("parse_landmarks")
     {
         const char* landmarks_str =
                 "point\n"
-                "2\n"
+                "2  \n"
                 "1.0\t3e-5 4.2\n"
                 ".0   1  2\n";
 

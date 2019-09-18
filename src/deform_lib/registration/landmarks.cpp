@@ -10,7 +10,7 @@ namespace {
         while (i < j && isspace(str[i])) i++;
         while (j > i && isspace(str[j])) j--;
 
-        return std::string(str, i, j-2 );
+        return std::string(str, i, j+1);
     }
 }
 
