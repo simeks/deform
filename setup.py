@@ -84,7 +84,7 @@ setup(
     description='',
     long_description=readme,
     long_description_content_type='text/markdown',
-    install_requires=['numpy', 'PyYAML'],
+    install_requires=['python-stk', 'numpy', 'PyYAML'],
     packages=['pydeform'],
     ext_modules=[CMakeExtension('_pydeform', '.')],
     cmdclass={'build_ext': CMakeBuild},
