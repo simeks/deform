@@ -3,7 +3,7 @@
 #include "hybrid_graph_cut_optimizer.h"
 #include "worker_pool.h"
 
-#include "deform_lib/graph_cut/graph_cut.h"
+#include "deform_lib/solver/gco_solver.h"
 #include "deform_lib/profiler/profiler.h"
 
 #include <stk/cuda/stream.h>
@@ -432,7 +432,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         block.end.z - block.begin.z
     };
 
-    GraphCut<double> graph(block_dims);
+    GcoSolver<double> graph(block_dims);
 
     double current_energy = 0;
     {

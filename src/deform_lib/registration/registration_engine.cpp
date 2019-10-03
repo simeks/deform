@@ -2,6 +2,7 @@
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
 #include "../make_unique.h"
+#include "../solver/gco_solver.h"
 
 #include "blocked_graph_cut_optimizer.h"
 #include "registration_engine.h"
@@ -629,10 +630,11 @@ stk::Volume RegistrationEngine::execute()
             UnaryFunction unary_fn;
             build_unary_function(l, unary_fn);
 
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.levels[l].block_size,
-                _settings.levels[l].block_energy_epsilon,
-                _settings.levels[l].max_iteration_count
+            BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GcoSolver<double>>
+                optimizer(
+                    _settings.levels[l].block_size,
+                    _settings.levels[l].block_energy_epsilon,
+                    _settings.levels[l].max_iteration_count
             );
 
             optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);

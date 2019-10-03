@@ -47,6 +47,8 @@ option(DF_NON_PORTABLE "Enable non-portable optimisations" ON)
 option(DF_ENABLE_MICROPROFILE "Enable microprofile profiler" OFF)
 option(DF_ENABLE_NVTOOLSEXT "Enable nvtoolsext profiler" OFF)
 
+option(DF_INCLUDE_GCO "Include GCO solver" ON)
+
 if (DF_ENABLE_MICROPROFILE AND DF_ENABLE_NVTOOLSEXT)
     message(FATAL_ERROR "Can't enable multiple profilers at the same time")
 endif()

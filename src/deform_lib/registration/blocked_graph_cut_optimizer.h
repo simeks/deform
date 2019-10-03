@@ -10,7 +10,8 @@
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
     >
 class BlockedGraphCutOptimizer
 {

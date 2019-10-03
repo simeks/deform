@@ -16,12 +16,6 @@ set(DEFORM_LIB_SRCS
     "filters/resample.cpp"
     "filters/resample.h"
 
-    "graph_cut/graph_cut.h"
-    "graph_cut/graph_cut.inl"
-
-    "graph_cut/graph_cut.h"
-    "graph_cut/graph_cut.inl"
-
     "registration/block_change_flags.cpp"
     "registration/block_change_flags.h"
     "registration/blocked_graph_cut_optimizer.h"
@@ -50,6 +44,21 @@ set(DEFORM_LIB_SRCS
     "version.cpp"
     "version.h"
 )
+
+if (DF_INCLUDE_GCO)
+    set(DEFORM_LIB_SRCS
+        ${DEFORM_LIB_SRCS}
+        "solver/gco_solver.h"
+        "solver/gco_solver.inl"
+    )
+endif ()
+
+if (DF_INCLUDE_GRIDCUT)
+    set(DEFORM_LIB_SRCS
+        ${DEFORM_LIB_SRCS}
+        "solver/gridcut_solver.h"
+    )
+endif()
 
 if (DF_USE_CUDA)
     set(DEFORM_LIB_SRCS
