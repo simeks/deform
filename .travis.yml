@@ -47,7 +47,7 @@ install:
 script:
 - mkdir build
 - cd build
-- cmake .. -DCMAKE_BUILD_TYPE=Release -DDF_BUILD_TESTS=1 -DDF_WARNINGS_ARE_ERRORS=1
+- cmake .. -DCMAKE_BUILD_TYPE=Release -DDF_BUILD_TESTS=1
   -DDF_BUILD_PYTHON_WRAPPER=ON -DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE
 - cmake --build . --config Release
 - ctest --output-on-failure
