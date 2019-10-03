@@ -166,6 +166,20 @@ class Test_API(unittest.TestCase):
                                            err_msg='Mismatch between `jacobian` and sitk, seed %d' % seed)
 
 
+    def test_regularize(self):
+        df = stk.Volume(rand(10,10,10,3).astype(np.float32))
+        full_mask = stk.Volume(np.ones((10,10,10)).astype(np.uint8))
+
+        out = pydeform.regularize(df)
+        self.assertFalse(np.array_equal(np.array(out) , np.array(df)))
+
+        # Should fully replicate constraint values
+        constraints = stk.Volume(rand(10,10,10,3).astype(np.float32))
+        out = pydeform.regularize(df, constraint_mask=full_mask, constraint_values=constraints)
+        np.testing.assert_equal(np.array(out), np.array(constraints))
+
+
+
 if __name__ == '__main__':
     unittest.main()
 
