@@ -10,3 +10,4 @@ dist
 .ycm_extra_conf.*
 sphinx/readme.rst
 sphinx/_*
+.env

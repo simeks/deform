@@ -9,7 +9,7 @@ from random import uniform
 from numpy.random import rand, randint
 
 import pydeform
-
+import _stk as stk
 
 # Use a known, random seed for each assert when
 # testing with random data.
@@ -40,28 +40,6 @@ def _jaccard(a, b):
     return np.sum(np.logical_and(a, b)) / np.sum(np.logical_or(a, b))
 
 
-def _divergence(f, spacing=(1, 1, 1)):
-    dfx_dx = np.gradient(f[..., 0], spacing[0], axis=2)
-    dfy_dy = np.gradient(f[..., 1], spacing[1], axis=1)
-    dfz_dz = np.gradient(f[..., 2], spacing[2], axis=0)
-    return dfx_dx + dfy_dy + dfz_dz
-
-
-def _rotor(f, spacing=(1, 1, 1)):
-    dfx_dy = np.gradient(f[..., 0], spacing[1], axis=1)
-    dfx_dz = np.gradient(f[..., 0], spacing[2], axis=0)
-    dfy_dx = np.gradient(f[..., 1], spacing[0], axis=2)
-    dfy_dz = np.gradient(f[..., 1], spacing[2], axis=0)
-    dfz_dx = np.gradient(f[..., 2], spacing[0], axis=2)
-    dfz_dy = np.gradient(f[..., 2], spacing[1], axis=1)
-    rot = [dfz_dy - dfy_dz, dfx_dz - dfz_dx, dfy_dx - dfx_dy]
-    return np.stack(rot, axis=3)
-
-
-def _circulation_density(f, spacing=(1, 1, 1)):
-    return np.linalg.norm(_rotor(f, spacing), axis=3)
-
-
 def _transform(img,
                d,
                fixed_origin=(0, 0, 0),
@@ -90,7 +68,7 @@ def _transform(img,
     return sitk.GetArrayFromImage(res)
 
 
-class Test_Numpy_API(unittest.TestCase):
+class Test_API(unittest.TestCase):
 
     def test_register(self):
 
@@ -124,7 +102,7 @@ class Test_Numpy_API(unittest.TestCase):
 
         d = pydeform.register(fixed, moving, settings=settings)
 
-        res = _transform(moving, d, interpolator=sitk.sitkNearestNeighbor)
+        res = _transform(moving, np.array(d), interpolator=sitk.sitkNearestNeighbor)
 
         self.assertGreater(_jaccard(res > 0.1, fixed > 0.1), 0.98)
 
@@ -154,16 +132,12 @@ class Test_Numpy_API(unittest.TestCase):
                                   )
 
             # Compute transform
-            res = pydeform.transform(img,
-                                     d,
-                                     fixed_origin=fixed_origin,
-                                     fixed_spacing=fixed_spacing,
-                                     moving_origin=moving_origin,
-                                     moving_spacing=moving_spacing,
+            res = pydeform.transform(stk.Volume(img, origin=moving_origin, spacing=moving_spacing),
+                                     stk.Volume(d, origin=fixed_origin, spacing=fixed_spacing),
                                      interpolator=pydeform.Interpolator.Linear,
                                      )
 
-            np.testing.assert_almost_equal(res, res_sitk, decimal=4,
+            np.testing.assert_almost_equal(np.array(res), res_sitk, decimal=4,
                                            err_msg='Mismatch between `transform` and sitk, seed %d' % seed)
 
     def test_jacobian(self):
@@ -186,71 +160,10 @@ class Test_Numpy_API(unittest.TestCase):
             jacobian_sitk = sitk.GetArrayFromImage(jacobian_sitk)
 
             # Compute Jacobian
-            jacobian = pydeform.jacobian(d, origin, spacing)
+            jacobian = pydeform.jacobian(stk.Volume(d, origin=origin, spacing=spacing))
 
-            np.testing.assert_almost_equal(jacobian, jacobian_sitk, decimal=2,
+            np.testing.assert_almost_equal(np.array(jacobian), jacobian_sitk, decimal=2,
                                            err_msg='Mismatch between `jacobian` and sitk, seed %d' % seed)
-
-    def test_divergence(self):
-        for _ in range(100):
-            seed = _set_seed()
-
-            # Generate some random image data
-            pad = 2
-            spacing = [uniform(0.1, 5) for i in range(3)]
-            shape_no_pad = [randint(50, 80) for i in range(3)]
-            d = 5 * (2.0 * rand(*shape_no_pad, 3) - 1.0)
-            d = np.pad(d, 3 * [(pad, pad)] + [(0, 0)], 'constant')
-
-            # NumPy oracle
-            divergence_numpy = _divergence(d, spacing=spacing)
-
-            # Compute divergence
-            divergence = pydeform.divergence(d, spacing=spacing)
-
-            np.testing.assert_almost_equal(divergence, divergence_numpy, decimal=2,
-                                           err_msg='Mismatch between `divergence` and numpy, seed %d' % seed)
-
-    def test_rotor(self):
-        for _ in range(100):
-            seed = _set_seed()
-
-            # Generate some random image data
-            pad = 2
-            spacing = [uniform(0.1, 5) for i in range(3)]
-            shape_no_pad = [randint(50, 80) for i in range(3)]
-            d = 5 * (2.0 * rand(*shape_no_pad, 3) - 1.0)
-            d = np.pad(d, 3 * [(pad, pad)] + [(0, 0)], 'constant')
-
-            # NumPy oracle
-            rotor_numpy = _rotor(d, spacing=spacing)
-
-            # Compute rotor
-            rotor = pydeform.rotor(d, spacing=spacing)
-
-            np.testing.assert_almost_equal(rotor, rotor_numpy, decimal=2,
-                                           err_msg='Mismatch between `rotor` and numpy, seed %d' % seed)
-
-    def test_circulation_density(self):
-        for _ in range(100):
-            seed = _set_seed()
-
-            # Generate some random image data
-            pad = 2
-            spacing = [uniform(0.1, 5) for i in range(3)]
-            shape_no_pad = [randint(50, 80) for i in range(3)]
-            d = 5 * (2.0 * rand(*shape_no_pad, 3) - 1.0)
-            d = np.pad(d, 3 * [(pad, pad)] + [(0, 0)], 'constant')
-
-            # NumPy oracle
-            cd_numpy = _circulation_density(d, spacing=spacing)
-
-            # Compute circulation density
-            cd = pydeform.circulation_density(d, spacing=spacing)
-
-            np.testing.assert_almost_equal(cd, cd_numpy, decimal=2,
-                                           err_msg='Mismatch between `circulation_density` and numpy, '
-                                                   'seed %d' % seed)
 
 
 if __name__ == '__main__':
