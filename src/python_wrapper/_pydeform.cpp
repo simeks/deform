@@ -10,12 +10,15 @@
 #include <deform_lib/defer.h>
 #include <deform_lib/jacobian.h>
 #include <deform_lib/make_unique.h>
+#include <deform_lib/regularize.h>
 #include <deform_lib/version.h>
 
 #include <deform_lib/registration/settings.h>
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
 #include <deform_lib/registration/transform.h>
+
+#include <stk/image/volume.h>
 
 namespace py = pybind11;
 
@@ -474,6 +477,45 @@ stk::Volume jacobian_wrapper(const stk::Volume& df)
     return calculate_jacobian(df);
 }
 
+std::string regularization_docstring =
+R"(Regularize a given displacement field.
+
+Parameters
+----------
+displacement: stk.Volume
+    Displacement field used to resample the image.
+precision: float
+    Amount of precision.
+pyramid_levels: int
+    Number of levels for the resolution pyramid
+constraint_mask: stk.Volume
+    Mask for constraining displacements in a specific area, i.e., restricting
+    any changes within the region.
+constraint_values: stk.Volume
+    Vector field specifying the displacements within the constrained regions.
+
+Returns
+-------
+stk.Volume
+    Scalar volume image containing the resulting displacement field.
+)";
+
+
+stk::Volume regularization_wrapper(
+    const stk::Volume& displacement,
+    float precision,
+    int pyramid_levels,
+    const stk::Volume& constraint_mask,
+    const stk::Volume& constraint_values)
+{
+    return regularization(
+        displacement,
+        precision,
+        pyramid_levels,
+        constraint_mask,
+        constraint_values
+    );
+}
 
 PYBIND11_MODULE(_pydeform, m)
 {
@@ -538,6 +580,15 @@ PYBIND11_MODULE(_pydeform, m)
             jacobian_docstring.c_str()
          );
 
+    m.def("regularize",
+            &regularization_wrapper,
+            regularization_docstring.c_str(),
+            py::arg("displacement"),
+            py::arg("precision") = 0.5f,
+            py::arg("pyramid_levels") = 6,
+            py::arg("constraint_mask") = stk::Volume(),
+            py::arg("constraint_values") = stk::Volume()
+         );
 
     // Translate relevant exception types. The exceptions not handled
     // here will be translated autmatically according to pybind11's rules.
