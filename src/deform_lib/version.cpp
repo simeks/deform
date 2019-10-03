@@ -2,10 +2,10 @@
 
 #include <sstream>
 
-std::string deform::version_string(void)
+std::string deform::version_string()
 {
     std::stringstream ss;
-    ss << GIT_SHA1_SHORT << "@" << GIT_BRANCH << (GIT_DIRTY ? "+" : "") << " (" << GIT_DATE << ")";
+    ss << "v" << GIT_VERSION_TAG << "-" << GIT_SHA1_SHORT << (GIT_DIRTY ? "+" : "");
 
     #ifdef _DEBUG
         ss << " [DEBUG]";
@@ -13,4 +13,17 @@ std::string deform::version_string(void)
 
     return ss.str();
 }
+
+std::string deform::short_version_string()
+{
+    std::stringstream ss;
+    ss << "v" << GIT_VERSION_TAG;
+
+    #ifdef _DEBUG
+        ss << " [DEBUG]";
+    #endif
+
+    return ss.str();
+}
+
 

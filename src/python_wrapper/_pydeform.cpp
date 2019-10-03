@@ -477,6 +477,18 @@ stk::Volume jacobian_wrapper(const stk::Volume& df)
 
 PYBIND11_MODULE(_pydeform, m)
 {
+    m.attr("__version__") = GIT_VERSION_TAG;
+    m.def("version", [](){
+        return deform::version_string();
+    });
+    m.def("has_gpu", [](){
+        #ifdef DF_USE_CUDA
+            return true;
+        #else
+            return false;
+        #endif
+    });
+
     m.import("_stk");
 
     py::enum_<transform::Interp>(m, "Interpolator", "Interpolator functions")

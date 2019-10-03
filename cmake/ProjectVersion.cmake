@@ -19,14 +19,6 @@ if(ACTION STREQUAL FETCH)
         )
         
         execute_process(COMMAND
-            "${GIT_EXECUTABLE}" log -1 --format=%ad --date=local
-            WORKING_DIRECTORY "${WORKING_DIR}"
-            OUTPUT_VARIABLE GIT_DATE
-            ERROR_QUIET
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        
-        execute_process(COMMAND
             "${GIT_EXECUTABLE}" rev-parse --abbrev-ref HEAD
             WORKING_DIRECTORY "${WORKING_DIR}"
             OUTPUT_VARIABLE GIT_BRANCH
@@ -48,12 +40,22 @@ if(ACTION STREQUAL FETCH)
             set(GIT_DIRTY "false")
         endif()
 
+        execute_process(COMMAND
+            "${GIT_EXECUTABLE}" describe --tags
+            WORKING_DIRECTORY "${WORKING_DIR}"
+            OUTPUT_VARIABLE GIT_TAG_STR
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+
+        string(REGEX REPLACE "^v(.*)-.*-.*" "\\1" GIT_VERSION_TAG "${GIT_TAG_STR}")
+
     else()
         set(GIT_SHA1 "Not found")
         set(GIT_SHA1_SHORT "Not found")
-        set(GIT_DATE "")
         set(GIT_BRANCH "")
         set(GIT_DIRTY "")
+        set(GIT_VERSION_TAG "")
     endif()
 
     configure_file("${DF_VERSION_FILE_IN}" "${DF_VERSION_FILE_OUT}")

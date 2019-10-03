@@ -2,13 +2,14 @@
 
 #define GIT_SHA1 "@GIT_SHA1@"
 #define GIT_SHA1_SHORT "@GIT_SHA1_SHORT@"
-#define GIT_DATE "@GIT_DATE@"
 #define GIT_BRANCH "@GIT_BRANCH@"
 #define GIT_DIRTY @GIT_DIRTY@
+#define GIT_VERSION_TAG "@GIT_VERSION_TAG@"
 
 #include <string>
 
 namespace deform {
-    std::string version_string(void);
+    std::string version_string();
+    std::string short_version_string();
 }
 
