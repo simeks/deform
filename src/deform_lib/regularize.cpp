@@ -177,3 +177,92 @@ void do_regularization(
     }
 }
 
+
+stk::VolumeFloat3 regularization(
+    const stk::VolumeFloat3& df,
+    float precision,
+    int pyramid_levels,
+    stk::VolumeUChar constraints_mask,
+    stk::VolumeFloat3 constraints_values
+)
+{
+    VolumePyramid deformation_pyramid;
+    deformation_pyramid.set_level_count(pyramid_levels);
+
+    if (!df.valid()) return stk::Volume();
+
+    if (df.voxel_type() != stk::Type_Float3) {
+        LOG(Error) << "Invalid voxel type for deformation field, expected float3";
+        return stk::Volume();
+    }
+
+    // Clone to avoid directly modifying our input
+#ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
+    deformation_pyramid.build_from_base_with_residual(df.clone(), filters::downsample_vectorfield_by_2);
+#else
+    deformation_pyramid.build_from_base(df.clone(), filters::downsample_vectorfield_by_2);
+#endif
+
+    bool use_constraints = false;
+    
+    if (!constraints_mask.valid()) {
+        constraints_mask = stk::VolumeUChar(deformation_pyramid.volume(0).size(), uint8_t{0});
+    }
+    else {
+        use_constraints = true;
+    }
+
+    if (!constraints_values.valid()) {
+        constraints_values = stk::VolumeFloat3(deformation_pyramid.volume(0).size(), float3{0, 0, 0});
+    }
+
+    VolumePyramid constraints_mask_pyramid, constraints_pyramid;
+    voxel_constraints::build_pyramids(
+        constraints_mask,
+        constraints_values,
+        pyramid_levels,
+        constraints_mask_pyramid,
+        constraints_pyramid
+    );
+
+    // Initialization is only needed if we have constraints
+    if (use_constraints) {
+        // Perform initialization at the coarsest resolution
+        stk::VolumeFloat3 def = deformation_pyramid.volume(pyramid_levels-1);
+        initialize_regularization(
+            def,
+            constraints_mask_pyramid.volume(pyramid_levels-1),
+            constraints_pyramid.volume(pyramid_levels-1)
+        );
+    }
+
+    for (int l = pyramid_levels-1; l >= 0; --l) {
+        stk::VolumeFloat3 def = deformation_pyramid.volume(l);
+
+        LOG(Info) << "Performing regularization level " <<  l;
+
+        do_regularization(
+            def,
+            constraints_mask_pyramid.volume(l),
+            constraints_pyramid.volume(l),
+            precision
+        );
+
+        if (l != 0) {
+            dim3 upsampled_dims = deformation_pyramid.volume(l - 1).size();
+            deformation_pyramid.set_volume(l - 1,
+        #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
+                filters::upsample_vectorfield(def, upsampled_dims, deformation_pyramid.residual(l - 1))
+        #else
+                filters::upsample_vectorfield(def, upsampled_dims)
+        #endif
+            );
+        }
+        else {
+            deformation_pyramid.set_volume(0, def);
+        }
+    }
+
+    return deformation_pyramid.volume(0);
+}
+
