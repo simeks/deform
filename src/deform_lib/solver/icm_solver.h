@@ -24,8 +24,8 @@ public:
         _f1[index(x,y,z)] += e1;
     }
     
-    void add_term2(int x1, int y1, int z1, int x2, int y2, int z2,
-                   T e00, T e01, T e10, T e11)
+    void add_term2(int x1, int y1, int z1, int /*x2*/, int /*y2*/, int /*z2*/,
+                   T e00, T /*e01*/, T e10, T /*e11*/)
     {
         _f0[index(x1,y1,z1)] += e00;
         _f1[index(x1,y1,z1)] += e10;
