@@ -47,13 +47,13 @@ namespace gco
 #endif
 
 template<typename T>
-class GcoSolver
+class GCOSolver
 {
 public:
     typedef T FlowType;
 
-    GcoSolver(const int3& size);
-    ~GcoSolver();
+    GCOSolver(const int3& size);
+    ~GCOSolver();
 
     void add_term1(int x, int y, int z, T e0, T e1);
 

@@ -432,7 +432,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         block.end.z - block.begin.z
     };
 
-    GcoSolver<double> graph(block_dims);
+    GCOSolver<double> graph(block_dims);
 
     double current_energy = 0;
     {
