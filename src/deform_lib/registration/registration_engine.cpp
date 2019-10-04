@@ -2,8 +2,13 @@
 #include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
 #include "../make_unique.h"
-#include "../solver/gco_solver.h"
-#include "../solver/gridcut_solver.h"
+
+#ifdef DF_ENABLE_GCO
+    #include "../solver/gco_solver.h"
+#endif
+#ifdef DF_ENABLE_GRIDCUT
+    #include "../solver/gridcut_solver.h"
+#endif
 #include "../solver/icm_solver.h"
 
 #include "blocked_graph_cut_optimizer.h"
