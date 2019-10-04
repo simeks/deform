@@ -1,6 +1,5 @@
 #include "block_change_flags.h"
 #include "gpu/cost_functions/cost_function.h"
-#include "hybrid_graph_cut_optimizer.h"
 #include "worker_pool.h"
 
 #include "deform_lib/solver/gco_solver.h"
@@ -23,7 +22,8 @@ namespace {
     };
 }
 
-HybridGraphCutOptimizer::HybridGraphCutOptimizer(
+template<typename TSolver>
+HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     const Settings::Level& settings,
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
@@ -40,11 +40,12 @@ HybridGraphCutOptimizer::HybridGraphCutOptimizer(
 {
     allocate_cost_buffers(df.size());
 }
-HybridGraphCutOptimizer::~HybridGraphCutOptimizer()
+template<typename TSolver>
+HybridGraphCutOptimizer<TSolver>::~HybridGraphCutOptimizer()
 {
 }
-
-void HybridGraphCutOptimizer::execute()
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::execute()
 {
     PROFILER_SCOPE("execute", 0xFF532439);
 
@@ -68,8 +69,17 @@ void HybridGraphCutOptimizer::execute()
 
     _block_change_flags = BlockChangeFlags(block_count);
 
+    LOG(Info) << "Initial Energy: " << calculate_energy(
+        _unary_fn,
+        _binary_fn,
+        _df,
+        _gpu_unary_cost,
+        _gpu_binary_cost_x,
+        _gpu_binary_cost_y,
+        _gpu_binary_cost_z
+    );
+
     int num_iterations = 0;
-    LOG(Info) << "Initial Energy: " << calculate_energy();
 
     bool done = false;
     while (!done) {
@@ -184,16 +194,34 @@ void HybridGraphCutOptimizer::execute()
         LOG(Verbose) << "Iteration " << num_iterations << ", "
                      << "Changed " << num_blocks_changed << " blocks, "
                      << "Energy " << std::fixed << std::setprecision(9)
-                                  << calculate_energy();
+                     << calculate_energy(
+                            _unary_fn,
+                            _binary_fn,
+                            _df,
+                            _gpu_unary_cost,
+                            _gpu_binary_cost_x,
+                            _gpu_binary_cost_y,
+                            _gpu_binary_cost_z
+                        );
 
         ++num_iterations;
 
         PROFILER_FLIP();
     }
-    LOG(Info) << "Energy: " << calculate_energy() << ", "
-              << "Iterations: " << num_iterations;
+    LOG(Info) << "Energy: " 
+              << calculate_energy(
+                    _unary_fn,
+                    _binary_fn,
+                    _df,
+                    _gpu_unary_cost,
+                    _gpu_binary_cost_x,
+                    _gpu_binary_cost_y,
+                    _gpu_binary_cost_z
+                ) 
+              << ", " << "Iterations: " << num_iterations;
 }
-void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::allocate_cost_buffers(const dim3& size)
 {
     _unary_cost = stk::Volume(size, stk::Type_Float2, nullptr, stk::Usage_Pinned);
     _unary_cost.fill({});
@@ -215,7 +243,8 @@ void HybridGraphCutOptimizer::allocate_cost_buffers(const dim3& size)
     _labels = stk::Volume(size, stk::Type_UChar, nullptr, stk::Usage_Pinned);
     _gpu_labels = stk::GpuVolume(size, stk::Type_UChar);
 }
-void HybridGraphCutOptimizer::reset_unary_cost()
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::reset_unary_cost()
 {
     // TODO: Just a temp solution until GpuVolume::fill()
 
@@ -227,7 +256,8 @@ void HybridGraphCutOptimizer::reset_unary_cost()
     CUDA_CHECK_ERRORS(cudaMemset3D(_gpu_unary_cost.pitched_ptr(), 0, extent));
 }
 
-size_t HybridGraphCutOptimizer::dispatch_blocks()
+template<typename TSolver>
+size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
 {
     // Unary cost volumes are used as accumulators, compared to binary cost which are not.
     //  Therefore we need to reset them between each iteration.
@@ -266,12 +296,18 @@ size_t HybridGraphCutOptimizer::dispatch_blocks()
     {
         PROFILER_SCOPE("apply", 0xFF532439);
         _gpu_labels.upload(_labels);
-        apply_displacement_delta(stk::cuda::Stream::null());
+        apply_displacement_delta(
+            _df,
+            _gpu_labels,
+            _current_delta,
+            stk::cuda::Stream::null()
+        );
     }
 
     return _num_blocks_changed;
 }
-void HybridGraphCutOptimizer::dispatch_next_cost_block(stk::cuda::Stream stream)
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::dispatch_next_cost_block(stk::cuda::Stream stream)
 {
     // Dispatch next cost block (if any)
     std::lock_guard<std::mutex> lock(_block_queue_lock);
@@ -287,14 +323,16 @@ void HybridGraphCutOptimizer::dispatch_next_cost_block(stk::cuda::Stream stream)
         });
     }
 }
-void HybridGraphCutOptimizer::dispatch_minimize_block(const Block& block)
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::dispatch_minimize_block(const Block& block)
 {
     _worker_pool.push_back([this, block](){
         this->minimize_block_task(block);
         --this->_num_blocks_remaining;
     });
 }
-void HybridGraphCutOptimizer::download_subvolume(
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::download_subvolume(
     const stk::GpuVolume& src,
     stk::Volume& tgt,
     const Block& block,
@@ -325,7 +363,8 @@ void HybridGraphCutOptimizer::download_subvolume(
 
     sub_src.download(sub_tgt, stream);
 }
-void HybridGraphCutOptimizer::upload_subvolume(
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::upload_subvolume(
     const stk::Volume& src,
     stk::GpuVolume& tgt,
     const Block& block,
@@ -348,7 +387,8 @@ void HybridGraphCutOptimizer::upload_subvolume(
 
     sub_tgt.upload(sub_src, stream);
 }
-void HybridGraphCutOptimizer::block_cost_task(
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::block_cost_task(
     const Block& block,
     stk::cuda::Stream stream
 )
@@ -419,8 +459,8 @@ void HybridGraphCutOptimizer::block_cost_task(
         this->dispatch_minimize_block(block);
     });
 }
-
-void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
+template<typename TSolver>
+void HybridGraphCutOptimizer<TSolver>::minimize_block_task(const Block& block)
 {
     PROFILER_SCOPE("minimize_block", 0xFF228844);
 
@@ -432,7 +472,7 @@ void HybridGraphCutOptimizer::minimize_block_task(const Block& block)
         block.end.z - block.begin.z
     };
 
-    GCOSolver<double> graph(block_dims);
+    TSolver graph(block_dims);
 
     double current_energy = 0;
     {

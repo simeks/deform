@@ -1,5 +1,14 @@
 #include "deform_lib/make_unique.h"
 #include "deform_lib/profiler/profiler.h"
+
+#ifdef DF_ENABLE_GCO
+    #include "deform_lib/solver/gco_solver.h"
+#endif
+#ifdef DF_ENABLE_GRIDCUT
+    #include "deform_lib/solver/gridcut_solver.h"
+#endif
+#include "deform_lib/solver/icm_solver.h"
+
 #include "gpu_registration_engine.h"
 #include "gpu/cost_functions/cost_function.h"
 #include "hybrid_graph_cut_optimizer.h"
@@ -12,7 +21,6 @@
 #include <omp.h>
 
 namespace {
-    // TODO: Duplicate from registration_engine.cpp
     template<typename T>
     static T str_to_num(const std::string& f, const std::string& k, const std::string& v) {
         try {
@@ -286,16 +294,45 @@ stk::Volume GpuRegistrationEngine::execute()
             GpuBinaryFunction binary_fn;
             build_binary_function(l, binary_fn);
 
-            HybridGraphCutOptimizer optimizer(
-                _settings.levels[l],
-                unary_fn,
-                binary_fn,
-                df,
-                _worker_pool,
-                _stream_pool
-            );
+            if (_settings.solver == Settings::Solver_ICM) {
+                HybridGraphCutOptimizer<ICMSolver<double>> optimizer(
+                    _settings.levels[l],
+                    unary_fn,
+                    binary_fn,
+                    df,
+                    _worker_pool,
+                    _stream_pool
+                );
+                optimizer.execute();
+            }
+#if defined(DF_ENABLE_GCO)
+            else if (_settings.solver == Settings::Solver_GCO) {
+                HybridGraphCutOptimizer<GCOSolver<double>> optimizer(
+                    _settings.levels[l],
+                    unary_fn,
+                    binary_fn,
+                    df,
+                    _worker_pool,
+                    _stream_pool
+                );
+                optimizer.execute();
+            }
+#endif
+#if defined(DF_ENABLE_GRIDCUT)
+            else if (_settings.solver == Settings::Solver_GridCut) {
+                HybridGraphCutOptimizer<GridCutSolver<double>> optimizer(
+                    _settings.levels[l],
+                    unary_fn,
+                    binary_fn,
+                    df,
+                    _worker_pool,
+                    _stream_pool
+                );
+                optimizer.execute();
+            }
+#endif
 
-            optimizer.execute();
+
         }
         else {
             LOG(Info) << "Skipping level " << l;

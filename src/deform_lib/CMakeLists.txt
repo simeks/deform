@@ -86,7 +86,7 @@ if (DF_USE_CUDA)
         "registration/gpu_registration_engine.h"
         "registration/gpu_volume_pyramid.cpp"
         "registration/gpu_volume_pyramid.h"
-        "registration/hybrid_graph_cut_optimizer.cpp"
+        "registration/hybrid_graph_cut_optimizer.inl"
         "registration/hybrid_graph_cut_optimizer.cu"
         "registration/hybrid_graph_cut_optimizer.h"
     )

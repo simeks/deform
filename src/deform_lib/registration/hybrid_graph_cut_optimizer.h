@@ -18,6 +18,7 @@ class StreamPool;
 
 // Hybrid (CPU-GPU) graph-cut optimizer.
 //  Uses GPU to compute weights for graph and minimizes graph on CPU.
+template<typename TSolver>
 class HybridGraphCutOptimizer
 {
 public:
@@ -58,9 +59,6 @@ private:
     // Dispatches a minimize block task
     void dispatch_minimize_block(const Block& block);
 
-    // Applies delta based on labels in _gpu_labels.
-    void apply_displacement_delta(stk::cuda::Stream stream);
-
     void download_subvolume(
         const stk::GpuVolume& src,
         stk::Volume& tgt,
@@ -75,9 +73,6 @@ private:
         const Block& block,
         stk::cuda::Stream stream
     );
-
-    // Calculates the energy sum for the given displacement field
-    double calculate_energy();
 
     // Task that dispatches the computation of the block cost to the GPU.
     void block_cost_task(const Block& block, stk::cuda::Stream stream);
@@ -125,3 +120,25 @@ private:
     float3 _current_delta;
 
 };
+
+// Applies delta based on labels
+void apply_displacement_delta(
+    stk::GpuVolume& df,
+    stk::GpuVolume& labels,
+    const float3& delta,
+    stk::cuda::Stream stream
+);
+
+// Calculates the energy sum for the given displacement field
+double calculate_energy(
+    GpuUnaryFunction& unary_fn,
+    GpuBinaryFunction& binary_fn,
+    stk::GpuVolume& df,
+    stk::GpuVolume& unary_cost,
+    stk::GpuVolume& binary_cost_x,
+    stk::GpuVolume& binary_cost_y,
+    stk::GpuVolume& binary_cost_z
+);
+
+
+#include "hybrid_graph_cut_optimizer.inl"

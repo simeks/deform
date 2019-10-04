@@ -655,7 +655,7 @@ stk::Volume RegistrationEngine::execute()
                         _settings.levels[l].max_iteration_count
                     );
                 optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
-                }
+            }
 #endif
 #if defined(DF_ENABLE_GRIDCUT)
             else if (_settings.solver == Settings::Solver_GridCut) {
