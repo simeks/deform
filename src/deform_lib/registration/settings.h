@@ -15,6 +15,17 @@ public:
 
 struct Settings
 {
+    enum Solver
+    {
+        Solver_ICM
+    #ifdef DF_ENABLE_GCO
+        , Solver_GCO
+    #endif
+    #ifdef DF_ENABLE_GRIDCUT
+        , Solver_GridCut
+    #endif
+    };
+
     // Settings for a specific image slot, each image pair (i.e. fixed and moving) is considered
     //  a slot, so say we want to register fat and water:
     //      fixed_water <- moving_water
@@ -120,11 +131,21 @@ struct Settings
     // Should the regularization also apply on the initial displacement?
     bool regularize_initial_displacement;
 
+    // What solver to use for the energy minimization
+    Solver solver;
+
     Settings() :
         pyramid_stop_level(0),
         num_pyramid_levels(6),
         landmarks_stop_level(0),
-        regularize_initial_displacement(false)
+        regularize_initial_displacement(false),
+    #if defined(DF_ENABLE_GCO)
+        solver(Solver_GCO)
+    #elif defined(DF_ENABLE_GRIDCUT)
+        solver(Solver_GridCut)
+    #else
+        solver(Solver_ICM)
+    #endif
     {
         levels.resize(num_pyramid_levels);
     }
@@ -139,3 +160,5 @@ bool parse_registration_file(const std::string& parameter_file, Settings& settin
 // Return true if parsing was successful, false if not
 bool parse_registration_settings(const std::string& str, Settings& settings);
 
+// Returns the string representation of a given solver
+const char* solver_to_str(Settings::Solver solver);

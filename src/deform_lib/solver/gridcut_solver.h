@@ -3,7 +3,7 @@
 #include <stk/math/types.h>
 #include <vector>
 
-#include <GridGraph_3D_6C.h>
+#include <GridCut/GridGraph_3D_6C.h>
 
 template<typename T>
 class GridCutSolver
@@ -12,9 +12,10 @@ public:
     typedef T FlowType;
 
     GridCutSolver(const int3& size) :
+        _size(size),
         _graph(size.x, size.y, size.z)
     {
-        size_t n = _graph.width() * _graph.height() * _graph.depth();
+        size_t n = _size.x * _size.y * _size.z;
         _tweights.insert(_tweights.begin(), 2*n, 0.0);
     }
     ~GridCutSolver() {}
@@ -49,26 +50,29 @@ public:
 
     T minimize()
     {
-        for (int z = 0; z < _graph.depth(); ++z) {
-        for (int y = 0; y < _graph.height(); ++y) {
-        for (int x = 0; x < _graph.width(); ++x) {
+        for (int z = 0; z < _size.z; ++z) {
+        for (int y = 0; y < _size.y; ++y) {
+        for (int x = 0; x < _size.x; ++x) {
             T e0 = _tweights[index(x,y,z)];
             T e1 = _tweights[index(x,y,z)+1];
-            _graph.add_tweights(x, y, z, e0, e1);
+            _graph.set_terminal_cap(_graph.node_id(x,y,z), e0, e1);
         }}}
 
-        return _graph.maxflow();
+        _graph.compute_maxflow();
+        return _graph.get_flow();
     }
 
     int get_var(int x, int y, int z)
     {
-        return _graph.get_segment(index(x,y,z));
+        return _graph.get_segment(_graph.node_id(x,y,z));
     }
 
 private:
-    int index(int x, int y, int z)
+    // index in _tweights, not the graph itself
+    size_t index(int x, int y, int z)
     {
-        return _g.node_id(x, y, z);
+        return 2*x + y * 2*_size.x + z * 2*_size.x
+                * _size.y;
     }
     void add_tweights(int x, int y, int z, T e0, T e1)
     {
@@ -78,10 +82,15 @@ private:
     void add_edge(int x1, int y1, int z1, int x2, int y2, int z2, 
                   T cap, T rev_cap)
     {
-        _g.set_neighbor_cap(index(x1,y1,z1), x2-x1, y2-y1, z2-z1, cap);
-        _g.set_neighbor_cap(index(x2,y2,z2), x1-x2, y1-y2, z1-z2, rev_cap);
+        _graph.set_neighbor_cap(
+            _graph.node_id(x1,y1,z1), x2-x1, y2-y1, z2-z1, cap
+        );
+        _graph.set_neighbor_cap(
+            _graph.node_id(x2,y2,z2), x1-x2, y1-y2, z1-z2, rev_cap
+        );
     }
 
+    int3 _size;
     GridGraph_3D_6C<T, T, T> _graph;
     std::vector<T> _tweights;
 };

@@ -47,7 +47,16 @@ option(DF_NON_PORTABLE "Enable non-portable optimisations" ON)
 option(DF_ENABLE_MICROPROFILE "Enable microprofile profiler" OFF)
 option(DF_ENABLE_NVTOOLSEXT "Enable nvtoolsext profiler" OFF)
 
-option(DF_INCLUDE_GCO "Include GCO solver" ON)
+option(DF_ENABLE_GCO "Enable GCO solver" ON)
+option(DF_ENABLE_GRIDCUT "Enable GridCut solver" OFF)
+
+if (DF_ENABLE_GCO)
+    add_definitions(-DDF_ENABLE_GCO)
+endif()
+
+if (DF_ENABLE_GRIDCUT)
+    add_definitions(-DDF_ENABLE_GRIDCUT)
+endif()
 
 if (DF_ENABLE_MICROPROFILE AND DF_ENABLE_NVTOOLSEXT)
     message(FATAL_ERROR "Can't enable multiple profilers at the same time")

@@ -45,7 +45,7 @@ set(DEFORM_LIB_SRCS
     "version.h"
 )
 
-if (DF_INCLUDE_GCO)
+if (DF_ENABLE_GCO)
     set(DEFORM_LIB_SRCS
         ${DEFORM_LIB_SRCS}
         "solver/gco_solver.h"
@@ -53,7 +53,7 @@ if (DF_INCLUDE_GCO)
     )
 endif ()
 
-if (DF_INCLUDE_GRIDCUT)
+if (DF_ENABLE_GRIDCUT)
     set(DEFORM_LIB_SRCS
         ${DEFORM_LIB_SRCS}
         "solver/gridcut_solver.h"
@@ -108,7 +108,15 @@ add_dependencies(deform_lib FetchGitVersion)
 
 target_include_directories(deform_lib PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} "${CMAKE_BINARY_DIR}/src")
 
-target_link_libraries(deform_lib stk yaml-cpp gco)
+target_link_libraries(deform_lib stk yaml-cpp)
+
+if (DF_ENABLE_GCO)
+    target_link_libraries(deform_lib gco)
+endif()
+
+if (DF_ENABLE_GRIDCUT)
+    target_link_libraries(deform_lib gridcut)
+endif()
 
 if (DF_ENABLE_NVTOOLSEXT)
     target_link_libraries(deform_lib ${NvToolsExt_LIBRARIES})

@@ -38,5 +38,13 @@ if (NOT YAML-CPP_FOUND)
     endif()
 endif()
 
-add_library(gco INTERFACE)
-target_include_directories(gco INTERFACE gco-v3.0)
+
+if (DF_ENABLE_GCO)
+    add_library(gco INTERFACE)
+    target_include_directories(gco INTERFACE gco-v3.0)
+endif()
+
+if (DF_ENABLE_GRIDCUT)
+    add_library(gridcut INTERFACE)
+    target_include_directories(gridcut INTERFACE GridCut-1.3/include)
+endif()

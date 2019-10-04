@@ -27,17 +27,16 @@
     #pragma warning(disable: 4706)
     #pragma warning(disable: 4463)
 #endif
-namespace gco
-{
-    // Prevent breaking the build in C++17, where register was removed.
-    // The keyword is used within GCO, no idea why, since it is a few
-    // decades that it is "exactly as meaningful as whitespace" (cit).
-    #define register
 
-    #include <gco/energy.h>
-    #include <gco/graph.cpp>
-    #include <gco/maxflow.cpp>
-}
+// Prevent breaking the build in C++17, where register was removed.
+// The keyword is used within GCO, no idea why, since it is a few
+// decades that it is "exactly as meaningful as whitespace" (cit).
+#define register
+
+#include <gco/energy.h>
+#include <gco/graph.cpp>
+#include <gco/maxflow.cpp>
+
 #if defined(__GNUC__) || defined(__clang__)
     #if GCC_VERSION > 40604 // 4.6.4
         #pragma GCC diagnostic pop
@@ -68,7 +67,7 @@ public:
 private:
     int get_index(int x, int y, int z) const;
 
-    gco::Energy<T, T, T> _e;
+    Energy<T, T, T> _e;
     int3 _size;
 };
 

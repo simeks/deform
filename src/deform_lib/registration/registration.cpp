@@ -99,6 +99,7 @@ stk::Volume registration(
     ASSERT(fixed_volumes.size() == moving_volumes.size());
 
     LOG(Info) << "Running registration";
+    LOG(Info) << "Solver: " << solver_to_str(settings.solver);
 
     if (num_threads > 0) {
         LOG(Info) << "Number of threads: " << num_threads;
