@@ -3,6 +3,14 @@
 #include "../filters/resample.h"
 #include "../make_unique.h"
 
+#ifdef DF_ENABLE_GCO
+    #include "../solver/gco_solver.h"
+#endif
+#ifdef DF_ENABLE_GRIDCUT
+    #include "../solver/gridcut_solver.h"
+#endif
+#include "../solver/icm_solver.h"
+
 #include "blocked_graph_cut_optimizer.h"
 #include "registration_engine.h"
 #include "transform.h"
@@ -629,13 +637,38 @@ stk::Volume RegistrationEngine::execute()
             UnaryFunction unary_fn;
             build_unary_function(l, unary_fn);
 
-            BlockedGraphCutOptimizer<UnaryFunction, Regularizer> optimizer(
-                _settings.levels[l].block_size,
-                _settings.levels[l].block_energy_epsilon,
-                _settings.levels[l].max_iteration_count
-            );
+            if (_settings.solver == Settings::Solver_ICM) {
+                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ICMSolver<double>>
+                    optimizer(
+                        _settings.levels[l].block_size,
+                        _settings.levels[l].block_energy_epsilon,
+                        _settings.levels[l].max_iteration_count
+                );
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            }
+#if defined(DF_ENABLE_GCO)
+            else if (_settings.solver == Settings::Solver_GCO) {
+                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GCOSolver<double>>
+                    optimizer(
+                        _settings.levels[l].block_size,
+                        _settings.levels[l].block_energy_epsilon,
+                        _settings.levels[l].max_iteration_count
+                    );
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            }
+#endif
+#if defined(DF_ENABLE_GRIDCUT)
+            else if (_settings.solver == Settings::Solver_GridCut) {
+                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GridCutSolver<double>>
+                    optimizer(
+                        _settings.levels[l].block_size,
+                        _settings.levels[l].block_energy_epsilon,
+                        _settings.levels[l].max_iteration_count
+                );
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+            }
+#endif
 
-            optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
         }
         else {
             LOG(Info) << "Skipping level " << l;

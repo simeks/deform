@@ -1,6 +1,5 @@
 #include "block_change_flags.h"
 #include "../config.h"
-#include "../graph_cut/graph_cut.h"
 #include "../profiler/profiler.h"
 
 #include <stk/common/log.h>
@@ -9,9 +8,10 @@
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
->
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
+    typename TBinaryTerm,
+    typename TSolver
+    >
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::BlockedGraphCutOptimizer(
     const int3& block_size,
     double block_energy_epsilon,
     int max_iteration_count) :
@@ -28,16 +28,18 @@ BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::BlockedGraphCutOptimizer(
 }
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
     >
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::~BlockedGraphCutOptimizer()
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::~BlockedGraphCutOptimizer()
 {
 }
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
     >
-void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
+void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     float3 step_size,
@@ -182,9 +184,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::execute(
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
 >
-bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
+bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     const int3& block_p,
@@ -194,11 +197,11 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
     stk::VolumeFloat3& def
 )
 {
+    using FlowType = typename TSolver::FlowType;
+
     dim3 dims = def.size();
 
-    typedef double FlowType;
-
-    GraphCut<FlowType> graph(block_dims);
+    TSolver solver(block_dims);
 
     FlowType current_energy = 0;
     {
@@ -216,7 +219,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                     if (gx < 0 || gx >= int(dims.x) ||
                         gy < 0 || gy >= int(dims.y) ||
                         gz < 0 || gz >= int(dims.z)) {
-                        graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
+                        solver.add_term1(sub_x, sub_y, sub_z, 0, 0);
                         continue;
                     }
 
@@ -267,7 +270,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         f1 += binary_fn(p, def1 + delta, def2, step);
                     }
 
-                    graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
+                    solver.add_term1(sub_x, sub_y, sub_z, f0, f1);
 
                     current_energy += f0;
 
@@ -278,7 +281,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         double f01 = binary_fn(p, def1, def2 + delta, step);
                         double f10 = binary_fn(p, def1 + delta, def2, step);
 
-                        graph.add_term2(
+                        solver.add_term2(
                             sub_x, sub_y, sub_z,
                             sub_x + 1, sub_y, sub_z,
                             f_same, f01, f10, f_same);
@@ -292,7 +295,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         double f01 = binary_fn(p, def1, def2 + delta, step);
                         double f10 = binary_fn(p, def1 + delta, def2, step);
 
-                        graph.add_term2(
+                        solver.add_term2(
                             sub_x, sub_y, sub_z,
                             sub_x, sub_y + 1, sub_z,
                             f_same, f01, f10, f_same);
@@ -306,7 +309,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         double f01 = binary_fn(p, def1, def2 + delta, step);
                         double f10 = binary_fn(p, def1 + delta, def2, step);
 
-                        graph.add_term2(
+                        solver.add_term2(
                             sub_x, sub_y, sub_z,
                             sub_x, sub_y, sub_z + 1,
                             f_same, f01, f10, f_same);
@@ -318,11 +321,10 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
         }
     }
 
-
     FlowType current_emin;
     {
         PROFILER_SCOPE("minimize", 0xFF985423);
-        current_emin = graph.minimize();
+        current_emin = solver.minimize();
     }
 
     bool changed_flag = false;
@@ -346,7 +348,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
                         continue;
                     }
 
-                    if (graph.get_var(sub_x, sub_y, sub_z) == 1)
+                    if (solver.get_var(sub_x, sub_y, sub_z) == 1)
                     {
                         def(gx, gy, gz) = def(gx, gy, gz) + delta;
                         changed_flag = true;
@@ -362,9 +364,10 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::do_block(
 
 template<
     typename TUnaryTerm,
-    typename TBinaryTerm
+    typename TBinaryTerm,
+    typename TSolver
 >
-double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm>::calculate_energy(
+double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::calculate_energy(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     stk::VolumeFloat3& def

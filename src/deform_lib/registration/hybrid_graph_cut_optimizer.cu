@@ -28,9 +28,14 @@ __global__ void apply_displacement_delta_kernel(
     df(x,y,z) = df(x,y,z) + delta * labels(x,y,z);
 }
 
-void HybridGraphCutOptimizer::apply_displacement_delta(cuda::Stream stream)
+void apply_displacement_delta(
+    stk::GpuVolume& df,
+    stk::GpuVolume& labels,
+    const float3& delta,
+    cuda::Stream stream
+)
 {
-    dim3 dims = _df.size();
+    dim3 dims = df.size();
     dim3 block_size {32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
@@ -39,10 +44,10 @@ void HybridGraphCutOptimizer::apply_displacement_delta(cuda::Stream stream)
     };
 
     apply_displacement_delta_kernel<<<grid_size, block_size, 0, stream>>>(
-        _df,
-        _gpu_labels,
+        df,
+        labels,
         dims,
-        float4{_current_delta.x, _current_delta.y, _current_delta.z, 0.0f}
+        float4{delta.x, delta.y, delta.z, 0.0f}
     );
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
 }
@@ -107,26 +112,40 @@ __global__ void reduce_total_energy(
     #undef REDUCTION_STEP
 }
 
-double HybridGraphCutOptimizer::calculate_energy()
+double calculate_energy(
+    GpuUnaryFunction& unary_fn,
+    GpuBinaryFunction& binary_fn,
+    stk::GpuVolume& df,
+    stk::GpuVolume& unary_cost,
+    stk::GpuVolume& binary_cost_x,
+    stk::GpuVolume& binary_cost_y,
+    stk::GpuVolume& binary_cost_z
+)
 {
-    reset_unary_cost();
+    // Reset unary cost
+    cudaExtent extent = make_cudaExtent(
+        unary_cost.size().x * sizeof(float2),
+        unary_cost.size().y,
+        unary_cost.size().z
+    );
+    CUDA_CHECK_ERRORS(cudaMemset3D(unary_cost.pitched_ptr(), 0, extent));
 
-    dim3 dims = _gpu_unary_cost.size();
+    dim3 dims = unary_cost.size();
     int3 begin {0, 0, 0};
     int3 end {(int)dims.x, (int)dims.y, (int)dims.z};
 
     cuda::Stream& stream = stk::cuda::Stream::null();
-    _unary_fn(_df, {0,0,0}, begin, end, _gpu_unary_cost, stream);
+    unary_fn(df, {0,0,0}, begin, end, unary_cost, stream);
 
     // Compute binary terms
-    _binary_fn(
-        _df,
+    binary_fn(
+        df,
         {0, 0, 0},
         begin,
         end,
-        _gpu_binary_cost_x,
-        _gpu_binary_cost_y,
-        _gpu_binary_cost_z,
+        binary_cost_x,
+        binary_cost_y,
+        binary_cost_z,
         stream
     );
 
@@ -145,10 +164,10 @@ double HybridGraphCutOptimizer::calculate_energy()
     reduce_total_energy<<<grid_size, block_size,
         uint32_t(sizeof(float)*1024)>>>
     (
-        _gpu_unary_cost,
-        _gpu_binary_cost_x,
-        _gpu_binary_cost_y,
-        _gpu_binary_cost_z,
+        unary_cost,
+        binary_cost_x,
+        binary_cost_y,
+        binary_cost_z,
         dims,
         d_block_sum
     );

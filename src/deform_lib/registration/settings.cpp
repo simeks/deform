@@ -278,6 +278,19 @@ const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
     };
     return "none";
 }
+const char* solver_to_str(Settings::Solver solver)
+{
+    switch (solver) {
+        case Settings::Solver_ICM: return "icm";
+    #ifdef DF_ENABLE_GCO
+        case Settings::Solver_GCO: return "gco";
+    #endif
+    #ifdef DF_ENABLE_GRIDCUT
+        case Settings::Solver_GridCut: return "gridcut";
+    #endif
+    };
+    return "none";
+}
 
 static void parse_level(const YAML::Node& node, Settings::Level& out) {
     if(!node.IsMap()) {
@@ -355,6 +368,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
     s << "num_pyramid_levels = " << settings.num_pyramid_levels << std::endl;
     s << "landmarks_stop_level = " << settings.landmarks_stop_level << std::endl;
     s << "regularize_initial_displacement = " << settings.regularize_initial_displacement << std::endl;
+    s << "solver = " << solver_to_str(settings.solver) << std::endl;
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         s << "level[" << l << "] = {" << std::endl;
@@ -441,6 +455,31 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
         if (root["regularize_initial_displacement"]) {
             settings.regularize_initial_displacement
                 = root["regularize_initial_displacement"].as<bool>();
+        }
+
+        if (root["solver"]) {
+            std::string solver = root["solver"].as<std::string>();
+
+            if (solver == "icm") {
+                settings.solver = Settings::Solver_ICM;
+            }
+            else if (solver == "gco") {
+            #ifdef DF_ENABLE_GCO
+                settings.solver = Settings::Solver_GCO;
+            #else
+                throw ValidationError("Settings: Solver 'gco' not enabled");
+            #endif
+            }
+            else if (solver == "gridcut") {
+            #ifdef DF_ENABLE_GRIDCUT
+                settings.solver = Settings::Solver_GridCut;
+            #else
+                throw ValidationError("Settings: Solver 'gridcut' not enabled");
+            #endif
+            }
+            else {
+                throw ValidationError("Settings: Invalid solver");
+            }
         }
 
         auto is = root["image_slots"];

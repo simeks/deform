@@ -105,6 +105,7 @@ To perform a registration using the standalone executable
 pyramid_levels: 6
 pyramid_stop_level: 0
 regularize_initial_displacement: false
+solver: gco
 constraints_weight: 1000.0
 landmarks_weight: 1.0
 landmarks_decay: 2.0
@@ -161,6 +162,10 @@ specifies that the registration should not be run on the original resolution
 `regularize_initial_displacement` controls whether to include the initial
 displacement in the regularization. This is disabled by default, meaning the
 initial displacement have no effect on the regularization.
+
+`solver` selects which solver to use for the energy minimization. Available
+solvers are `gco`, `gridcut`, and `icm`. Note: deform needs to be compiled with
+`DF_ENABLE_GCO` and `DF_ENABLE_GRIDCUT` for `gco` and `gridcut` to be enabled.
 
 `constraints_weight` sets the weight that is applied for constrained voxels. A
 really high value means hard constraints while a lower value may allow
