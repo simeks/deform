@@ -11,3 +11,4 @@ dist
 sphinx/readme.rst
 sphinx/_*
 .env
+GridCut-1.3
