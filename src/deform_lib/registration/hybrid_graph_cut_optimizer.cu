@@ -7,7 +7,7 @@
 
 namespace cuda = stk::cuda;
 
-__global__ void apply_displacement_delta_kernel(
+__global__ void apply_displacement_delta_additive_kernel(
     cuda::VolumePtr<float4> df,
     cuda::VolumePtr<uint8_t> labels,
     dim3 dims,
@@ -28,14 +28,44 @@ __global__ void apply_displacement_delta_kernel(
     df(x,y,z) = df(x,y,z) + delta * labels(x,y,z);
 }
 
+__global__ void apply_displacement_delta_compositive_kernel(
+    cuda::VolumePtr<float4> df_in,
+    cuda::VolumePtr<float4> df_out,
+    cuda::VolumePtr<uint8_t> labels,
+    dim3 dims,
+    float4 delta
+)
+{
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    int z = blockIdx.z*blockDim.z + threadIdx.z;
+
+    if (x >= dims.x ||
+        y >= dims.y ||
+        z >= dims.z)
+    {
+        return;
+    }
+
+    auto const lac = cuda::linear_at_clamp<float4>;
+
+    df_out(x,y,z) = lac(df_in, dims, 
+        x + delta.x * labels(x,y,z),
+        y + delta.y * labels(x,y,z),
+        z + delta.z * labels(x,y,z)
+    ) + delta * labels(x,y,z);
+}
+
 void apply_displacement_delta(
-    stk::GpuVolume& df,
+    stk::GpuVolume& df_in,
+    stk::GpuVolume& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
+    Settings::UpdateRule update_rule,
     cuda::Stream stream
 )
 {
-    dim3 dims = df.size();
+    dim3 dims = df_in.size();
     dim3 block_size {32,32,1};
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
@@ -43,12 +73,26 @@ void apply_displacement_delta(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
-    apply_displacement_delta_kernel<<<grid_size, block_size, 0, stream>>>(
-        df,
-        labels,
-        dims,
-        float4{delta.x, delta.y, delta.z, 0.0f}
-    );
+    if (update_rule == Settings::UpdateRule_Additive) {
+        apply_displacement_delta_additive_kernel
+        <<<grid_size, block_size, 0, stream>>>(
+            df_in,
+            df_out,
+            labels,
+            dims,
+            float4{delta.x, delta.y, delta.z, 0.0f}
+        );
+    }
+    else if (update_rule == Settings::UpdateRule_Compositve) {
+        apply_displacement_delta_compositive_kernel
+        <<<grid_size, block_size, 0, stream>>>(
+            df_in,
+            df_out,
+            labels,
+            dims,
+            float4{delta.x, delta.y, delta.z, 0.0f}
+        );
+    }
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
 }
 

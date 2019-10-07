@@ -109,6 +109,7 @@ private:
     GpuBinaryFunction& _binary_fn;
 
     stk::GpuVolume _df;
+    stk::GpuVolume _df_tmp;
 
     BlockChangeFlags _block_change_flags;
     std::atomic<size_t> _num_blocks_changed;
@@ -122,10 +123,14 @@ private:
 };
 
 // Applies delta based on labels
+// df_in    : Displacement field from previous iteration
+// df_out   : Target for updated displacement field
 void apply_displacement_delta(
-    stk::GpuVolume& df,
+    stk::GpuVolume& df_in,
+    stk::GpuVolume& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream stream
 );
 

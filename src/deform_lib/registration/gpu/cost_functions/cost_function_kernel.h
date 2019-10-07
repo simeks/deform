@@ -50,8 +50,9 @@ struct CostFunctionKernel
     }
 
     // x,y,z        : Global image coordinates
-    // cost_offset  :  Where in `cost` to store the results (0 or 1).
-    __device__ void operator()(int x, int y, int z, float3 delta, int cost_offset)
+    // d            : Displacement
+    // cost_offset  : Where in `cost` to store the results (0 or 1).
+    __device__ void operator()(int x, int y, int z, float3 d, int cost_offset)
     {
         // Check if the fixed voxel is masked out
         float fixed_mask_value = 1.0f;
@@ -62,15 +63,9 @@ struct CostFunctionKernel
             }
         }
 
-        const float3 d0 {
-            _df(x, y, z).x + delta.x,
-            _df(x, y, z).y + delta.y,
-            _df(x, y, z).z + delta.z
-        };
-
         const float3 xyz = float3{float(x),float(y),float(z)};
         const float3 world_p = _fixed_origin + _fixed_direction * (xyz * _fixed_spacing);
-        const float3 moving_p = (_inv_moving_direction * (world_p + d0 - _moving_origin))
+        const float3 moving_p = (_inv_moving_direction * (world_p + d - _moving_origin))
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
@@ -84,7 +79,15 @@ struct CostFunctionKernel
             }
         }
 
-        float c = _impl(_fixed, _moving, _fixed_dims, _moving_dims, int3{x,y,z}, moving_p);
+        float c = _impl(
+            _fixed,
+            _moving,
+            _fixed_dims,
+            _moving_dims,
+            int3{x,y,z},
+            moving_p,
+            d
+        );
         c *= _weight * fixed_mask_value * moving_mask_value;
 
         reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += c;
@@ -115,7 +118,7 @@ struct CostFunctionKernel
 };
 
 template<typename TKernel>
-__global__ void cost_function_kernel(
+__global__ void cost_function_kernel_0(
     TKernel kernel,
     int3 offset,
     int3 dims,

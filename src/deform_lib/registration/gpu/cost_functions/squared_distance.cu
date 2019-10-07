@@ -16,7 +16,8 @@ struct SSDImpl
         const dim3& fixed_dims,
         const dim3& moving_dims,
         const int3& fixed_p,
-        const float3& moving_p
+        const float3& moving_p,
+        const float3& /*d*/
     )
     {
         auto const lab = cuda::linear_at_border<float>;

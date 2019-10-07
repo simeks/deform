@@ -38,6 +38,15 @@ HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     _df(df),
     _current_delta{0, 0, 0}
 {
+
+    // If we're using compositive accumulation we need to have a separate buffer
+    //  for the previous iteration since each update may depend on neighbouring
+    //  updates. As compared to additive were we only have d(x) = d(x) + delta.
+
+    if (_settings.update_rule == Settings::UpdateRule_Compositive) {
+        _df_tmp = _df.clone();
+    }
+
     allocate_cost_buffers(df.size());
 }
 template<typename TSolver>
@@ -93,100 +102,102 @@ void HybridGraphCutOptimizer<TSolver>::execute()
         size_t num_blocks_changed = 0;
 
         for (int use_shift = 0; use_shift < 2; ++use_shift) {
-            PROFILER_SCOPE("shift", 0xFF766952);
-            if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
+        PROFILER_SCOPE("shift", 0xFF766952);
+        if (use_shift == 1 && (block_count.x * block_count.y * block_count.z) <= 1)
+            continue;
+
+        // We only do shifting in the directions that requires it
+        int3 block_offset{0, 0, 0};
+        int3 real_block_count = block_count;
+        if (use_shift == 1) {
+            block_offset.x = block_count.x == 1 ? 0 : (block_dims.x / 2);
+            block_offset.y = block_count.y == 1 ? 0 : (block_dims.y / 2);
+            block_offset.z = block_count.z == 1 ? 0 : (block_dims.z / 2);
+
+            // Only add an additional shift block if necessary, some configurations may not
+            //  need the additional block. E.g. a volume of size 5 with a block size of 4 will
+            //  cover whole volume with 2 blocks both with and without shifting.
+
+            if (block_count.x > 1 && (block_count.x * block_dims.x - block_offset.x) < (int)dims.x)
+                real_block_count.x += 1;
+            if (block_count.y > 1 && (block_count.y * block_dims.y - block_offset.y) < (int)dims.y)
+                real_block_count.y += 1;
+            if (block_count.z > 1 && (block_count.z * block_dims.z - block_offset.z) < (int)dims.z)
+                real_block_count.z += 1;
+        }
+
+        // Only do red-black when having more than 1 block
+        int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
+        for (int black_or_red = 0; black_or_red < (num_blocks > 1 ? 2 : 1); black_or_red++) {
+        PROFILER_SCOPE("red_black", 0xFF339955);
+
+        for (int n = 0; n < _neighbor_count; ++n) {
+        PROFILER_SCOPE("step", 0xFFAA6FE2);
+
+        // delta in [mm]
+        _current_delta = {
+            _settings.step_size.x * _neighbors[n].x,
+            _settings.step_size.y * _neighbors[n].y,
+            _settings.step_size.z * _neighbors[n].z
+        };
+
+        // Queue all blocks
+        for (int b = 0; b < num_blocks; ++b) {
+            int block_x = b % real_block_count.x;
+            int block_y = (b / real_block_count.x) % real_block_count.y;
+            int block_z = b / (real_block_count.x*real_block_count.y);
+
+            int off = (block_z) % 2;
+            off = (block_y + off) % 2;
+            off = (block_x + off) % 2;
+
+            if (off != black_or_red) {
                 continue;
-
-            // We only do shifting in the directions that requires it
-            int3 block_offset{0, 0, 0};
-            int3 real_block_count = block_count;
-            if (use_shift == 1) {
-                block_offset.x = block_count.x == 1 ? 0 : (block_dims.x / 2);
-                block_offset.y = block_count.y == 1 ? 0 : (block_dims.y / 2);
-                block_offset.z = block_count.z == 1 ? 0 : (block_dims.z / 2);
-
-                // Only add an additional shift block if necessary, some configurations may not
-                //  need the additional block. E.g. a volume of size 5 with a block size of 4 will
-                //  cover whole volume with 2 blocks both with and without shifting.
-
-                if (block_count.x > 1 && (block_count.x * block_dims.x - block_offset.x) < (int)dims.x)
-                    real_block_count.x += 1;
-                if (block_count.y > 1 && (block_count.y * block_dims.y - block_offset.y) < (int)dims.y)
-                    real_block_count.y += 1;
-                if (block_count.z > 1 && (block_count.z * block_dims.z - block_offset.z) < (int)dims.z)
-                    real_block_count.z += 1;
             }
 
-            // Only do red-black when having more than 1 block
-            int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
-            for (int black_or_red = 0; black_or_red < (num_blocks > 1 ? 2 : 1); black_or_red++) {
-                PROFILER_SCOPE("red_black", 0xFF339955);
+            int3 block_idx{block_x, block_y, block_z};
 
-                for (int n = 0; n < _neighbor_count; ++n) {
-                    PROFILER_SCOPE("step", 0xFFAA6FE2);
-
-                    // delta in [mm]
-                    _current_delta = {
-                        _settings.step_size.x * _neighbors[n].x,
-                        _settings.step_size.y * _neighbors[n].y,
-                        _settings.step_size.z * _neighbors[n].z
-                    };
-
-                    // Queue all blocks
-                    for (int b = 0; b < num_blocks; ++b) {
-                        int block_x = b % real_block_count.x;
-                        int block_y = (b / real_block_count.x) % real_block_count.y;
-                        int block_z = b / (real_block_count.x*real_block_count.y);
-
-                        int off = (block_z) % 2;
-                        off = (block_y + off) % 2;
-                        off = (block_x + off) % 2;
-
-                        if (off != black_or_red) {
-                            continue;
-                        }
-
-                        int3 block_idx{block_x, block_y, block_z};
-
-                        bool need_update = _block_change_flags.is_block_set(block_idx, use_shift == 1);
-                        for (int i = 0; i < _neighbor_count; ++i) {
-                            int3 neighbor = block_idx + _neighbors[i];
-                            if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
-                                0 <= neighbor.y && neighbor.y < real_block_count.y &&
-                                0 <= neighbor.z && neighbor.z < real_block_count.z) {
-                                need_update = need_update || _block_change_flags.is_block_set(neighbor, use_shift == 1);
-                            }
-                        }
-
-                        if (!need_update) {
-                            continue;
-                        }
-
-                        int3 offset{
-                            block_x * block_dims.x - block_offset.x,
-                            block_y * block_dims.y - block_offset.y,
-                            block_z * block_dims.z - block_offset.z
-                        };
-
-                        Block block;
-                        block.idx = block_idx;
-                        block.begin = int3{
-                            std::max<int>(0, offset.x),
-                            std::max<int>(0, offset.y),
-                            std::max<int>(0, offset.z)
-                        };
-                        block.end = int3{
-                            std::min<int>(offset.x + block_dims.x, dims.x),
-                            std::min<int>(offset.y + block_dims.y, dims.y),
-                            std::min<int>(offset.z + block_dims.z, dims.z)
-                        };
-                        block.shift = use_shift == 1;
-
-                        _block_queue.push_back(block);
-                    }
-                    num_blocks_changed += dispatch_blocks();
+            bool need_update = _block_change_flags.is_block_set(block_idx,
+                                                                use_shift == 1);
+            for (int i = 0; i < _neighbor_count; ++i) {
+                int3 neighbor = block_idx + _neighbors[i];
+                if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
+                    0 <= neighbor.y && neighbor.y < real_block_count.y &&
+                    0 <= neighbor.z && neighbor.z < real_block_count.z) {
+                    need_update = need_update || _block_change_flags.is_block_set(
+                        neighbor, use_shift == 1);
                 }
             }
+
+            if (!need_update) {
+                continue;
+            }
+
+            int3 offset{
+                block_x * block_dims.x - block_offset.x,
+                block_y * block_dims.y - block_offset.y,
+                block_z * block_dims.z - block_offset.z
+            };
+
+            Block block;
+            block.idx = block_idx;
+            block.begin = int3{
+                std::max<int>(0, offset.x),
+                std::max<int>(0, offset.y),
+                std::max<int>(0, offset.z)
+            };
+            block.end = int3{
+                std::min<int>(offset.x + block_dims.x, dims.x),
+                std::min<int>(offset.y + block_dims.y, dims.y),
+                std::min<int>(offset.z + block_dims.z, dims.z)
+            };
+            block.shift = use_shift == 1;
+
+            _block_queue.push_back(block);
+        }
+        num_blocks_changed += dispatch_blocks();
+        }
+        }
         }
 
         done = num_blocks_changed == 0;
@@ -296,10 +307,23 @@ size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
     {
         PROFILER_SCOPE("apply", 0xFF532439);
         _gpu_labels.upload(_labels);
+        
+        // If we're using compositive accumulation we need to have a separate buffer
+        //  for the previous iteration since each update may depend on neighbouring
+        //  updates. As compared to additive were we only have d(x) = d(x) + delta.
+
+        stk::GpuVolume df_in = _df;
+        if (_settings.update_rule == Settings::UpdateRule_Compositive) {
+            _df_tmp.copy_from(_df);
+            df_in = df_tmp;
+        }
+
         apply_displacement_delta(
+            df_in,
             _df,
             _gpu_labels,
             _current_delta,
+            _settings.update_rule,
             stk::cuda::Stream::null()
         );
     }
@@ -476,132 +500,130 @@ void HybridGraphCutOptimizer<TSolver>::minimize_block_task(const Block& block)
 
     double current_energy = 0;
     {
-        for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
-            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
-                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
-                    // Global coordinates
-                    int gx = block.begin.x + sub_x;
-                    int gy = block.begin.y + sub_y;
-                    int gz = block.begin.z + sub_z;
+    for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
+    for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+    for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+        // Global coordinates
+        int gx = block.begin.x + sub_x;
+        int gy = block.begin.y + sub_y;
+        int gz = block.begin.z + sub_z;
 
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(full_dims.x) ||
-                        gy < 0 || gy >= int(full_dims.y) ||
-                        gz < 0 || gz >= int(full_dims.z)) {
-                        graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
-                        continue;
-                    }
-
-                    double f0 = _unary_cost(gx, gy, gz).x;
-                    double f1 = _unary_cost(gx, gy, gz).y;
-
-                    // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
-
-                    if (sub_x == 0 && gx != 0) {
-                        f0 += _binary_cost_x(gx-1,gy,gz).x;
-                        f1 += _binary_cost_x(gx-1,gy,gz).y;
-                    }
-                    else if (sub_x == block_dims.x - 1 && gx < int(full_dims.x) - 1) {
-                        f0 += _binary_cost_x(gx,gy,gz).x;
-                        f1 += _binary_cost_x(gx,gy,gz).z;
-                    }
-
-                    if (sub_y == 0 && gy != 0) {
-                        f0 += _binary_cost_y(gx,gy-1,gz).x;
-                        f1 += _binary_cost_y(gx,gy-1,gz).y;
-                    }
-                    else if (sub_y == block_dims.y - 1 && gy < int(full_dims.y) - 1) {
-                        f0 += _binary_cost_y(gx,gy,gz).x;
-                        f1 += _binary_cost_y(gx,gy,gz).z;
-                    }
-
-                    if (sub_z == 0 && gz != 0) {
-                        f0 += _binary_cost_z(gx,gy,gz-1).x;
-                        f1 += _binary_cost_z(gx,gy,gz-1).y;
-                    }
-                    else if (sub_z == block_dims.z - 1 && gz < int(full_dims.z) - 1) {
-                        f0 += _binary_cost_z(gx,gy,gz).x;
-                        f1 += _binary_cost_z(gx,gy,gz).z;
-                    }
-
-                    graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
-
-                    current_energy += f0;
-
-                    if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
-                        double f_same = _binary_cost_x(gx,gy,gz).x;
-                        double f01 = _binary_cost_x(gx,gy,gz).y;
-                        double f10 = _binary_cost_x(gx,gy,gz).z;
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x + 1, sub_y, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_y + 1 < block_dims.y && gy + 1 < int(full_dims.y)) {
-                        double f_same = _binary_cost_y(gx,gy,gz).x;
-                        double f01 = _binary_cost_y(gx,gy,gz).y;
-                        double f10 = _binary_cost_y(gx,gy,gz).z;
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y + 1, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_z + 1 < block_dims.z && gz + 1 < int(full_dims.z)) {
-                        double f_same = _binary_cost_z(gx,gy,gz).x;
-                        double f01 = _binary_cost_z(gx,gy,gz).y;
-                        double f10 = _binary_cost_z(gx,gy,gz).z;
-
-                        graph.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y, sub_z + 1,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                }
-            }
+        // Skip voxels outside volume
+        if (gx < 0 || gx >= int(full_dims.x) ||
+            gy < 0 || gy >= int(full_dims.y) ||
+            gz < 0 || gz >= int(full_dims.z)) {
+            graph.add_term1(sub_x, sub_y, sub_z, 0, 0);
+            continue;
         }
+
+        double f0 = _unary_cost(gx, gy, gz).x;
+        double f1 = _unary_cost(gx, gy, gz).y;
+
+        // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
+
+        if (sub_x == 0 && gx != 0) {
+            f0 += _binary_cost_x(gx-1,gy,gz).x;
+            f1 += _binary_cost_x(gx-1,gy,gz).y;
+        }
+        else if (sub_x == block_dims.x - 1 && gx < int(full_dims.x) - 1) {
+            f0 += _binary_cost_x(gx,gy,gz).x;
+            f1 += _binary_cost_x(gx,gy,gz).z;
+        }
+
+        if (sub_y == 0 && gy != 0) {
+            f0 += _binary_cost_y(gx,gy-1,gz).x;
+            f1 += _binary_cost_y(gx,gy-1,gz).y;
+        }
+        else if (sub_y == block_dims.y - 1 && gy < int(full_dims.y) - 1) {
+            f0 += _binary_cost_y(gx,gy,gz).x;
+            f1 += _binary_cost_y(gx,gy,gz).z;
+        }
+
+        if (sub_z == 0 && gz != 0) {
+            f0 += _binary_cost_z(gx,gy,gz-1).x;
+            f1 += _binary_cost_z(gx,gy,gz-1).y;
+        }
+        else if (sub_z == block_dims.z - 1 && gz < int(full_dims.z) - 1) {
+            f0 += _binary_cost_z(gx,gy,gz).x;
+            f1 += _binary_cost_z(gx,gy,gz).z;
+        }
+
+        graph.add_term1(sub_x, sub_y, sub_z, f0, f1);
+
+        current_energy += f0;
+
+        if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
+            double f_same = _binary_cost_x(gx,gy,gz).x;
+            double f01 = _binary_cost_x(gx,gy,gz).y;
+            double f10 = _binary_cost_x(gx,gy,gz).z;
+
+            graph.add_term2(
+                sub_x, sub_y, sub_z,
+                sub_x + 1, sub_y, sub_z,
+                f_same, f01, f10, f_same);
+
+            current_energy += f_same;
+        }
+        if (sub_y + 1 < block_dims.y && gy + 1 < int(full_dims.y)) {
+            double f_same = _binary_cost_y(gx,gy,gz).x;
+            double f01 = _binary_cost_y(gx,gy,gz).y;
+            double f10 = _binary_cost_y(gx,gy,gz).z;
+
+            graph.add_term2(
+                sub_x, sub_y, sub_z,
+                sub_x, sub_y + 1, sub_z,
+                f_same, f01, f10, f_same);
+
+            current_energy += f_same;
+        }
+        if (sub_z + 1 < block_dims.z && gz + 1 < int(full_dims.z)) {
+            double f_same = _binary_cost_z(gx,gy,gz).x;
+            double f01 = _binary_cost_z(gx,gy,gz).y;
+            double f10 = _binary_cost_z(gx,gy,gz).z;
+
+            graph.add_term2(
+                sub_x, sub_y, sub_z,
+                sub_x, sub_y, sub_z + 1,
+                f_same, f01, f10, f_same);
+
+            current_energy += f_same;
+        }
+    }
+    }
+    }
     }
 
 
     double current_emin;
-    {
-        current_emin = graph.minimize();
-    }
+    current_emin = graph.minimize();
 
     bool changed_flag = false;
 
     if (1.0 - current_emin / current_energy > _settings.block_energy_epsilon) // Accept solution
     {
-        for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
-            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
-                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
-                    // Global coordinates
-                    int gx = block.begin.x + sub_x;
-                    int gy = block.begin.y + sub_y;
-                    int gz = block.begin.z + sub_z;
+    for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
+    for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+    for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+        // Global coordinates
+        int gx = block.begin.x + sub_x;
+        int gy = block.begin.y + sub_y;
+        int gz = block.begin.z + sub_z;
 
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(full_dims.x) ||
-                        gy < 0 || gy >= int(full_dims.y) ||
-                        gz < 0 || gz >= int(full_dims.z))
-                    {
-                        continue;
-                    }
-
-                    if (graph.get_var(sub_x, sub_y, sub_z) == 1) {
-                        _labels(gx,gy,gz) = 1;
-                        changed_flag = true;
-                    }
-                }
-            }
+        // Skip voxels outside volume
+        if (gx < 0 || gx >= int(full_dims.x) ||
+            gy < 0 || gy >= int(full_dims.y) ||
+            gz < 0 || gz >= int(full_dims.z))
+        {
+            continue;
         }
+
+        if (graph.get_var(sub_x, sub_y, sub_z) == 1) {
+            _labels(gx,gy,gz) = 1;
+            changed_flag = true;
+        }
+    }
+    }
+    }
     }
     if (changed_flag) {
         _block_change_flags.set_block(block.idx, changed_flag, block.shift);
