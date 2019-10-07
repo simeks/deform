@@ -237,7 +237,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
             float3 d1d;
 
             if (_update_rule == Settings::UpdateRule_Compositive) {
-                d1d = d.linear_at(p_delta, stk::Border_Replicate) + delta;
+                d1d = df.linear_at(p_delta, stk::Border_Replicate) + delta;
             }
             else /* if (_update_rule == Settings::UpdateRule_Additive) */ {
                 d1d = d1 + delta;
