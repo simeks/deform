@@ -6,6 +6,7 @@
 #include <stk/math/types.h>
 
 #include "../config.h"
+#include "settings.h"
 
 
 template<
@@ -19,7 +20,8 @@ public:
     BlockedGraphCutOptimizer(
         const int3& block_size,
         double block_energy_epsilon,
-        int max_iteration_count
+        int max_iteration_count,
+        Settings::UpdateRule update_rule
     );
     ~BlockedGraphCutOptimizer();
 
@@ -28,7 +30,8 @@ public:
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
         float3 step_size,
-        stk::VolumeFloat3& def);
+        stk::VolumeFloat3& def
+    );
 
 private:
     bool do_block(
@@ -53,6 +56,8 @@ private:
 
     // Maximum number of iterations, -1 indicates an infinite number of iterations
     int _max_iteration_count;
+
+    Settings::UpdateRule _update_rule;
 };
 
 #include "blocked_graph_cut_optimizer.inl"

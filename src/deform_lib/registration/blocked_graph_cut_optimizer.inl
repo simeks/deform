@@ -4,6 +4,7 @@
 
 #include <stk/common/log.h>
 
+#include <functional>
 #include <iomanip>
 
 template<
@@ -14,10 +15,12 @@ template<
 BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::BlockedGraphCutOptimizer(
     const int3& block_size,
     double block_energy_epsilon,
-    int max_iteration_count) :
+    int max_iteration_count,
+    Settings::UpdateRule update_rule) :
     _block_size(block_size),
     _block_energy_epsilon(block_energy_epsilon),
-    _max_iteration_count(max_iteration_count)
+    _max_iteration_count(max_iteration_count),
+    _update_rule(update_rule)
 {
     _neighbors[0] = {1, 0, 0};
     _neighbors[1] = {-1, 0, 0};
@@ -197,10 +200,14 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
     stk::VolumeFloat3& def
 )
 {
-    using FlowType = typename TSolver::FlowType;
-
     dim3 dims = def.size();
+    float3 deltav = float3{
+        delta.x / def.spacing().x,
+        delta.y / def.spacing().y,
+        delta.z / def.spacing().z
+    };
 
+    using FlowType = typename TSolver::FlowType;
     TSolver solver(block_dims);
 
     FlowType current_energy = 0;
@@ -208,116 +215,118 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
         PROFILER_SCOPE("build", 0xFF228844);
 
         for (int sub_z = 0; sub_z < block_dims.z; ++sub_z) {
-            for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
-                for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
-                    // Global coordinates
-                    int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
-                    int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
-                    int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
+        for (int sub_y = 0; sub_y < block_dims.y; ++sub_y) {
+        for (int sub_x = 0; sub_x < block_dims.x; ++sub_x) {
+            // Global coordinates
+            int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
+            int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
+            int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
 
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(dims.x) ||
-                        gy < 0 || gy >= int(dims.y) ||
-                        gz < 0 || gz >= int(dims.z)) {
-                        solver.add_term1(sub_x, sub_y, sub_z, 0, 0);
-                        continue;
-                    }
-
-                    int3 p{gx, gy, gz};
-                    float3 def1 = def(p);
-
-                    double f0 = unary_fn(p, def1);
-                    double f1 = unary_fn(p, def1 + delta);
-
-                    // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
-
-                    if (sub_x == 0 && gx != 0) {
-                        int3 step{-1, 0, 0};
-                        float3 def2 = def(gx - 1, gy, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
-                    }
-                    else if (sub_x == block_dims.x - 1 && gx < int(dims.x) - 1) {
-                        int3 step{1, 0, 0};
-                        float3 def2 = def(gx + 1, gy, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
-                    }
-
-                    if (sub_y == 0 && gy != 0) {
-                        int3 step{0, -1, 0};
-                        float3 def2 = def(gx, gy - 1, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
-                    }
-                    else if (sub_y == block_dims.y - 1 && gy < int(dims.y) - 1) {
-                        int3 step{0, 1, 0};
-                        float3 def2 = def(gx, gy + 1, gz);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
-                    }
-
-                    if (sub_z == 0 && gz != 0) {
-                        int3 step{0, 0, -1};
-                        float3 def2 = def(gx, gy, gz - 1);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
-                    }
-                    else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
-                        int3 step{0, 0, 1};
-                        float3 def2 = def(gx, gy, gz + 1);
-                        f0 += binary_fn(p, def1, def2, step);
-                        f1 += binary_fn(p, def1 + delta, def2, step);
-                    }
-
-                    solver.add_term1(sub_x, sub_y, sub_z, f0, f1);
-
-                    current_energy += f0;
-
-                    if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.x)) {
-                        int3 step{1, 0, 0};
-                        float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
-
-                        solver.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x + 1, sub_y, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
-                        int3 step{0, 1, 0};
-                        float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
-
-                        solver.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y + 1, sub_z,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                    if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
-                        int3 step{0, 0, 1};
-                        float3 def2 = def(p + step);
-                        double f_same = binary_fn(p, def1, def2, step);
-                        double f01 = binary_fn(p, def1, def2 + delta, step);
-                        double f10 = binary_fn(p, def1 + delta, def2, step);
-
-                        solver.add_term2(
-                            sub_x, sub_y, sub_z,
-                            sub_x, sub_y, sub_z + 1,
-                            f_same, f01, f10, f_same);
-
-                        current_energy += f_same;
-                    }
-                }
+            // Skip voxels outside volume
+            if (gx < 0 || gx >= int(dims.x) ||
+                gy < 0 || gy >= int(dims.y) ||
+                gz < 0 || gz >= int(dims.z)) {
+                solver.add_term1(sub_x, sub_y, sub_z, 0, 0);
+                continue;
             }
+            
+            int3 p{gx, gy, gz};
+            float3 p_delta{gx + deltav.x, gy + deltav.y, gz + deltav.z};
+
+            float3 def1 = def(p);
+            float3 def1d;
+
+            if (_update_rule == Settings::UpdateRule_Compositive) {
+                def1d = def.linear_at(p_delta, stk::Border_Replicate) + delta;
+            }
+            else /* if (_update_rule == Settings::UpdateRule_Additive) */ {
+                def1d = def1 + delta;
+            }
+
+            double f0 = unary_fn(p, def1);
+            double f1 = unary_fn(p, def1d);
+
+            // Block borders (excl image borders) (T-weights with binary term for neighboring voxels)
+
+            if (sub_x == 0 && gx != 0) {
+                int3 step{-1, 0, 0};
+                float3 def2 = def(gx - 1, gy, gz);
+                f0 += binary_fn(p, def1, def2, step);
+                f1 += binary_fn(p, def1d, def2, step);
+            }
+            else if (sub_x == block_dims.x - 1 && gx < int(dims.x) - 1) {
+                int3 step{1, 0, 0};
+                float3 def2 = def(gx + 1, gy, gz);
+                f0 += binary_fn(p, def1, def2, step);
+                f1 += binary_fn(p, def1d, def2, step);
+            }
+
+            if (sub_y == 0 && gy != 0) {
+                int3 step{0, -1, 0};
+                float3 def2 = def(gx, gy - 1, gz);
+                f0 += binary_fn(p, def1, def2, step);
+                f1 += binary_fn(p, def1d, def2, step);
+            }
+            else if (sub_y == block_dims.y - 1 && gy < int(dims.y) - 1) {
+                int3 step{0, 1, 0};
+                float3 def2 = def(gx, gy + 1, gz);
+                f0 += binary_fn(p, def1, def2, step);
+                f1 += binary_fn(p, def1d, def2, step);
+            }
+
+            if (sub_z == 0 && gz != 0) {
+                int3 step{0, 0, -1};
+                float3 def2 = def(gx, gy, gz - 1);
+                f0 += binary_fn(p, def1, def2, step);
+                f1 += binary_fn(p, def1 + delta, def2, step);
+            }
+            else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
+                int3 step{0, 0, 1};
+                float3 def2 = def(gx, gy, gz + 1);
+                f0 += binary_fn(p, def1, def2, step);
+                f1 += binary_fn(p, def1d, def2, step);
+            }
+
+            solver.add_term1(sub_x, sub_y, sub_z, f0, f1);
+
+            current_energy += f0;
+
+            #define ADD_STEP(x_, y_, z_) \
+                int3 step = int3{x_, y_, z_}; \
+                float3 def2 = def(p+step); \
+                float3 def2d; \
+                if (_update_rule == Settings::UpdateRule_Compositive) { \
+                    def2d = def.linear_at( \
+                                p_delta + float3{x_, y_, z_}, \
+                                stk::Border_Replicate \
+                            ) + delta; \
+                } \
+                else { \
+                    def2d = def2 + delta; \
+                } \
+                double f00 = binary_fn(p, def1, def2, step); \
+                double f01 = binary_fn(p, def1, def2d, step); \
+                double f10 = binary_fn(p, def1d, def2, step); \
+                double f11 = binary_fn(p, def1d, def2d, step); \
+                solver.add_term2( \
+                    sub_x, sub_y, sub_z, \
+                    sub_x + step.x, sub_y + step.y, sub_z + step.z, \
+                    f00, f01, f10, f11 \
+                ); \
+                current_energy += f00;
+
+            if (sub_x + 1 < block_dims.x && gx + 1 < int(dims.x)) {
+                ADD_STEP(1, 0, 0);
+            }
+            if (sub_y + 1 < block_dims.y && gy + 1 < int(dims.y)) {
+                ADD_STEP(0, 1, 0);
+            }
+            if (sub_z + 1 < block_dims.z && gz + 1 < int(dims.z)) {
+                ADD_STEP(0, 0, 1);
+            }
+            #undef ADD_STEP
+        }
+        }
         }
     }
 
@@ -333,28 +342,38 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
     {
         PROFILER_SCOPE("apply", 0xFF767323);
         for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
-            for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
-                for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
-                    // Global coordinates
-                    int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
-                    int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
-                    int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
+        for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
+        for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
+            // Global coordinates
+            int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
+            int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
+            int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
 
-                    // Skip voxels outside volume
-                    if (gx < 0 || gx >= int(dims.x) ||
-                        gy < 0 || gy >= int(dims.y) ||
-                        gz < 0 || gz >= int(dims.z))
-                    {
-                        continue;
-                    }
-
-                    if (solver.get_var(sub_x, sub_y, sub_z) == 1)
-                    {
-                        def(gx, gy, gz) = def(gx, gy, gz) + delta;
-                        changed_flag = true;
-                    }
-                }
+            // Skip voxels outside volume
+            if (gx < 0 || gx >= int(dims.x) ||
+                gy < 0 || gy >= int(dims.y) ||
+                gz < 0 || gz >= int(dims.z))
+            {
+                continue;
             }
+
+            if (solver.get_var(sub_x, sub_y, sub_z) == 1)
+            {
+                if (_update_rule == Settings::UpdateRule_Compositive) {
+                    float3 p = float3{
+                        gx + deltav.x,
+                        gy + deltav.y,
+                        gz + deltav.z
+                    };
+                    def(gx, gy, gz) = def.linear_at(p, stk::Border_Replicate) + delta;
+                }
+                else {
+                    def(gx, gy, gz) = def(gx, gy, gz) + delta;
+                }
+                changed_flag = true;
+            }
+        }
+        }
         }
     }
 
@@ -378,30 +397,30 @@ double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::calculate_ene
     double total_energy = 0;
     #pragma omp parallel for schedule(dynamic) reduction(+:total_energy)
     for (int gz = 0; gz < int(dims.z); ++gz) {
-        for (int gy = 0; gy < int(dims.y); ++gy) {
-            for (int gx = 0; gx < int(dims.x); ++gx) {
-                int3 p{gx, gy, gz};
-                float3 def1 = def(p);
+    for (int gy = 0; gy < int(dims.y); ++gy) {
+    for (int gx = 0; gx < int(dims.x); ++gx) {
+        int3 p{gx, gy, gz};
+        float3 def1 = def(p);
 
-                total_energy += unary_fn(p, def1);
+        total_energy += unary_fn(p, def1);
 
-                if (gx + 1 < int(dims.x)) {
-                    int3 step{1, 0, 0};
-                    float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, def1, def2, step);
-                }
-                if (gy + 1 < int(dims.y)) {
-                    int3 step{0, 1, 0};
-                    float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, def1, def2, step);
-                }
-                if (gz + 1 < int(dims.z)) {
-                    int3 step{0, 0, 1};
-                    float3 def2 = def(p + step);
-                    total_energy += binary_fn(p, def1, def2, step);
-                }
-            }
+        if (gx + 1 < int(dims.x)) {
+            int3 step{1, 0, 0};
+            float3 def2 = def(p + step);
+            total_energy += binary_fn(p, def1, def2, step);
         }
+        if (gy + 1 < int(dims.y)) {
+            int3 step{0, 1, 0};
+            float3 def2 = def(p + step);
+            total_energy += binary_fn(p, def1, def2, step);
+        }
+        if (gz + 1 < int(dims.z)) {
+            int3 step{0, 0, 1};
+            float3 def2 = def(p + step);
+            total_energy += binary_fn(p, def1, def2, step);
+        }
+    }
+    }
     }
     return total_energy;
 }
