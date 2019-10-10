@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deform_lib/registration/settings.h>
+
 #include <stk/cuda/cuda.h>
 #include <stk/cuda/stream.h>
 #include <stk/cuda/volume.h>
@@ -118,7 +120,7 @@ struct CostFunctionKernel
 };
 
 template<typename TKernel>
-__global__ void cost_function_kernel_0(
+__global__ void cost_function_kernel_additive(
     TKernel kernel,
     int3 offset,
     int3 dims,
@@ -140,7 +142,48 @@ __global__ void cost_function_kernel_0(
     y += offset.y;
     z += offset.z;
 
-    kernel(x, y, z, delta, cost_offset);
+    float4 d = kernel._df(x,y,z);
+    d.x += delta.x;
+    d.y += delta.y;
+    d.z += delta.z;
+
+    kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
+}
+
+template<typename TKernel>
+__global__ void cost_function_kernel_compositve(
+    TKernel kernel,
+    int3 offset,
+    int3 dims,
+    float3 delta,
+    int cost_offset)
+{
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    int z = blockIdx.z*blockDim.z + threadIdx.z;
+
+    if (x >= dims.x ||
+        y >= dims.y ||
+        z >= dims.z)
+    {
+        return;
+    }
+
+    x += offset.x;
+    y += offset.y;
+    z += offset.z;
+
+    auto const lac = cuda::linear_at_clamp<float4>;
+    float4 d = lac(kernel._df, kernel._fixed_dims, 
+        x + delta.x,
+        y + delta.y,
+        z + delta.z
+    );
+    d.x += delta.x;
+    d.y += delta.y;
+    d.z += delta.z;
+
+    kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
 }
 
 template<typename TKernel>
@@ -149,6 +192,7 @@ void invoke_cost_function_kernel(
     const float3& delta,
     const int3& offset,
     const int3& dims,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
@@ -164,8 +208,8 @@ void invoke_cost_function_kernel(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
-    // E(u(x))
-    cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
+    // Same for both compositve and additive
+    cost_function_kernel_additive<<<grid_size, block_size, 0, stream>>>(
         kernel,
         offset,
         dims,
@@ -173,14 +217,27 @@ void invoke_cost_function_kernel(
         0
     );
 
-    // E(u(x)+d)
-    cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
-        kernel,
-        offset,
-        dims,
-        delta,
-        1
-    );
+    if (update_rule == Settings::UpdateRule_Compositive) {
+        cost_function_kernel_compositve<<<grid_size, block_size, 0, stream>>>(
+            kernel,
+            offset,
+            dims,
+            delta,
+            1
+        );
+    }
+    else if (update_rule == Settings::UpdateRule_Additive) {
+        cost_function_kernel_additive<<<grid_size, block_size, 0, stream>>>(
+            kernel,
+            offset,
+            dims,
+            delta,
+            1
+        );
+    }
+    else {
+        ASSERT(false);
+    }
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
 }

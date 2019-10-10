@@ -1,4 +1,5 @@
-#include "gpu/cost_functions/cost_function.h"
+#include "gpu/cost_functions/binary_function.h"
+#include "gpu/cost_functions/unary_function.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include <stk/cuda/cuda.h>
@@ -76,14 +77,13 @@ void apply_displacement_delta(
     if (update_rule == Settings::UpdateRule_Additive) {
         apply_displacement_delta_additive_kernel
         <<<grid_size, block_size, 0, stream>>>(
-            df_in,
             df_out,
             labels,
             dims,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
-    else if (update_rule == Settings::UpdateRule_Compositve) {
+    else if (update_rule == Settings::UpdateRule_Compositive) {
         apply_displacement_delta_compositive_kernel
         <<<grid_size, block_size, 0, stream>>>(
             df_in,
@@ -179,7 +179,9 @@ double calculate_energy(
     int3 end {(int)dims.x, (int)dims.y, (int)dims.z};
 
     cuda::Stream& stream = stk::cuda::Stream::null();
-    unary_fn(df, {0,0,0}, begin, end, unary_cost, stream);
+
+    // Update rule doesn't matter in this case since we don't want the energy for a move.
+    unary_fn(df, {0,0,0}, begin, end, unary_cost, Settings::UpdateRule_Additive, stream);
 
     // Compute binary terms
     binary_fn(
@@ -190,6 +192,7 @@ double calculate_energy(
         binary_cost_x,
         binary_cost_y,
         binary_cost_z,
+        Settings::UpdateRule_Additive,
         stream
     );
 

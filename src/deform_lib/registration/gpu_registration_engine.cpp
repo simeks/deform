@@ -10,7 +10,11 @@
 #include "deform_lib/solver/icm_solver.h"
 
 #include "gpu_registration_engine.h"
-#include "gpu/cost_functions/cost_function.h"
+#include "gpu/cost_functions/binary_function.h"
+#include "gpu/cost_functions/cross_correlation.h"
+#include "gpu/cost_functions/landmarks.h"
+#include "gpu/cost_functions/squared_distance.h"
+#include "gpu/cost_functions/unary_function.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include "../filters/gpu/resample.h"
@@ -64,7 +68,7 @@ namespace {
 
 void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& unary_fn)
 {
-    using FunctionPtr = std::unique_ptr<GpuSubFunction>;
+    using FunctionPtr = std::unique_ptr<GpuCostFunction>;
 
     for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
         stk::GpuVolume fixed;
@@ -136,9 +140,9 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
 
         auto& fixed = _fixed_pyramids[0].volume(level);
         FunctionPtr f = make_unique<GpuCostFunction_Landmarks>(
+                fixed,
                 _fixed_landmarks,
                 _moving_landmarks,
-                fixed,
                 _settings.levels[level].landmarks_decay
                 );
         unary_fn.add_function(f, _settings.levels[level].landmarks_weight);
@@ -297,6 +301,7 @@ stk::Volume GpuRegistrationEngine::execute()
             if (_settings.solver == Settings::Solver_ICM) {
                 HybridGraphCutOptimizer<ICMSolver<double>> optimizer(
                     _settings.levels[l],
+                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -309,6 +314,7 @@ stk::Volume GpuRegistrationEngine::execute()
             else if (_settings.solver == Settings::Solver_GCO) {
                 HybridGraphCutOptimizer<GCOSolver<double>> optimizer(
                     _settings.levels[l],
+                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -322,6 +328,7 @@ stk::Volume GpuRegistrationEngine::execute()
             else if (_settings.solver == Settings::Solver_GridCut) {
                 HybridGraphCutOptimizer<GridCutSolver<double>> optimizer(
                     _settings.levels[l],
+                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,

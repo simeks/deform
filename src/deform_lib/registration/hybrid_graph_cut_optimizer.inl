@@ -25,12 +25,14 @@ namespace {
 template<typename TSolver>
 HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     const Settings::Level& settings,
+    Settings::UpdateRule update_rule,
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
     stk::GpuVolume& df,
     WorkerPool& worker_pool,
     std::vector<stk::cuda::Stream>& stream_pool) :
     _settings(settings),
+    _update_rule(update_rule),
     _worker_pool(worker_pool),
     _stream_pool(stream_pool),
     _unary_fn(unary_fn),
@@ -43,7 +45,7 @@ HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     //  for the previous iteration since each update may depend on neighbouring
     //  updates. As compared to additive were we only have d(x) = d(x) + delta.
 
-    if (_settings.update_rule == Settings::UpdateRule_Compositive) {
+    if (_update_rule == Settings::UpdateRule_Compositive) {
         _df_tmp = _df.clone();
     }
 
@@ -313,9 +315,9 @@ size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
         //  updates. As compared to additive were we only have d(x) = d(x) + delta.
 
         stk::GpuVolume df_in = _df;
-        if (_settings.update_rule == Settings::UpdateRule_Compositive) {
+        if (_update_rule == Settings::UpdateRule_Compositive) {
             _df_tmp.copy_from(_df);
-            df_in = df_tmp;
+            df_in = _df_tmp;
         }
 
         apply_displacement_delta(
@@ -323,7 +325,7 @@ size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
             _df,
             _gpu_labels,
             _current_delta,
-            _settings.update_rule,
+            _update_rule,
             stk::cuda::Stream::null()
         );
     }
@@ -422,7 +424,15 @@ void HybridGraphCutOptimizer<TSolver>::block_cost_task(
     int3 block_dims = block.end - block.begin;
 
     // Compute unary terms for block
-    _unary_fn(_df, _current_delta, block.begin, block_dims, _gpu_unary_cost, stream);
+    _unary_fn(
+        _df,
+        _current_delta,
+        block.begin,
+        block_dims,
+        _gpu_unary_cost,
+        _update_rule,
+        stream
+    );
 
     // Download the unary terms for the block into the large unary term volume.
     download_subvolume(
@@ -442,6 +452,7 @@ void HybridGraphCutOptimizer<TSolver>::block_cost_task(
         _gpu_binary_cost_x,
         _gpu_binary_cost_y,
         _gpu_binary_cost_z,
+        _update_rule,
         stream
     );
 

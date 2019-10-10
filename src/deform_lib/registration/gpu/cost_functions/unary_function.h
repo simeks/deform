@@ -1,20 +1,22 @@
 #pragma once
 
-#include "sub_function.h"
+#include <deform_lib/registration/settings.h>
+
+#include "cost_function.h"
 
 #include <vector>
 
+// A set of weighted cost functions
 class GpuUnaryFunction
 {
 public:
     struct WeightedFunction {
         float weight;
-        std::unique_ptr<GpuSubFunction> function;
+        std::unique_ptr<GpuCostFunction> function;
     };
 
     GpuUnaryFunction() {}
     ~GpuUnaryFunction() {}
-
 
     // cost_acc : Cost accumulator for unary term. float2 with E0 and E1.
     void operator()(
@@ -23,16 +25,17 @@ public:
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
+        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     )
     {
         for (auto& fn : _functions) {
-            fn.function->cost(df, delta, fn.weight,
-                              offset, dims, cost_acc, stream);
+            fn.function->cost(df, delta, fn.weight, offset, dims, cost_acc, 
+                              update_rule, stream);
         }
     }
 
-    void add_function(std::unique_ptr<GpuSubFunction>& fn, float weight)
+    void add_function(std::unique_ptr<GpuCostFunction>& fn, float weight)
     {
         _functions.push_back({weight, std::move(fn)});
     }

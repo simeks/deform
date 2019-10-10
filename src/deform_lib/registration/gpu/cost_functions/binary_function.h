@@ -1,6 +1,8 @@
 #pragma once
 
-#include "sub_function.h"
+#include <stk/image/gpu_volume.h>
+
+#include <deform_lib/registration/settings.h>
 
 class GpuBinaryFunction
 {
@@ -55,6 +57,7 @@ public:
         stk::GpuVolume& cost_x,
         stk::GpuVolume& cost_y,
         stk::GpuVolume& cost_z,
+        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     );
 

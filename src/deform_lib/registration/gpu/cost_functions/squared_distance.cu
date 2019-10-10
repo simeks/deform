@@ -35,6 +35,7 @@ void GpuCostFunction_SSD::cost(
     const int3& offset,
     const int3& dims,
     stk::GpuVolume& cost_acc,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
@@ -58,6 +59,6 @@ void GpuCostFunction_SSD::cost(
         cost_acc
     );
 
-    invoke_cost_function_kernel(kernel, delta, offset, dims, stream);
+    invoke_cost_function_kernel(kernel, delta, offset, dims, update_rule, stream);
 }
 

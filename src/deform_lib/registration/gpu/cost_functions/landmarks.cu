@@ -1,70 +1,66 @@
 #include "landmarks.h"
 
+#include "cost_function_kernel.h"
+
 namespace cuda = stk::cuda;
 
 template<typename T>
-__global__ void landmarks_kernel(
-    const float3 * const __restrict landmarks,
-    const float3 * const __restrict displacements,
-    const size_t landmark_count,
-    const cuda::VolumePtr<float4> df,
-    const float3 delta,
-    const float weight,
-    const int3 offset,
-    const int3 dims,
-    const float3 fixed_origin,
-    const float3 fixed_spacing,
-    const Matrix3x3f fixed_direction,
-    cuda::VolumePtr<float2> cost_acc,
-    const float half_decay,
-    const float epsilon = 1e-6f
-)
+struct LandmarksImpl
 {
-    int x = blockIdx.x*blockDim.x + threadIdx.x;
-    int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int z = blockIdx.z*blockDim.z + threadIdx.z;
+    typedef T VoxelType;
 
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
+    LandmarksImpl(
+        float3 origin,
+        float3 spacing,
+        Matrix3x3f direction,
+        const thrust::device_vector<float3>& landmarks,
+        const thrust::device_vector<float3>& displacements,
+        float half_decay
+    ) :
+        _origin(origin),
+        _spacing(spacing),
+        _direction(direction),
+        _landmarks(thrust::raw_pointer_cast(landmarks.data())),
+        _displacements(thrust::raw_pointer_cast(displacements.data())),
+        _landmark_count(landmarks.size()),
+        _half_decay(half_decay)
     {
-        return;
     }
 
-    x += offset.x;
-    y += offset.y;
-    z += offset.z;
+    __device__ float operator()(
+        const cuda::VolumePtr<VoxelType>& fixed,
+        const cuda::VolumePtr<VoxelType>& moving,
+        const dim3& fixed_dims,
+        const dim3& moving_dims,
+        const int3& fixed_p,
+        const float3& moving_p,
+        const float3& d
+    )
+    {
+        const float epsilon = 1e-6f;
 
-    float3 d0 { df(x,y,z).x, df(x,y,z).y, df(x,y,z).z };
-    float3 d1 = d0 + delta;
+        float3 xyz = float3{float(fixed_p.x),float(fixed_p.y),float(fixed_p.z)};
+        float3 world_p = _origin + _direction * (xyz * _spacing);
 
-    float3 xyz = float3{float(x),float(y),float(z)};
-    float3 world_p = fixed_origin + fixed_direction * (xyz * fixed_spacing);
-
-    for (size_t i = 0; i < landmark_count; ++i) {
-        const float inv_den = 1.0f / (pow(stk::norm2(landmarks[i] - world_p), half_decay) + epsilon);
-        cost_acc(x,y,z).x += weight * stk::norm2(d0 - displacements[i]) * inv_den;
-        cost_acc(x,y,z).y += weight * stk::norm2(d1 - displacements[i]) * inv_den;
+        float c = 0;
+        for (size_t i = 0; i < _landmark_count; ++i) {
+            const float inv_den = 1.0f 
+                / (pow(stk::norm2(_landmarks[i] - world_p), _half_decay) + epsilon);
+            c += stk::norm2(d - _displacements[i]) * inv_den;
+        }
+        return c;
     }
-}
 
-GpuCostFunction_Landmarks::GpuCostFunction_Landmarks(
-        const std::vector<float3>& fixed_landmarks,
-        const std::vector<float3>& moving_landmarks,
-        const stk::GpuVolume& fixed,
-        const float decay)
-    : _landmarks {fixed_landmarks}
-    , _displacements (fixed_landmarks.size())
-    , _fixed {fixed}
-    , _half_decay {decay / 2.0f}
-{
-    ASSERT(fixed_landmarks.size() == moving_landmarks.size());
-    for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
-        _displacements[i] = moving_landmarks[i] - fixed_landmarks[i];
-    }
-}
+    float3 _origin;
+    float3 _spacing;
+    Matrix3x3f _direction;
 
-GpuCostFunction_Landmarks::~GpuCostFunction_Landmarks() {}
+    const float3 * const __restrict _landmarks;
+    const float3 * const __restrict _displacements;
+    const size_t _landmark_count;
+
+    const float _half_decay;
+};
 
 void GpuCostFunction_Landmarks::cost(
     stk::GpuVolume& df,
@@ -73,40 +69,33 @@ void GpuCostFunction_Landmarks::cost(
     const int3& offset,
     const int3& dims,
     stk::GpuVolume& cost_acc,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
     ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
-    dim3 block_size {32, 32, 1};
-
-    if (dims.x <= 16 || dims.y <= 16) {
-        block_size = {16, 16, 4};
-    }
-
-    dim3 grid_size {
-        (dims.x + block_size.x - 1) / block_size.x,
-        (dims.y + block_size.y - 1) / block_size.y,
-        (dims.z + block_size.z - 1) / block_size.z
-    };
-
-    landmarks_kernel<float><<<grid_size, block_size, 0, stream>>>(
-        thrust::raw_pointer_cast(_landmarks.data()),
-        thrust::raw_pointer_cast(_displacements.data()),
-        _landmarks.size(),
+    // <float> isn't really necessary but it is required by CostFunctionKernel
+    auto kernel = CostFunctionKernel<LandmarksImpl<float>>(
+        LandmarksImpl<float>(
+            _origin,
+            _spacing,
+            _direction,
+            _landmarks,
+            _displacements,
+            _half_decay
+        ),
+        stk::GpuVolume(),
+        stk::GpuVolume(),
+        _fixed_mask,
+        _moving_mask,
         df,
-        delta,
         weight,
-        offset,
-        dims,
-        _fixed.origin(),
-        _fixed.spacing(),
-        _fixed.direction(),
-        cost_acc,
-        _half_decay
+        cost_acc
     );
 
-    CUDA_CHECK_ERRORS(cudaPeekAtLastError());
+    invoke_cost_function_kernel(kernel, delta, offset, dims, update_rule, stream);
 }
+
 

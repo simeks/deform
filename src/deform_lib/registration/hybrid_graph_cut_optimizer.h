@@ -24,6 +24,7 @@ class HybridGraphCutOptimizer
 public:
     HybridGraphCutOptimizer(
         const Settings::Level& settings,
+        Settings::UpdateRule update_rule,
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
         stk::GpuVolume& df,
@@ -82,6 +83,8 @@ private:
     void minimize_block_task(const Block& block);
 
     const Settings::Level& _settings;
+    Settings::UpdateRule _update_rule;
+
     WorkerPool& _worker_pool;
     std::vector<stk::cuda::Stream>& _stream_pool;
 

@@ -1,11 +1,82 @@
 #include "binary_function.h"
 
+#include <stk/math/float4.h>
+#include <stk/cuda/cuda.h>
+#include <stk/cuda/stream.h>
+#include <stk/cuda/volume.h>
+
 namespace cuda = stk::cuda;
 
+__device__ float4 energy(
+    float4 d0,
+    float4 d1,
+    float4 dn0,
+    float4 dn1,
+    float scale,
+    float half_exponent)
+{
+    float4 diff_00 = d0 - dn0;
+    float dist2_00 = stk::norm2(diff_00);
+    dist2_00 = pow(scale * dist2_00, half_exponent);
+
+    float4 diff_01 = d0 - dn1;
+    float dist2_01 = stk::norm2(diff_01);
+    dist2_01 = pow(scale * dist2_01, half_exponent);
+
+    float4 diff_10 = d1 - dn0;
+    float dist2_10 = stk::norm2(diff_10);
+    dist2_10 = pow(scale * dist2_10, half_exponent);
+
+    float4 diff_11 = d1 - dn1;
+    float dist2_11 = stk::norm2(diff_11);
+    dist2_11 = pow(scale * dist2_11, half_exponent);
+
+    return {
+        dist2_00,
+        dist2_01,
+        dist2_10,
+        dist2_11
+    };
+}
+
+struct CompositiveUpdate
+{
+    __device__ float4 operator()(
+        cuda::VolumePtr<float4> df,
+        dim3 dims,
+        int x, int y, int z,
+        float4 delta
+    ) {
+        auto const lac = cuda::linear_at_clamp<float4>;
+
+        return lac(
+            df,
+            dims,
+            x + delta.x,
+            y + delta.y,
+            z + delta.z
+        ) + delta;
+    }
+};
+
+struct AdditiveUpdate
+{
+    __device__ float4 operator()(
+        cuda::VolumePtr<float4> df,
+        dim3 dims,
+        int x, int y, int z,
+        float4 delta
+    ) {
+        return df(x, y, z) + delta;
+    }
+};
+
+
+template<typename UpdateFn>
 __global__ void regularizer_kernel(
     cuda::VolumePtr<float4> df,
     cuda::VolumePtr<float4> initial_df,
-    float3 delta,
+    float4 delta,
     float weight,
     float scale,
     float half_exponent,
@@ -18,6 +89,8 @@ __global__ void regularizer_kernel(
     cuda::VolumePtr<float4> cost_z  // z+
 )
 {
+    UpdateFn update_fn;
+
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -35,72 +108,55 @@ __global__ void regularizer_kernel(
 
     // Cost ordered as E00, E01, E10, E11
 
-    float4 delta4 = {delta.x, delta.y, delta.z, 0.0f};
-    float4 d = df(gx, gy, gz) - initial_df(gx, gy, gz);
+    float4 d0 = df(gx, gy, gz) - initial_df(gx, gy, gz);
+    float4 d1 = update_fn(df, df_dims, gx, gy, gz, delta) - initial_df(gx, gy, gz);
+
     {
         float4 o_x = {0, 0, 0, 0};
         float4 o_y = {0, 0, 0, 0};
         float4 o_z = {0, 0, 0, 0};
 
         if (gx + 1 < (int) df_dims.x) {
-            float4 dx = df(gx+1, gy, gz) - initial_df(gx+1, gy, gz);
+            float4 dn0 = df(gx+1, gy, gz) - initial_df(gx+1, gy, gz);
+            float4 dn1 = update_fn(df, df_dims, gx+1, gy, gz, delta) 
+                            - initial_df(gx+1, gy, gz);
 
-            float4 diff_00 = d - dx;
-            float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-            dist2_00 = pow(scale * dist2_00, half_exponent);
-
-            float4 diff_01 = d - (dx+delta4);
-            float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-            dist2_01 = pow(scale * dist2_01, half_exponent);
-
-            float4 diff_10 = (d+delta4) - dx;
-            float dist2_10 = diff_10.x*diff_10.x + diff_10.y*diff_10.y + diff_10.z*diff_10.z;
-            dist2_10 = pow(scale * dist2_10, half_exponent);
-
-            o_x.x = dist2_00;
-            o_x.y = dist2_01;
-            o_x.z = dist2_10;
-            o_x.w = dist2_00; // E11 same as E00
-            }
+            o_x = energy(
+                d0,
+                d1,
+                dn0,
+                dn1,
+                scale,
+                half_exponent
+            );
+        }
         if (gy + 1 < (int) df_dims.y) {
-            float4 dy = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
+            float4 dn0 = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
+            float4 dn1 = update_fn(df, df_dims, gx, gy+1, gz, delta) 
+                            - initial_df(gx, gy+1, gz);
 
-            float4 diff_00 = d - dy;
-            float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-            dist2_00 = pow(scale * dist2_00, half_exponent);
-
-            float4 diff_01 = d - (dy+delta4);
-            float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-            dist2_01 = pow(scale * dist2_01, half_exponent);
-
-            float4 diff_10 = (d+delta4) - dy;
-            float dist2_10 = diff_10.x*diff_10.x + diff_10.y*diff_10.y + diff_10.z*diff_10.z;
-            dist2_10 = pow(scale * dist2_10, half_exponent);
-
-            o_y.x = dist2_00;
-            o_y.y = dist2_01;
-            o_y.z = dist2_10;
-            o_y.w = dist2_00;
+            o_y = energy(
+                d0,
+                d1,
+                dn0,
+                dn1,
+                scale,
+                half_exponent
+            );
         }
         if (gz + 1 < (int) df_dims.z) {
-            float4 dz = df(gx, gy, gz+1) - initial_df(gx, gy, gz+1);
+            float4 dn0 = df(gx, gy, gz+1) - initial_df(gx, gy, gz+1);
+            float4 dn1 = update_fn(df, df_dims, gx, gy, gz+1, delta) 
+                            - initial_df(gx, gy, gz+1);
 
-            float4 diff_00 = d - dz;
-            float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-            dist2_00 = pow(scale * dist2_00, half_exponent);
-
-            float4 diff_01 = d - (dz+delta4);
-            float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-            dist2_01 = pow(scale * dist2_01, half_exponent);
-
-            float4 diff_10 = (d+delta4) - dz;
-            float dist2_10 = diff_10.x*diff_10.x + diff_10.y*diff_10.y + diff_10.z*diff_10.z;
-            dist2_10 = pow(scale * dist2_10, half_exponent);
-
-            o_z.x = dist2_00;
-            o_z.y = dist2_01;
-            o_z.z = dist2_10;
-            o_z.w = dist2_00;
+            o_z = energy(
+                d0,
+                d1,
+                dn0,
+                dn1,
+                scale,
+                half_exponent
+            );
         }
         cost_x(gx,gy,gz) = weight*inv_spacing2_exp.x*o_x;
         cost_y(gx,gy,gz) = weight*inv_spacing2_exp.y*o_y;
@@ -110,54 +166,63 @@ __global__ void regularizer_kernel(
      // Compute cost at block border
 
     if (x == 0 && gx != 0) {
-        float4 dx = df(gx-1, gy, gz) - initial_df(gx-1, gy, gz);
+        float4 dn0 = df(gx-1, gy, gz) - initial_df(gx-1, gy, gz);
+        float4 dn1 = update_fn(df, df_dims, gx-1, gy, gz, delta) 
+                        - initial_df(gx-1, gy, gz);
+        
+        float4 e = energy(
+            d0,
+            d1,
+            dn0,
+            dn1,
+            scale,
+            half_exponent
+        );
 
-        float4 diff_00 = d - dx;
-        float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-        dist2_00 = pow(scale * dist2_00, half_exponent);
-
-        float4 diff_01 = (d+delta4) - dx;
-        float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-        dist2_01 = pow(scale * dist2_01, half_exponent);
-
-        cost_x(gx-1,gy,gz).x = weight*inv_spacing2_exp.x*dist2_00;
-        cost_x(gx-1,gy,gz).y = weight*inv_spacing2_exp.x*dist2_01;
-        cost_x(gx-1,gy,gz).z = weight*inv_spacing2_exp.x*dist2_00; // border nodes can't move
+        cost_x(gx-1,gy,gz).x = weight*inv_spacing2_exp.x*e.x;
+        cost_x(gx-1,gy,gz).y = weight*inv_spacing2_exp.x*e.y;
+        cost_x(gx-1,gy,gz).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
         cost_x(gx-1,gy,gz).w = cost_x(gx-1,gy,gz).x;
     }
 
     if (y == 0 && gy != 0) {
-        float4 dy = df(gx, gy-1, gz) - initial_df(gx, gy-1, gz);
+        float4 dn0 = df(gx, gy-1, gz) - initial_df(gx, gy-1, gz);
+        float4 dn1 = update_fn(df, df_dims, gx, gy-1, gz, delta) 
+                        - initial_df(gx, gy-1, gz);
+        
+        float4 e = energy(
+            d0,
+            d1,
+            dn0,
+            dn1,
+            scale,
+            half_exponent
+        );
 
-        float4 diff_00 = d - dy;
-        float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-        dist2_00 = pow(scale * dist2_00, half_exponent);
-
-        float4 diff_01 = (d+delta4) - dy;
-        float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-        dist2_01 = pow(scale * dist2_01, half_exponent);
-
-        cost_y(gx,gy-1,gz).x = weight*inv_spacing2_exp.y*dist2_00;
-        cost_y(gx,gy-1,gz).y = weight*inv_spacing2_exp.y*dist2_01;
-        cost_y(gx,gy-1,gz).z = weight*inv_spacing2_exp.y*dist2_00; // border nodes can't move
-        cost_y(gx,gy-1,gz).w = cost_x(gx,gy-1,gz).x;
+        cost_x(gx,gy-1,gz).x = weight*inv_spacing2_exp.x*e.x;
+        cost_x(gx,gy-1,gz).y = weight*inv_spacing2_exp.x*e.y;
+        cost_x(gx,gy-1,gz).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
+        cost_x(gx,gy-1,gz).w = cost_x(gx,gy-1,gz).x;
     }
 
     if (z == 0 && gz != 0) {
-        float4 dz = df(gx, gy, gz-1) - initial_df(gx, gy, gz-1);
+        float4 dn0 = df(gx, gy, gz-1) - initial_df(gx, gy, gz-1);
+        float4 dn1 = update_fn(df, df_dims, gx, gy, gz-1, delta) 
+                        - initial_df(gx, gy, gz-1);
+        
+        float4 e = energy(
+            d0,
+            d1,
+            dn0,
+            dn1,
+            scale,
+            half_exponent
+        );
 
-        float4 diff_00 = d - dz;
-        float dist2_00 = diff_00.x*diff_00.x + diff_00.y*diff_00.y + diff_00.z*diff_00.z;
-        dist2_00 = pow(scale * dist2_00, half_exponent);
-
-        float4 diff_01 = (d+delta4) - dz;
-        float dist2_01 = diff_01.x*diff_01.x + diff_01.y*diff_01.y + diff_01.z*diff_01.z;
-        dist2_01 = pow(scale * dist2_01, half_exponent);
-
-        cost_z(gx,gy,gz-1).x = weight*inv_spacing2_exp.z*dist2_00;
-        cost_z(gx,gy,gz-1).y = weight*inv_spacing2_exp.z*dist2_01;
-        cost_z(gx,gy,gz-1).z = weight*inv_spacing2_exp.z*dist2_00; // border nodes can't move
-        cost_z(gx,gy,gz-1).w = cost_x(gx,gy,gz-1).x;
+        cost_x(gx,gy,gz-1).x = weight*inv_spacing2_exp.x*e.x;
+        cost_x(gx,gy,gz-1).y = weight*inv_spacing2_exp.x*e.y;
+        cost_x(gx,gy,gz-1).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
+        cost_x(gx,gy,gz-1).w = cost_x(gx,gy,gz-1).x;
     }
 }
 
@@ -169,6 +234,7 @@ void GpuBinaryFunction::operator()(
         stk::GpuVolume& cost_x,
         stk::GpuVolume& cost_y,
         stk::GpuVolume& cost_z,
+        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
         )
 {
@@ -196,10 +262,19 @@ void GpuBinaryFunction::operator()(
         1.0f / pow(_spacing.z*_spacing.z, _half_exponent)
     };
 
-    regularizer_kernel<<<grid_size, block_size, 0, stream>>>(
+    float4 delta4 {
+        delta.x,
+        delta.y,
+        delta.z,
+        0
+    };
+
+    if (update_rule == Settings::UpdateRule_Compositive) {
+        regularizer_kernel<CompositiveUpdate>
+        <<<grid_size, block_size, 0, stream>>>(
             df,
             _initial,
-            delta,
+            delta4,
             _weight,
             _scale,
             _half_exponent,
@@ -210,7 +285,29 @@ void GpuBinaryFunction::operator()(
             cost_x,
             cost_y,
             cost_z
-            );
+        );
+    }
+    else if (update_rule == Settings::UpdateRule_Additive) {
+        regularizer_kernel<AdditiveUpdate>
+        <<<grid_size, block_size, 0, stream>>>(
+            df,
+            _initial,
+            delta4,
+            _weight,
+            _scale,
+            _half_exponent,
+            offset,
+            dims,
+            df.size(),
+            inv_spacing2_exp,
+            cost_x,
+            cost_y,
+            cost_z
+        );
+    }
+    else {
+        ASSERT(false);
+    }
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
 }
