@@ -278,7 +278,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::do_block(
                 int3 step{0, 0, -1};
                 float3 d2 = df(gx, gy, gz - 1);
                 f0 += binary_fn(p, d1, d2, step);
-                f1 += binary_fn(p, d1 + delta, d2, step);
+                f1 += binary_fn(p, d1d, d2, step);
             }
             else if (sub_z == block_dims.z - 1 && gz < int(dims.z) - 1) {
                 int3 step{0, 0, 1};
