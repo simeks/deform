@@ -225,8 +225,9 @@ void GpuBinaryFunction::operator()(
     ASSERT(cost_y.voxel_type() == stk::Type_Float4);
     ASSERT(cost_z.voxel_type() == stk::Type_Float4);
 
+    // The binary function is quite register heavy so we need
+    // to restrict the thread count (512 rather than 1024).
     dim3 block_size {32, 16, 1};
-
     if (dims.x <= 16 || dims.y <= 16) {
         block_size = {16, 16, 2};
     }

@@ -37,8 +37,8 @@ struct GpuCostFunction_Landmarks : public GpuCostFunction
     float3 _spacing;
     Matrix3x3f _direction;
 
-    thrust::device_vector<float3> _landmarks;
-    thrust::device_vector<float3> _displacements;
+    thrust::device_vector<float4> _landmarks;
+    thrust::device_vector<float4> _displacements;
 
     float _half_decay;
 };

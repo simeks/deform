@@ -13,8 +13,8 @@ struct LandmarksImpl
         float3 origin,
         float3 spacing,
         Matrix3x3f direction,
-        const thrust::device_vector<float3>& landmarks,
-        const thrust::device_vector<float3>& displacements,
+        const thrust::device_vector<float4>& landmarks,
+        const thrust::device_vector<float4>& displacements,
         float half_decay
     ) :
         _origin(origin),
@@ -44,9 +44,12 @@ struct LandmarksImpl
 
         float c = 0;
         for (size_t i = 0; i < _landmark_count; ++i) {
+            float3 lm = { _landmarks[i].x, _landmarks[i].y, _landmarks[i].z };
+            float3 dp = { _displacements[i].x, _displacements[i].y, _displacements[i].z };
+
             const float inv_den = 1.0f 
-                / (pow(stk::norm2(_landmarks[i] - world_p), _half_decay) + epsilon);
-            c += stk::norm2(d - _displacements[i]) * inv_den;
+                / (pow(stk::norm2(lm - world_p), _half_decay) + epsilon);
+            c += stk::norm2(d - dp) * inv_den;
         }
         return c;
     }
@@ -55,12 +58,18 @@ struct LandmarksImpl
     float3 _spacing;
     Matrix3x3f _direction;
 
-    const float3 * const __restrict _landmarks;
-    const float3 * const __restrict _displacements;
+    const float4 * const __restrict _landmarks;
+    const float4 * const __restrict _displacements;
     const size_t _landmark_count;
 
     const float _half_decay;
 };
+
+namespace {
+    float4 pad(const float3& v) {
+        return float4{v.x,v.y,v.z,0};
+    }
+}
 
 GpuCostFunction_Landmarks::GpuCostFunction_Landmarks(
     const stk::GpuVolume& fixed,
@@ -71,14 +80,17 @@ GpuCostFunction_Landmarks::GpuCostFunction_Landmarks(
     _origin(fixed.origin()),
     _spacing(fixed.spacing()),
     _direction(fixed.direction()),
-    _landmarks(fixed_landmarks),
     _half_decay(decay / 2.0f)
 {
-    std::vector<float3> displacements;
+    std::vector<float4> displacements;
+    std::vector<float4> landmarks;
+
     ASSERT(fixed_landmarks.size() == moving_landmarks.size());
     for (size_t i = 0; i < fixed_landmarks.size(); ++i) {
-        displacements.push_back(moving_landmarks[i] - fixed_landmarks[i]);
+        landmarks.push_back(pad(fixed_landmarks[i]));
+        displacements.push_back(pad(moving_landmarks[i] - fixed_landmarks[i]));
     }
+    _landmarks = landmarks;
     _displacements = displacements;
 }
 GpuCostFunction_Landmarks::~GpuCostFunction_Landmarks()
