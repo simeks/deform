@@ -1,6 +1,8 @@
 #pragma once
 
+#include <deform_lib/registration/settings.h>
 #include <stk/cuda/cuda.h>
+
 #include <thrust/device_vector.h>
 
 namespace cuda = stk::cuda;
