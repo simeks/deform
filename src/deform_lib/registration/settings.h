@@ -172,3 +172,6 @@ bool parse_registration_settings(const std::string& str, Settings& settings);
 
 // Returns the string representation of a given solver
 const char* solver_to_str(Settings::Solver solver);
+
+// Returns the string representation of a given update rule
+const char* update_rule_to_str(Settings::UpdateRule update_rule);
