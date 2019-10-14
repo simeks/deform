@@ -3,8 +3,6 @@
 #include <stk/cuda/cuda.h>
 #include <thrust/device_vector.h>
 
-#include "cost_function_kernel.h"
-
 namespace cuda = stk::cuda;
 
 struct GpuCostFunction
