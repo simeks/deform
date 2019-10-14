@@ -12,6 +12,39 @@
 
 namespace cuda = stk::cuda;
 
+struct CompositiveUpdate
+{
+    __device__ float4 operator()(
+        const cuda::VolumePtr<float4>& df,
+        const dim3& dims,
+        const float3& inv_spacing,
+        int x, int y, int z,
+        const float4& delta
+    ) {
+        // Convert delta from mm to image space
+        return cuda::linear_at_clamp<float4>(
+            df,
+            dims,
+            x + delta.x * inv_spacing.x,
+            y + delta.y * inv_spacing.y,
+            z + delta.z * inv_spacing.z
+        ) + delta;
+    }
+};
+
+struct AdditiveUpdate
+{
+    __device__ float4 operator()(
+        const cuda::VolumePtr<float4>& df,
+        const dim3& /*dims*/,
+        const float3& /*inv_spacing*/,
+        int x, int y, int z,
+        const float4& delta
+    ) {
+        return df(x, y, z) + delta;
+    }
+};
+
 // Helper class for implementing intensity-based cost functions on CUDA
 template<typename TImpl>
 struct CostFunctionKernel
@@ -119,14 +152,16 @@ struct CostFunctionKernel
     cuda::VolumePtr<float2> _cost;
 };
 
-template<typename TKernel>
-__global__ void cost_function_kernel_additive(
+template<typename UpdateFn, typename TKernel>
+__global__ void cost_function_kernel(
     TKernel kernel,
     int3 offset,
     int3 dims,
-    float3 delta,
+    float4 delta,
     int cost_offset)
 {
+    UpdateFn update_fn;
+    
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -142,46 +177,19 @@ __global__ void cost_function_kernel_additive(
     y += offset.y;
     z += offset.z;
 
-    float4 d = kernel._df(x,y,z);
-    d.x += delta.x;
-    d.y += delta.y;
-    d.z += delta.z;
+    float3 inv_spacing {
+        1.0f / kernel._fixed_spacing.x,
+        1.0f / kernel._fixed_spacing.y,
+        1.0f / kernel._fixed_spacing.z
+    };
 
-    kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
-}
-
-template<typename TKernel>
-__global__ void cost_function_kernel_compositive(
-    TKernel kernel,
-    int3 offset,
-    int3 dims,
-    float3 delta,
-    int cost_offset)
-{
-    int x = blockIdx.x*blockDim.x + threadIdx.x;
-    int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int z = blockIdx.z*blockDim.z + threadIdx.z;
-
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
-    {
-        return;
-    }
-
-    x += offset.x;
-    y += offset.y;
-    z += offset.z;
-
-    auto const lac = cuda::linear_at_clamp<float4>;
-    float4 d = lac(kernel._df, kernel._fixed_dims, 
-        x + delta.x,
-        y + delta.y,
-        z + delta.z
+    float4 d = update_fn(
+        kernel._df,
+        kernel._fixed_dims,
+        inv_spacing,
+        x, y, z,
+        delta
     );
-    d.x += delta.x;
-    d.y += delta.y;
-    d.z += delta.z;
 
     kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
 }
@@ -209,29 +217,34 @@ void invoke_cost_function_kernel(
     };
 
     // Same for both compositive and additive
-    cost_function_kernel_additive<<<grid_size, block_size, 0, stream>>>(
+    cost_function_kernel<AdditiveUpdate>
+    <<<grid_size, block_size, 0, stream>>>(
         kernel,
         offset,
         dims,
-        float3{0,0,0},
+        float4{0,0,0,0},
         0
     );
 
+    float4 d4 { delta.x, delta.y, delta.z, 0 };
+
     if (update_rule == Settings::UpdateRule_Compositive) {
-        cost_function_kernel_compositive<<<grid_size, block_size, 0, stream>>>(
+        cost_function_kernel<CompositiveUpdate>
+        <<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,
             dims,
-            delta,
+            d4,
             1
         );
     }
     else if (update_rule == Settings::UpdateRule_Additive) {
-        cost_function_kernel_additive<<<grid_size, block_size, 0, stream>>>(
+        cost_function_kernel<AdditiveUpdate>
+        <<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,
             dims,
-            delta,
+            d4,
             1
         );
     }

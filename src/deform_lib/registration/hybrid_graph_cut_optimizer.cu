@@ -1,4 +1,5 @@
 #include "gpu/cost_functions/binary_function.h"
+#include "gpu/cost_functions/cost_function_kernel.h"
 #include "gpu/cost_functions/unary_function.h"
 #include "hybrid_graph_cut_optimizer.h"
 
@@ -8,35 +9,18 @@
 
 namespace cuda = stk::cuda;
 
-__global__ void apply_displacement_delta_additive_kernel(
-    cuda::VolumePtr<float4> df,
-    cuda::VolumePtr<uint8_t> labels,
-    dim3 dims,
-    float4 delta
-)
-{
-    int x = blockIdx.x*blockDim.x + threadIdx.x;
-    int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int z = blockIdx.z*blockDim.z + threadIdx.z;
-
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
-    {
-        return;
-    }
-
-    df(x,y,z) = df(x,y,z) + delta * labels(x,y,z);
-}
-
-__global__ void apply_displacement_delta_compositive_kernel(
+template<typename UpdateFn>
+__global__ void apply_displacement_delta_kernel(
     cuda::VolumePtr<float4> df_in,
     cuda::VolumePtr<float4> df_out,
     cuda::VolumePtr<uint8_t> labels,
     dim3 dims,
+    float3 inv_spacing,
     float4 delta
 )
 {
+    UpdateFn update_fn;
+
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -48,13 +32,16 @@ __global__ void apply_displacement_delta_compositive_kernel(
         return;
     }
 
-    auto const lac = cuda::linear_at_clamp<float4>;
+    float4 d = update_fn(
+        df_in,
+        dims,
+        inv_spacing,
+        x, y, z,
+        delta
+    );
 
-    df_out(x,y,z) = lac(df_in, dims, 
-        x + delta.x * labels(x,y,z),
-        y + delta.y * labels(x,y,z),
-        z + delta.z * labels(x,y,z)
-    ) + delta * labels(x,y,z);
+    if (labels(x,y,z))
+        df_out(x,y,z) = d;
 }
 
 void apply_displacement_delta(
@@ -74,22 +61,33 @@ void apply_displacement_delta(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
+    float3 inv_spacing {
+        1.0f / df_in.spacing().x,
+        1.0f / df_in.spacing().y,
+        1.0f / df_in.spacing().z
+    };
+
     if (update_rule == Settings::UpdateRule_Additive) {
-        apply_displacement_delta_additive_kernel
+        // In and out buffer for displacement field in the additive case can 
+        //  be the same, since all updates are guaranteed to be independent.
+        apply_displacement_delta_kernel<AdditiveUpdate>
         <<<grid_size, block_size, 0, stream>>>(
+            df_out,
             df_out,
             labels,
             dims,
+            inv_spacing,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
     else if (update_rule == Settings::UpdateRule_Compositive) {
-        apply_displacement_delta_compositive_kernel
+        apply_displacement_delta_kernel<CompositiveUpdate>
         <<<grid_size, block_size, 0, stream>>>(
             df_in,
             df_out,
             labels,
             dims,
+            inv_spacing,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }

@@ -1,9 +1,11 @@
 #include "binary_function.h"
+#include "cost_function_kernel.h"
 
 #include <stk/math/float4.h>
 #include <stk/cuda/cuda.h>
 #include <stk/cuda/stream.h>
 #include <stk/cuda/volume.h>
+
 
 namespace cuda = stk::cuda;
 
@@ -23,36 +25,6 @@ __device__ float4 energy(
     };
 }
 
-struct CompositiveUpdate
-{
-    __device__ float4 operator()(
-        const cuda::VolumePtr<float4>& df,
-        const dim3& dims,
-        int x, int y, int z,
-        const float4& delta
-    ) {
-        return cuda::linear_at_clamp<float4>(
-            df,
-            dims,
-            x + delta.x,
-            y + delta.y,
-            z + delta.z
-        ) + delta;
-    }
-};
-
-struct AdditiveUpdate
-{
-    __device__ float4 operator()(
-        const cuda::VolumePtr<float4>& df,
-        const dim3& dims,
-        int x, int y, int z,
-        const float4& delta
-    ) {
-        return df(x, y, z) + delta;
-    }
-};
-
 
 template<typename UpdateFn>
 __global__ void regularizer_kernel(
@@ -65,6 +37,7 @@ __global__ void regularizer_kernel(
     int3 offset,
     int3 dims,
     dim3 df_dims,
+    float3 inv_spacing,
     float3 inv_spacing2_exp,
     cuda::VolumePtr<float4> cost_x, // Regularization cost in x+
     cuda::VolumePtr<float4> cost_y, // y+
@@ -91,7 +64,8 @@ __global__ void regularizer_kernel(
     // Cost ordered as E00, E01, E10, E11
 
     float4 d0 = df(gx, gy, gz) - initial_df(gx, gy, gz);
-    float4 d1 = update_fn(df, df_dims, gx, gy, gz, delta) - initial_df(gx, gy, gz);
+    float4 d1 = update_fn(df, df_dims, inv_spacing, gx, gy, gz, delta) 
+                    - initial_df(gx, gy, gz);
 
     float4 o_x = {0, 0, 0, 0};
     float4 o_y = {0, 0, 0, 0};
@@ -99,7 +73,7 @@ __global__ void regularizer_kernel(
 
     if (gx + 1 < (int) df_dims.x) {
         float4 dn0 = df(gx+1, gy, gz) - initial_df(gx+1, gy, gz);
-        float4 dn1 = update_fn(df, df_dims, gx+1, gy, gz, delta) 
+        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx+1, gy, gz, delta)
                         - initial_df(gx+1, gy, gz);
 
         o_x = energy(
@@ -113,7 +87,7 @@ __global__ void regularizer_kernel(
     }
     if (gy + 1 < (int) df_dims.y) {
         float4 dn0 = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
-        float4 dn1 = update_fn(df, df_dims, gx, gy+1, gz, delta) 
+        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy+1, gz, delta) 
                         - initial_df(gx, gy+1, gz);
 
         o_y = energy(
@@ -127,7 +101,7 @@ __global__ void regularizer_kernel(
     }
     if (gz + 1 < (int) df_dims.z) {
         float4 dn0 = df(gx, gy, gz+1) - initial_df(gx, gy, gz+1);
-        float4 dn1 = update_fn(df, df_dims, gx, gy, gz+1, delta) 
+        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy, gz+1, delta) 
                         - initial_df(gx, gy, gz+1);
 
         o_z = energy(
@@ -148,7 +122,7 @@ __global__ void regularizer_kernel(
 
     if (x == 0 && gx != 0) {
         float4 dn0 = df(gx-1, gy, gz) - initial_df(gx-1, gy, gz);
-        float4 dn1 = update_fn(df, df_dims, gx-1, gy, gz, delta) 
+        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx-1, gy, gz, delta) 
                         - initial_df(gx-1, gy, gz);
         
         float4 e = energy(
@@ -168,7 +142,7 @@ __global__ void regularizer_kernel(
 
     if (y == 0 && gy != 0) {
         float4 dn0 = df(gx, gy-1, gz) - initial_df(gx, gy-1, gz);
-        float4 dn1 = update_fn(df, df_dims, gx, gy-1, gz, delta) 
+        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy-1, gz, delta) 
                         - initial_df(gx, gy-1, gz);
         
         float4 e = energy(
@@ -188,7 +162,7 @@ __global__ void regularizer_kernel(
 
     if (z == 0 && gz != 0) {
         float4 dn0 = df(gx, gy, gz-1) - initial_df(gx, gy, gz-1);
-        float4 dn1 = update_fn(df, df_dims, gx, gy, gz-1, delta) 
+        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy, gz-1, delta) 
                         - initial_df(gx, gy, gz-1);
         
         float4 e = energy(
@@ -238,6 +212,12 @@ void GpuBinaryFunction::operator()(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
+    float3 inv_spacing {
+        1.0f / _spacing.x,
+        1.0f / _spacing.y,
+        1.0f / _spacing.z
+    };
+
     float3 inv_spacing2_exp {
         1.0f / pow(_spacing.x*_spacing.x, _half_exponent),
         1.0f / pow(_spacing.y*_spacing.y, _half_exponent),
@@ -263,6 +243,7 @@ void GpuBinaryFunction::operator()(
             offset,
             dims,
             df.size(),
+            inv_spacing,
             inv_spacing2_exp,
             cost_x,
             cost_y,
@@ -281,6 +262,7 @@ void GpuBinaryFunction::operator()(
             offset,
             dims,
             df.size(),
+            inv_spacing,
             inv_spacing2_exp,
             cost_x,
             cost_y,
