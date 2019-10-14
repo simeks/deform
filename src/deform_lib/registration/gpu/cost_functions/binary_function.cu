@@ -134,10 +134,13 @@ __global__ void regularizer_kernel(
             half_exponent
         );
 
+        // Here we need to think in reverse, since this are the costs for the 
+        //  neighbouring node. I.e. E01 => E10
+
         cost_x(gx-1,gy,gz).x = weight*inv_spacing2_exp.x*e.x;
-        cost_x(gx-1,gy,gz).y = weight*inv_spacing2_exp.x*e.y;
+        cost_x(gx-1,gy,gz).y = weight*inv_spacing2_exp.x*e.z;
         cost_x(gx-1,gy,gz).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
-        cost_x(gx-1,gy,gz).w = cost_x(gx-1,gy,gz).x;
+        cost_x(gx-1,gy,gz).w = cost_x(gx-1,gy,gz).z;
     }
 
     if (y == 0 && gy != 0) {
@@ -154,10 +157,10 @@ __global__ void regularizer_kernel(
             half_exponent
         );
 
-        cost_x(gx,gy-1,gz).x = weight*inv_spacing2_exp.x*e.x;
-        cost_x(gx,gy-1,gz).y = weight*inv_spacing2_exp.x*e.y;
-        cost_x(gx,gy-1,gz).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
-        cost_x(gx,gy-1,gz).w = cost_x(gx,gy-1,gz).x;
+        cost_y(gx,gy-1,gz).x = weight*inv_spacing2_exp.y*e.x;
+        cost_y(gx,gy-1,gz).y = weight*inv_spacing2_exp.y*e.z;
+        cost_y(gx,gy-1,gz).z = weight*inv_spacing2_exp.y*e.x; // border nodes can't move
+        cost_y(gx,gy-1,gz).w = cost_y(gx,gy-1,gz).z;
     }
 
     if (z == 0 && gz != 0) {
@@ -174,10 +177,10 @@ __global__ void regularizer_kernel(
             half_exponent
         );
 
-        cost_x(gx,gy,gz-1).x = weight*inv_spacing2_exp.x*e.x;
-        cost_x(gx,gy,gz-1).y = weight*inv_spacing2_exp.x*e.y;
-        cost_x(gx,gy,gz-1).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
-        cost_x(gx,gy,gz-1).w = cost_x(gx,gy,gz-1).x;
+        cost_z(gx,gy,gz-1).x = weight*inv_spacing2_exp.z*e.x;
+        cost_z(gx,gy,gz-1).y = weight*inv_spacing2_exp.z*e.z;
+        cost_z(gx,gy,gz-1).z = weight*inv_spacing2_exp.z*e.x; // border nodes can't move
+        cost_z(gx,gy,gz-1).w = cost_z(gx,gy,gz-1).z;
     }
 }
 
