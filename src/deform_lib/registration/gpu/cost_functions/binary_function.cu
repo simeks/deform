@@ -225,10 +225,10 @@ void GpuBinaryFunction::operator()(
     ASSERT(cost_y.voxel_type() == stk::Type_Float4);
     ASSERT(cost_z.voxel_type() == stk::Type_Float4);
 
-    dim3 block_size {32, 32, 1};
+    dim3 block_size {32, 16, 1};
 
     if (dims.x <= 16 || dims.y <= 16) {
-        block_size = {16, 16, 4};
+        block_size = {16, 16, 2};
     }
 
     dim3 grid_size {
