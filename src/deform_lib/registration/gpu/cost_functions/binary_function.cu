@@ -15,41 +15,23 @@ __device__ float4 energy(
     float scale,
     float half_exponent)
 {
-    float4 diff_00 = d0 - dn0;
-    float dist2_00 = stk::norm2(diff_00);
-    dist2_00 = pow(scale * dist2_00, half_exponent);
-
-    float4 diff_01 = d0 - dn1;
-    float dist2_01 = stk::norm2(diff_01);
-    dist2_01 = pow(scale * dist2_01, half_exponent);
-
-    float4 diff_10 = d1 - dn0;
-    float dist2_10 = stk::norm2(diff_10);
-    dist2_10 = pow(scale * dist2_10, half_exponent);
-
-    float4 diff_11 = d1 - dn1;
-    float dist2_11 = stk::norm2(diff_11);
-    dist2_11 = pow(scale * dist2_11, half_exponent);
-
     return {
-        dist2_00,
-        dist2_01,
-        dist2_10,
-        dist2_11
+        pow(scale * stk::norm2(d0 - dn0), half_exponent),
+        pow(scale * stk::norm2(d0 - dn1), half_exponent),
+        pow(scale * stk::norm2(d1 - dn0), half_exponent),
+        pow(scale * stk::norm2(d1 - dn1), half_exponent)
     };
 }
 
 struct CompositiveUpdate
 {
     __device__ float4 operator()(
-        cuda::VolumePtr<float4> df,
-        dim3 dims,
+        const cuda::VolumePtr<float4>& df,
+        const dim3& dims,
         int x, int y, int z,
-        float4 delta
+        const float4& delta
     ) {
-        auto const lac = cuda::linear_at_clamp<float4>;
-
-        return lac(
+        return cuda::linear_at_clamp<float4>(
             df,
             dims,
             x + delta.x,
@@ -62,10 +44,10 @@ struct CompositiveUpdate
 struct AdditiveUpdate
 {
     __device__ float4 operator()(
-        cuda::VolumePtr<float4> df,
-        dim3 dims,
+        const cuda::VolumePtr<float4>& df,
+        const dim3& dims,
         int x, int y, int z,
-        float4 delta
+        const float4& delta
     ) {
         return df(x, y, z) + delta;
     }
@@ -111,57 +93,56 @@ __global__ void regularizer_kernel(
     float4 d0 = df(gx, gy, gz) - initial_df(gx, gy, gz);
     float4 d1 = update_fn(df, df_dims, gx, gy, gz, delta) - initial_df(gx, gy, gz);
 
-    {
-        float4 o_x = {0, 0, 0, 0};
-        float4 o_y = {0, 0, 0, 0};
-        float4 o_z = {0, 0, 0, 0};
+    float4 o_x = {0, 0, 0, 0};
+    float4 o_y = {0, 0, 0, 0};
+    float4 o_z = {0, 0, 0, 0};
 
-        if (gx + 1 < (int) df_dims.x) {
-            float4 dn0 = df(gx+1, gy, gz) - initial_df(gx+1, gy, gz);
-            float4 dn1 = update_fn(df, df_dims, gx+1, gy, gz, delta) 
-                            - initial_df(gx+1, gy, gz);
+    if (gx + 1 < (int) df_dims.x) {
+        float4 dn0 = df(gx+1, gy, gz) - initial_df(gx+1, gy, gz);
+        float4 dn1 = update_fn(df, df_dims, gx+1, gy, gz, delta) 
+                        - initial_df(gx+1, gy, gz);
 
-            o_x = energy(
-                d0,
-                d1,
-                dn0,
-                dn1,
-                scale,
-                half_exponent
-            );
-        }
-        if (gy + 1 < (int) df_dims.y) {
-            float4 dn0 = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
-            float4 dn1 = update_fn(df, df_dims, gx, gy+1, gz, delta) 
-                            - initial_df(gx, gy+1, gz);
-
-            o_y = energy(
-                d0,
-                d1,
-                dn0,
-                dn1,
-                scale,
-                half_exponent
-            );
-        }
-        if (gz + 1 < (int) df_dims.z) {
-            float4 dn0 = df(gx, gy, gz+1) - initial_df(gx, gy, gz+1);
-            float4 dn1 = update_fn(df, df_dims, gx, gy, gz+1, delta) 
-                            - initial_df(gx, gy, gz+1);
-
-            o_z = energy(
-                d0,
-                d1,
-                dn0,
-                dn1,
-                scale,
-                half_exponent
-            );
-        }
-        cost_x(gx,gy,gz) = weight*inv_spacing2_exp.x*o_x;
-        cost_y(gx,gy,gz) = weight*inv_spacing2_exp.y*o_y;
-        cost_z(gx,gy,gz) = weight*inv_spacing2_exp.z*o_z;
+        o_x = energy(
+            d0,
+            d1,
+            dn0,
+            dn1,
+            scale,
+            half_exponent
+        );
     }
+    if (gy + 1 < (int) df_dims.y) {
+        float4 dn0 = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
+        float4 dn1 = update_fn(df, df_dims, gx, gy+1, gz, delta) 
+                        - initial_df(gx, gy+1, gz);
+
+        o_y = energy(
+            d0,
+            d1,
+            dn0,
+            dn1,
+            scale,
+            half_exponent
+        );
+    }
+    if (gz + 1 < (int) df_dims.z) {
+        float4 dn0 = df(gx, gy, gz+1) - initial_df(gx, gy, gz+1);
+        float4 dn1 = update_fn(df, df_dims, gx, gy, gz+1, delta) 
+                        - initial_df(gx, gy, gz+1);
+
+        o_z = energy(
+            d0,
+            d1,
+            dn0,
+            dn1,
+            scale,
+            half_exponent
+        );
+    }
+    cost_x(gx,gy,gz) = weight*inv_spacing2_exp.x*o_x;
+    cost_y(gx,gy,gz) = weight*inv_spacing2_exp.y*o_y;
+    cost_z(gx,gy,gz) = weight*inv_spacing2_exp.z*o_z;
+
 
      // Compute cost at block border
 
