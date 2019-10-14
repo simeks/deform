@@ -151,7 +151,7 @@ __global__ void cost_function_kernel_additive(
 }
 
 template<typename TKernel>
-__global__ void cost_function_kernel_compositve(
+__global__ void cost_function_kernel_compositive(
     TKernel kernel,
     int3 offset,
     int3 dims,
@@ -208,7 +208,7 @@ void invoke_cost_function_kernel(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
-    // Same for both compositve and additive
+    // Same for both compositive and additive
     cost_function_kernel_additive<<<grid_size, block_size, 0, stream>>>(
         kernel,
         offset,
@@ -218,7 +218,7 @@ void invoke_cost_function_kernel(
     );
 
     if (update_rule == Settings::UpdateRule_Compositive) {
-        cost_function_kernel_compositve<<<grid_size, block_size, 0, stream>>>(
+        cost_function_kernel_compositive<<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,
             dims,
