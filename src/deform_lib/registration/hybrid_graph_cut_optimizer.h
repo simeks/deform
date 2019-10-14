@@ -47,8 +47,8 @@ private:
     // Allocates CPU and GPU buffers for the costs
     void allocate_cost_buffers(const dim3& size);
 
-    // Sets the unary cost buffer to all zeros
-    void reset_unary_cost();
+    // Sets the cost buffers to all zeros
+    void reset_cost_buffers();
 
     // Dispatches all queues block
     // Returns the number of changed blocks
@@ -81,6 +81,10 @@ private:
     // Performs graph cut on block
     // Returns true if block was changed
     void minimize_block_task(const Block& block);
+
+    // Computes the total energy of the current displacement field
+    // Note: This resets the cost buffers
+    double calculate_energy();
 
     const Settings::Level& _settings;
     Settings::UpdateRule _update_rule;
