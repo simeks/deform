@@ -23,6 +23,9 @@ pyramid_stop_level: 0
 
 regularize_initial_displacement: false
 
+solver: gco
+update_rule: additive
+
 constraints_weight: 1000
 
 block_size: [12, 12, 12]
@@ -281,13 +284,21 @@ const char* resample_method_to_str(const Settings::ImageSlot::ResampleMethod fn)
 const char* solver_to_str(Settings::Solver solver)
 {
     switch (solver) {
-        case Settings::Solver_ICM: return "icm";
-    #ifdef DF_ENABLE_GCO
-        case Settings::Solver_GCO: return "gco";
-    #endif
-    #ifdef DF_ENABLE_GRIDCUT
-        case Settings::Solver_GridCut: return "gridcut";
-    #endif
+    case Settings::Solver_ICM: return "icm";
+#ifdef DF_ENABLE_GCO
+    case Settings::Solver_GCO: return "gco";
+#endif
+#ifdef DF_ENABLE_GRIDCUT
+    case Settings::Solver_GridCut: return "gridcut";
+#endif
+    };
+    return "none";
+}
+const char* update_rule_to_str(Settings::UpdateRule op)
+{
+    switch (op) {
+    case Settings::UpdateRule_Additive: return "additive";
+    case Settings::UpdateRule_Compositive: return "compositive";
     };
     return "none";
 }
@@ -369,6 +380,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
     s << "landmarks_stop_level = " << settings.landmarks_stop_level << std::endl;
     s << "regularize_initial_displacement = " << settings.regularize_initial_displacement << std::endl;
     s << "solver = " << solver_to_str(settings.solver) << std::endl;
+    s << "update_rule = " << update_rule_to_str(settings.update_rule) << std::endl;
 
     for (int l = 0; l < settings.num_pyramid_levels; ++l) {
         s << "level[" << l << "] = {" << std::endl;
@@ -479,6 +491,19 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
             }
             else {
                 throw ValidationError("Settings: Invalid solver");
+            }
+        }
+
+        if (root["update_rule"]) {
+            std::string rule = root["update_rule"].as<std::string>();
+            if (rule == "additive") {
+                settings.update_rule = Settings::UpdateRule_Additive;
+            }
+            else if (rule == "compositive") {
+                settings.update_rule = Settings::UpdateRule_Compositive;
+            }
+            else {
+                throw ValidationError("Settings: Invalid update rule");
             }
         }
 

@@ -100,6 +100,7 @@ stk::Volume registration(
 
     LOG(Info) << "Running registration";
     LOG(Info) << "Solver: " << solver_to_str(settings.solver);
+    LOG(Info) << "Update rule: " << update_rule_to_str(settings.update_rule);
 
     if (num_threads > 0) {
         LOG(Info) << "Number of threads: " << num_threads;

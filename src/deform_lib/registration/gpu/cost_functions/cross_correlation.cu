@@ -16,7 +16,8 @@ struct NCCImpl
         const dim3& fixed_dims,
         const dim3& moving_dims,
         const int3& fixed_p,
-        const float3& moving_p
+        const float3& moving_p,
+        const float3& /*d*/
     )
     {
         double sff = 0.0f;
@@ -29,36 +30,36 @@ struct NCCImpl
         unsigned int n = 0;
 
         for (int dz = -_radius; dz <= _radius; ++dz) {
-            for (int dy = -_radius; dy <= _radius; ++dy) {
-                for (int dx = -_radius; dx <= _radius; ++dx) {
-                    // TODO: Does not account for anisotropic volumes
-                    int r2 = dx*dx + dy*dy + dz*dz;
-                    if (r2 > _radius * _radius)
-                        continue;
+        for (int dy = -_radius; dy <= _radius; ++dy) {
+        for (int dx = -_radius; dx <= _radius; ++dx) {
+            // TODO: Does not account for anisotropic volumes
+            int r2 = dx*dx + dy*dy + dz*dz;
+            if (r2 > _radius * _radius)
+                continue;
 
-                    int3 fp{fixed_p.x + dx, fixed_p.y + dy, fixed_p.z + dz};
+            int3 fp{fixed_p.x + dx, fixed_p.y + dy, fixed_p.z + dz};
 
-                    if (fp.x < 0 || fp.x >= int(fixed_dims.x) ||
-                        fp.y < 0 || fp.y >= int(fixed_dims.y) ||
-                        fp.z < 0 || fp.z >= int(fixed_dims.z))
-                        continue;
+            if (fp.x < 0 || fp.x >= int(fixed_dims.x) ||
+                fp.y < 0 || fp.y >= int(fixed_dims.y) ||
+                fp.z < 0 || fp.z >= int(fixed_dims.z))
+                continue;
 
-                    float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
+            float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
-                    float fixed_v = fixed(fp.x, fp.y, fp.z);
-                    float moving_v = cuda::linear_at_border<float>(moving, moving_dims, mp.x, mp.y, mp.z);
+            float fixed_v = fixed(fp.x, fp.y, fp.z);
+            float moving_v = cuda::linear_at_border<float>(moving, moving_dims, mp.x, mp.y, mp.z);
 
-                    sff += fixed_v * fixed_v;
+            sff += fixed_v * fixed_v;
 
-                    smm += moving_v * moving_v;
-                    sfm += fixed_v*moving_v;
-                    sm += moving_v;
+            smm += moving_v * moving_v;
+            sfm += fixed_v*moving_v;
+            sm += moving_v;
 
-                    sf += fixed_v;
+            sf += fixed_v;
 
-                    ++n;
-                }
-            }
+            ++n;
+        }
+        }
         }
 
         if (n == 0)
@@ -93,6 +94,7 @@ void GpuCostFunction_NCC::cost(
     const int3& offset,
     const int3& dims,
     stk::GpuVolume& cost_acc,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
@@ -116,6 +118,6 @@ void GpuCostFunction_NCC::cost(
         cost_acc
     );
 
-    invoke_cost_function_kernel(kernel, delta, offset, dims, stream);
+    invoke_cost_function_kernel(kernel, delta, offset, dims, update_rule, stream);
 }
 

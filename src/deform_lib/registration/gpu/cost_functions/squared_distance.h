@@ -1,8 +1,8 @@
 #pragma once
 
-#include "sub_function.h"
+#include "cost_function.h"
 
-struct GpuCostFunction_SSD : public GpuSubFunction
+struct GpuCostFunction_SSD : public GpuCostFunction
 {
     GpuCostFunction_SSD(const stk::GpuVolume& fixed, const stk::GpuVolume& moving) :
         _fixed(fixed),
@@ -20,6 +20,7 @@ struct GpuCostFunction_SSD : public GpuSubFunction
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
+        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     );
 

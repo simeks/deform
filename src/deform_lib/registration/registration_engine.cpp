@@ -642,7 +642,8 @@ stk::Volume RegistrationEngine::execute()
                     optimizer(
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
-                        _settings.levels[l].max_iteration_count
+                        _settings.levels[l].max_iteration_count,
+                        _settings.update_rule
                 );
                 optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
             }
@@ -652,7 +653,8 @@ stk::Volume RegistrationEngine::execute()
                     optimizer(
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
-                        _settings.levels[l].max_iteration_count
+                        _settings.levels[l].max_iteration_count,
+                        _settings.update_rule
                     );
                 optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
             }
@@ -663,7 +665,8 @@ stk::Volume RegistrationEngine::execute()
                     optimizer(
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
-                        _settings.levels[l].max_iteration_count
+                        _settings.levels[l].max_iteration_count,
+                        _settings.update_rule
                 );
                 optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
             }

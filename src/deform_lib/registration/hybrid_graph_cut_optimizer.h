@@ -24,6 +24,7 @@ class HybridGraphCutOptimizer
 public:
     HybridGraphCutOptimizer(
         const Settings::Level& settings,
+        Settings::UpdateRule update_rule,
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
         stk::GpuVolume& df,
@@ -46,8 +47,8 @@ private:
     // Allocates CPU and GPU buffers for the costs
     void allocate_cost_buffers(const dim3& size);
 
-    // Sets the unary cost buffer to all zeros
-    void reset_unary_cost();
+    // Sets the cost buffers to all zeros
+    void reset_cost_buffers();
 
     // Dispatches all queues block
     // Returns the number of changed blocks
@@ -81,7 +82,13 @@ private:
     // Returns true if block was changed
     void minimize_block_task(const Block& block);
 
+    // Computes the total energy of the current displacement field
+    // Note: This resets the cost buffers
+    double calculate_energy();
+
     const Settings::Level& _settings;
+    Settings::UpdateRule _update_rule;
+
     WorkerPool& _worker_pool;
     std::vector<stk::cuda::Stream>& _stream_pool;
 
@@ -109,6 +116,7 @@ private:
     GpuBinaryFunction& _binary_fn;
 
     stk::GpuVolume _df;
+    stk::GpuVolume _df_tmp;
 
     BlockChangeFlags _block_change_flags;
     std::atomic<size_t> _num_blocks_changed;
@@ -122,10 +130,14 @@ private:
 };
 
 // Applies delta based on labels
+// df_in    : Displacement field from previous iteration
+// df_out   : Target for updated displacement field
 void apply_displacement_delta(
-    stk::GpuVolume& df,
+    stk::GpuVolume& df_in,
+    stk::GpuVolume& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream stream
 );
 

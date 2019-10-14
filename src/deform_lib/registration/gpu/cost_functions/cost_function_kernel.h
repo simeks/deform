@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deform_lib/registration/settings.h>
+
 #include <stk/cuda/cuda.h>
 #include <stk/cuda/stream.h>
 #include <stk/cuda/volume.h>
@@ -9,6 +11,39 @@
 #include <cfloat>
 
 namespace cuda = stk::cuda;
+
+struct CompositiveUpdate
+{
+    __device__ float4 operator()(
+        const cuda::VolumePtr<float4>& df,
+        const dim3& dims,
+        const float3& inv_spacing,
+        int x, int y, int z,
+        const float4& delta
+    ) {
+        // Convert delta from mm to image space
+        return cuda::linear_at_clamp<float4>(
+            df,
+            dims,
+            x + delta.x * inv_spacing.x,
+            y + delta.y * inv_spacing.y,
+            z + delta.z * inv_spacing.z
+        ) + delta;
+    }
+};
+
+struct AdditiveUpdate
+{
+    __device__ float4 operator()(
+        const cuda::VolumePtr<float4>& df,
+        const dim3& /*dims*/,
+        const float3& /*inv_spacing*/,
+        int x, int y, int z,
+        const float4& delta
+    ) {
+        return df(x, y, z) + delta;
+    }
+};
 
 // Helper class for implementing intensity-based cost functions on CUDA
 template<typename TImpl>
@@ -50,8 +85,9 @@ struct CostFunctionKernel
     }
 
     // x,y,z        : Global image coordinates
-    // cost_offset  :  Where in `cost` to store the results (0 or 1).
-    __device__ void operator()(int x, int y, int z, float3 delta, int cost_offset)
+    // d            : Displacement
+    // cost_offset  : Where in `cost` to store the results (0 or 1).
+    __device__ void operator()(int x, int y, int z, float3 d, int cost_offset)
     {
         // Check if the fixed voxel is masked out
         float fixed_mask_value = 1.0f;
@@ -62,15 +98,9 @@ struct CostFunctionKernel
             }
         }
 
-        const float3 d0 {
-            _df(x, y, z).x + delta.x,
-            _df(x, y, z).y + delta.y,
-            _df(x, y, z).z + delta.z
-        };
-
         const float3 xyz = float3{float(x),float(y),float(z)};
         const float3 world_p = _fixed_origin + _fixed_direction * (xyz * _fixed_spacing);
-        const float3 moving_p = (_inv_moving_direction * (world_p + d0 - _moving_origin))
+        const float3 moving_p = (_inv_moving_direction * (world_p + d - _moving_origin))
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
@@ -84,7 +114,15 @@ struct CostFunctionKernel
             }
         }
 
-        float c = _impl(_fixed, _moving, _fixed_dims, _moving_dims, int3{x,y,z}, moving_p);
+        float c = _impl(
+            _fixed,
+            _moving,
+            _fixed_dims,
+            _moving_dims,
+            int3{x,y,z},
+            moving_p,
+            d
+        );
         c *= _weight * fixed_mask_value * moving_mask_value;
 
         reinterpret_cast<float*>(&_cost(x,y,z))[cost_offset] += c;
@@ -114,14 +152,16 @@ struct CostFunctionKernel
     cuda::VolumePtr<float2> _cost;
 };
 
-template<typename TKernel>
+template<typename UpdateFn, typename TKernel>
 __global__ void cost_function_kernel(
     TKernel kernel,
     int3 offset,
     int3 dims,
-    float3 delta,
+    float4 delta,
     int cost_offset)
 {
+    UpdateFn update_fn;
+    
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -137,7 +177,21 @@ __global__ void cost_function_kernel(
     y += offset.y;
     z += offset.z;
 
-    kernel(x, y, z, delta, cost_offset);
+    float3 inv_spacing {
+        1.0f / kernel._fixed_spacing.x,
+        1.0f / kernel._fixed_spacing.y,
+        1.0f / kernel._fixed_spacing.z
+    };
+
+    float4 d = update_fn(
+        kernel._df,
+        kernel._fixed_dims,
+        inv_spacing,
+        x, y, z,
+        delta
+    );
+
+    kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
 }
 
 template<typename TKernel>
@@ -146,6 +200,7 @@ void invoke_cost_function_kernel(
     const float3& delta,
     const int3& offset,
     const int3& dims,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
@@ -161,23 +216,41 @@ void invoke_cost_function_kernel(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
-    // E(u(x))
-    cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
+    // Same for both compositive and additive
+    cost_function_kernel<AdditiveUpdate>
+    <<<grid_size, block_size, 0, stream>>>(
         kernel,
         offset,
         dims,
-        float3{0,0,0},
+        float4{0,0,0,0},
         0
     );
 
-    // E(u(x)+d)
-    cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
-        kernel,
-        offset,
-        dims,
-        delta,
-        1
-    );
+    float4 d4 { delta.x, delta.y, delta.z, 0 };
+
+    if (update_rule == Settings::UpdateRule_Compositive) {
+        cost_function_kernel<CompositiveUpdate>
+        <<<grid_size, block_size, 0, stream>>>(
+            kernel,
+            offset,
+            dims,
+            d4,
+            1
+        );
+    }
+    else if (update_rule == Settings::UpdateRule_Additive) {
+        cost_function_kernel<AdditiveUpdate>
+        <<<grid_size, block_size, 0, stream>>>(
+            kernel,
+            offset,
+            dims,
+            d4,
+            1
+        );
+    }
+    else {
+        ASSERT(false);
+    }
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
 }

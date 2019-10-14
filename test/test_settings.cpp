@@ -24,6 +24,9 @@ constraints_weight: 1234.1234
 
 regularize_initial_displacement: true
 
+solver: icm
+update_rule: compositive
+
 levels:
     3:
         block_size: [9,9,9]
@@ -307,6 +310,8 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(settings.pyramid_stop_level == 2);
         REQUIRE(settings.num_pyramid_levels == 4);
         REQUIRE(settings.regularize_initial_displacement == true);
+        REQUIRE(settings.solver == Settings::Solver_ICM);
+        REQUIRE(settings.update_rule == Settings::UpdateRule_Compositive);
 
         for (int i = 0; i < settings.num_pyramid_levels; ++i) {
             if (i == 3) {

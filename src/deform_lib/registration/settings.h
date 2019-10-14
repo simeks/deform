@@ -26,6 +26,12 @@ struct Settings
     #endif
     };
 
+    enum UpdateRule
+    {
+        UpdateRule_Additive,
+        UpdateRule_Compositive
+    };
+
     // Settings for a specific image slot, each image pair (i.e. fixed and moving) is considered
     //  a slot, so say we want to register fat and water:
     //      fixed_water <- moving_water
@@ -134,18 +140,22 @@ struct Settings
     // What solver to use for the energy minimization
     Solver solver;
 
+    // What field update operator to use
+    UpdateRule update_rule;
+
     Settings() :
         pyramid_stop_level(0),
         num_pyramid_levels(6),
         landmarks_stop_level(0),
         regularize_initial_displacement(false),
     #if defined(DF_ENABLE_GCO)
-        solver(Solver_GCO)
+        solver(Solver_GCO),
     #elif defined(DF_ENABLE_GRIDCUT)
-        solver(Solver_GridCut)
+        solver(Solver_GridCut),
     #else
-        solver(Solver_ICM)
+        solver(Solver_ICM),
     #endif
+        update_rule(UpdateRule_Additive)
     {
         levels.resize(num_pyramid_levels);
     }
@@ -162,3 +172,6 @@ bool parse_registration_settings(const std::string& str, Settings& settings);
 
 // Returns the string representation of a given solver
 const char* solver_to_str(Settings::Solver solver);
+
+// Returns the string representation of a given update rule
+const char* update_rule_to_str(Settings::UpdateRule update_rule);

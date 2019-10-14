@@ -1,18 +1,27 @@
 #pragma once
 
-#include "sub_function.h"
+#include "cost_function.h"
+
+#include <deform_lib/registration/settings.h>
+
+#include <stk/cuda/cuda.h>
+#include <stk/image/gpu_volume.h>
+#include <stk/math/float3.h>
 
 #include <thrust/device_vector.h>
 
-struct GpuCostFunction_Landmarks : public GpuSubFunction
+namespace cuda = stk::cuda;
+
+struct GpuCostFunction_Landmarks : public GpuCostFunction
 {
-    GpuCostFunction_Landmarks(const std::vector<float3>& fixed_landmarks,
-                              const std::vector<float3>& moving_landmarks,
-                              const stk::GpuVolume& fixed,
-                              const float decay);
-
-    virtual ~GpuCostFunction_Landmarks();
-
+    GpuCostFunction_Landmarks(
+        const stk::GpuVolume& fixed,
+        const std::vector<float3>& fixed_landmarks,
+        const std::vector<float3>& moving_landmarks,
+        const float decay
+    );
+    ~GpuCostFunction_Landmarks();
+    
     void cost(
         stk::GpuVolume& df,
         const float3& delta,
@@ -20,12 +29,16 @@ struct GpuCostFunction_Landmarks : public GpuSubFunction
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
+        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     );
 
-    const thrust::device_vector<float3> _landmarks;
-    thrust::device_vector<float3> _displacements;
-    const stk::GpuVolume _fixed;
-    const float _half_decay;
-};
+    float3 _origin;
+    float3 _spacing;
+    Matrix3x3f _direction;
 
+    thrust::device_vector<float4> _landmarks;
+    thrust::device_vector<float4> _displacements;
+
+    float _half_decay;
+};

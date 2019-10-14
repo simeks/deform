@@ -77,7 +77,7 @@ if (DF_USE_CUDA)
         "registration/gpu/cost_functions/landmarks.h"
         "registration/gpu/cost_functions/squared_distance.cu"
         "registration/gpu/cost_functions/squared_distance.h"
-        "registration/gpu/cost_functions/sub_function.h"
+        "registration/gpu/cost_functions/cost_function.h"
         "registration/gpu/cost_functions/unary_function.h"
 
         "registration/gpu/transform.cu"
