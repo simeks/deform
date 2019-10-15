@@ -501,6 +501,17 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
             }
             else if (rule == "compositive") {
                 settings.update_rule = Settings::UpdateRule_Compositive;
+
+                // We have only proven that the compositive energy function is submodular
+                // for regularization_exponent=2
+                for (int i = settings.pyramid_stop_level; i < settings.num_pyramid_levels; ++i) {
+                    if (settings.levels[i].regularization_exponent != 2) {
+                        LOG(Warning) << "Submodularity is only guaranteed for "
+                                     << "regularization_exponent=2 when using the "
+                                     << "compositive update rule";
+                        break;
+                    }
+                }
             }
             else {
                 throw ValidationError("Settings: Invalid update rule");
