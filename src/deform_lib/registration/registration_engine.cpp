@@ -618,6 +618,8 @@ stk::Volume RegistrationEngine::execute()
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
         stk::VolumeFloat3 def = _deformation_pyramid.volume(l);
 
+        std::vector<int3> neighborhood = determine_neighborhood(l);
+
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
 
@@ -640,6 +642,7 @@ stk::Volume RegistrationEngine::execute()
             if (_settings.solver == Settings::Solver_ICM) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ICMSolver<double>>
                     optimizer(
+                        neighborhood,
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
                         _settings.levels[l].max_iteration_count,
@@ -651,6 +654,7 @@ stk::Volume RegistrationEngine::execute()
             else if (_settings.solver == Settings::Solver_GCO) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GCOSolver<double>>
                     optimizer(
+                        neighborhood,
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
                         _settings.levels[l].max_iteration_count,
@@ -663,6 +667,7 @@ stk::Volume RegistrationEngine::execute()
             else if (_settings.solver == Settings::Solver_GridCut) {
                 BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GridCutSolver<double>>
                     optimizer(
+                        neighborhood,
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
                         _settings.levels[l].max_iteration_count,
@@ -702,6 +707,63 @@ stk::Volume RegistrationEngine::deformation_field(int level)
 {
     return _deformation_pyramid.volume(level);
 }
+std::vector<int3> RegistrationEngine::determine_neighborhood(int level) const
+{
+    /*
+        To enable registration of images with lower dimensionality than 3 we
+        automatically adopt the neighborhood for the optimization. Given a set
+        of images (all fixed and moving images) we determine the dimensionality
+        for the registration by assuming that if all images are of size 1 in a
+        specific dimension, that dimension is not in play.
+
+        E.g., given an input of only WxHx1 images, we trigger 2D registration
+        by setting the search neighborhood to only the X and Y axes.
+    */
+
+    std::vector<int3> neighborhood;
+
+    dim3 dim_size {0, 0, 0};
+
+    for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
+        stk::Volume fixed;
+        stk::Volume moving;
+
+        if (_fixed_pyramids[i].levels() > 0)
+            fixed = _fixed_pyramids[i].volume(level);
+        if (_moving_pyramids[i].levels() > 0)
+            moving = _moving_pyramids[i].volume(level);
+
+        dim_size = {
+            std::max(dim_size.x, fixed.size().x),
+            std::max(dim_size.y, fixed.size().y),
+            std::max(dim_size.z, fixed.size().z)
+        };
+        
+        dim_size = {
+            std::max(dim_size.x, moving.size().x),
+            std::max(dim_size.y, moving.size().y),
+            std::max(dim_size.z, moving.size().z)
+        };
+    }
+
+    if (dim_size.x > 1) {
+        neighborhood.push_back({1, 0, 0});
+        neighborhood.push_back({-1, 0, 0});
+    }
+
+    if (dim_size.y > 1) {
+        neighborhood.push_back({0, 1, 0});
+        neighborhood.push_back({0, -1, 0});
+    }
+
+    if (dim_size.z > 1) {
+        neighborhood.push_back({0, 0, 1});
+        neighborhood.push_back({0, 0, -1});
+    }
+
+    return neighborhood;
+}
+
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
 void RegistrationEngine::upsample_and_save(int level)
 {

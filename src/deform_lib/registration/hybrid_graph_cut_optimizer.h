@@ -10,6 +10,7 @@
 #include <atomic>
 #include <deque>
 #include <mutex>
+#include <vector>
 
 class GpuBinaryFunction;
 class GpuUnaryFunction;
@@ -23,6 +24,7 @@ class HybridGraphCutOptimizer
 {
 public:
     HybridGraphCutOptimizer(
+        const std::vector<int3>& neighborhood,
         const Settings::Level& settings,
         Settings::UpdateRule update_rule,
         GpuUnaryFunction& unary_fn,
@@ -86,6 +88,8 @@ private:
     // Note: This resets the cost buffers
     double calculate_energy();
 
+    std::vector<int3> _neighborhood;
+    
     const Settings::Level& _settings;
     Settings::UpdateRule _update_rule;
 

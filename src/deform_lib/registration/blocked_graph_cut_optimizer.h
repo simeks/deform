@@ -8,6 +8,7 @@
 #include "../config.h"
 #include "settings.h"
 
+#include <vector>
 
 template<
     typename TUnaryTerm,
@@ -18,6 +19,7 @@ class BlockedGraphCutOptimizer
 {
 public:
     BlockedGraphCutOptimizer(
+        const std::vector<int3>& neighborhood,
         const int3& block_size,
         double block_energy_epsilon,
         int max_iteration_count,
@@ -50,7 +52,7 @@ private:
         stk::VolumeFloat3& def
     );
 
-    int3 _neighbors[6];
+    std::vector<int3> _neighborhood;
     int3 _block_size;
     double _block_energy_epsilon;
 
