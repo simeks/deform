@@ -52,6 +52,11 @@ public:
     stk::Volume deformation_field(int level);
 
 private:
+    /// Determines the neighborhood to apply for the given pyramid level.
+    /// The neighborhood is a set of unit vectors in which directions
+    /// to apply the optimization. E.g. ((-1,0,0), (1,0,0), (0,-1,0), ...)
+    std::vector<int3> determine_neighborhood(int level) const;
+
 #ifdef DF_OUTPUT_DEBUG_VOLUMES
     /// Upsamples the deformation field at the given level and saves it
     void upsample_and_save(int level);

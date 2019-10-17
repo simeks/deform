@@ -13,21 +13,17 @@ template<
     typename TSolver
     >
 BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::BlockedGraphCutOptimizer(
+    const std::vector<int3>& neighborhood,
     const int3& block_size,
     double block_energy_epsilon,
     int max_iteration_count,
     Settings::UpdateRule update_rule) :
+    _neighborhood(neighborhood),
     _block_size(block_size),
     _block_energy_epsilon(block_energy_epsilon),
     _max_iteration_count(max_iteration_count),
     _update_rule(update_rule)
 {
-    _neighbors[0] = {1, 0, 0};
-    _neighbors[1] = {-1, 0, 0};
-    _neighbors[2] = {0, 1, 0};
-    _neighbors[3] = {0, -1, 0};
-    _neighbors[4] = {0, 0, 1};
-    _neighbors[5] = {0, 0, -1};
 }
 template<
     typename TUnaryTerm,
@@ -126,9 +122,8 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
                     int3 block_p{block_x, block_y, block_z};
 
                     bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
-                    int n_count = 6; // Neighbors
-                    for (int n = 0; n < n_count; ++n) {
-                        int3 neighbor = block_p + _neighbors[n];
+                    for (int3 n : _neighborhood) {
+                        int3 neighbor = block_p + n;
                         if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
                             0 <= neighbor.y && neighbor.y < real_block_count.y &&
                             0 <= neighbor.z && neighbor.z < real_block_count.z) {
@@ -141,12 +136,13 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>::execute(
                     }
 
                     bool block_changed = false;
-                    for (int n = 0; n < n_count; ++n) {
+                    
+                    for (int3 n : _neighborhood) {
                         // delta in [mm]
                         float3 delta {
-                            step_size.x * _neighbors[n].x,
-                            step_size.y * _neighbors[n].y,
-                            step_size.z * _neighbors[n].z
+                            step_size.x * n.x,
+                            step_size.y * n.y,
+                            step_size.z * n.z
                         };
 
                         block_changed |= do_block(

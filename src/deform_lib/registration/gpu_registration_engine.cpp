@@ -277,17 +277,15 @@ stk::Volume GpuRegistrationEngine::execute()
 
         stk::GpuVolume base = _fixed_pyramids[0].volume(0);
 
-        // TODO: Until we get a proper GpuVolume::fill()
         stk::VolumeFloat4 initial(base.size(), float4{0, 0, 0, 0});
-        initial.set_origin(base.origin());
-        initial.set_spacing(base.spacing());
-        initial.set_direction(base.direction());
-
+        initial.copy_meta_from(base);
         set_initial_deformation(initial);
     }
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
         stk::GpuVolume df = _deformation_pyramid.volume(l);
+
+        std::vector<int3> neighborhood = determine_neighborhood(l);
 
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
@@ -300,6 +298,7 @@ stk::Volume GpuRegistrationEngine::execute()
 
             if (_settings.solver == Settings::Solver_ICM) {
                 HybridGraphCutOptimizer<ICMSolver<double>> optimizer(
+                    neighborhood,
                     _settings.levels[l],
                     _settings.update_rule,
                     unary_fn,
@@ -313,6 +312,7 @@ stk::Volume GpuRegistrationEngine::execute()
 #if defined(DF_ENABLE_GCO)
             else if (_settings.solver == Settings::Solver_GCO) {
                 HybridGraphCutOptimizer<GCOSolver<double>> optimizer(
+                    neighborhood,
                     _settings.levels[l],
                     _settings.update_rule,
                     unary_fn,
@@ -327,6 +327,7 @@ stk::Volume GpuRegistrationEngine::execute()
 #if defined(DF_ENABLE_GRIDCUT)
             else if (_settings.solver == Settings::Solver_GridCut) {
                 HybridGraphCutOptimizer<GridCutSolver<double>> optimizer(
+                    neighborhood,
                     _settings.levels[l],
                     _settings.update_rule,
                     unary_fn,
@@ -338,7 +339,6 @@ stk::Volume GpuRegistrationEngine::execute()
                 optimizer.execute();
             }
 #endif
-
 
         }
         else {
@@ -358,4 +358,52 @@ stk::Volume GpuRegistrationEngine::execute()
     }
 
     return volume_float4_to_float3(_deformation_pyramid.volume(0).download());
+}
+std::vector<int3> GpuRegistrationEngine::determine_neighborhood(int level) const
+{
+    // Identical to RegistrationEngine::determine_neighborhood with the exception
+    //  of working on GpuVolumePyramid
+
+    std::vector<int3> neighborhood;
+
+    dim3 dim_size {0, 0, 0};
+
+    for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
+        stk::Volume fixed;
+        stk::Volume moving;
+
+        if (_fixed_pyramids[i].levels() > 0)
+            fixed = _fixed_pyramids[i].volume(level);
+        if (_moving_pyramids[i].levels() > 0)
+            moving = _moving_pyramids[i].volume(level);
+
+        dim_size = {
+            std::max(dim_size.x, fixed.size().x),
+            std::max(dim_size.y, fixed.size().y),
+            std::max(dim_size.z, fixed.size().z)
+        };
+        
+        dim_size = {
+            std::max(dim_size.x, moving.size().x),
+            std::max(dim_size.y, moving.size().y),
+            std::max(dim_size.z, moving.size().z)
+        };
+    }
+
+    if (dim_size.x > 1) {
+        neighborhood.push_back({1, 0, 0});
+        neighborhood.push_back({-1, 0, 0});
+    }
+
+    if (dim_size.y > 1) {
+        neighborhood.push_back({0, 1, 0});
+        neighborhood.push_back({0, -1, 0});
+    }
+
+    if (dim_size.z > 1) {
+        neighborhood.push_back({0, 0, 1});
+        neighborhood.push_back({0, 0, -1});
+    }
+
+    return neighborhood;
 }

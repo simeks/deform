@@ -10,20 +10,10 @@
 
 #include <iomanip>
 
-namespace {
-    const int _neighbor_count = 6;
-    int3 _neighbors[] = {
-        {1, 0, 0},
-        {-1, 0, 0},
-        {0, 1, 0},
-        {0, -1, 0},
-        {0, 0, 1},
-        {0, 0, -1}
-    };
-}
 
 template<typename TSolver>
 HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
+    const std::vector<int3>& neighborhood,
     const Settings::Level& settings,
     Settings::UpdateRule update_rule,
     GpuUnaryFunction& unary_fn,
@@ -31,6 +21,7 @@ HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     stk::GpuVolume& df,
     WorkerPool& worker_pool,
     std::vector<stk::cuda::Stream>& stream_pool) :
+    _neighborhood(neighborhood),
     _settings(settings),
     _update_rule(update_rule),
     _worker_pool(worker_pool),
@@ -125,14 +116,14 @@ void HybridGraphCutOptimizer<TSolver>::execute()
         for (int black_or_red = 0; black_or_red < (num_blocks > 1 ? 2 : 1); black_or_red++) {
         PROFILER_SCOPE("red_black", 0xFF339955);
 
-        for (int n = 0; n < _neighbor_count; ++n) {
+        for (int3 n : _neighborhood) {
         PROFILER_SCOPE("step", 0xFFAA6FE2);
 
         // delta in [mm]
         _current_delta = {
-            _settings.step_size.x * _neighbors[n].x,
-            _settings.step_size.y * _neighbors[n].y,
-            _settings.step_size.z * _neighbors[n].z
+            _settings.step_size.x * n.x,
+            _settings.step_size.y * n.y,
+            _settings.step_size.z * n.z
         };
 
         // Queue all blocks
@@ -153,8 +144,8 @@ void HybridGraphCutOptimizer<TSolver>::execute()
 
             bool need_update = _block_change_flags.is_block_set(block_idx,
                                                                 use_shift == 1);
-            for (int i = 0; i < _neighbor_count; ++i) {
-                int3 neighbor = block_idx + _neighbors[i];
+            for (int3 n2 : _neighborhood) {
+                int3 neighbor = block_idx + n2;
                 if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
                     0 <= neighbor.y && neighbor.y < real_block_count.y &&
                     0 <= neighbor.z && neighbor.z < real_block_count.z) {

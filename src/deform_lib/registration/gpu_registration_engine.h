@@ -46,6 +46,11 @@ public:
     stk::Volume execute();
 
 private:
+    /// Determines the neighborhood to apply for the given pyramid level.
+    /// The neighborhood is a set of unit vectors in which directions
+    /// to apply the optimization. E.g. ((-1,0,0), (1,0,0), (0,-1,0), ...)
+    std::vector<int3> determine_neighborhood(int level) const;
+    
     /// Builds a unary function for the specified pyramid level
     void build_unary_function(int level, GpuUnaryFunction& unary_fn);
 
