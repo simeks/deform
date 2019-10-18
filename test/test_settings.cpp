@@ -433,3 +433,37 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(!parse_registration_file("broken_test_settings.yml", settings));
     }
 }
+
+TEST_CASE("settings_file_parameters", "")
+{
+    SECTION("invalid_parameter")
+    {
+        Settings settings;
+        std::string settings_str = "not_a_real_parameter: 1\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
+    SECTION("invalid_parameter_image_slot")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - not_an_param: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: crt\n"
+                "        weight: 0.3\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
+    SECTION("invalid_parameter_image_slot")
+    {
+        Settings settings;
+        std::string settings_str =
+                "levels:\n"
+                "    0:\n"
+                "       - not_an_param: gaussian\n";
+
+        REQUIRE(!parse_registration_settings(settings_str, settings));
+    }
+}

@@ -303,47 +303,44 @@ const char* update_rule_to_str(Settings::UpdateRule op)
     return "none";
 }
 
-static void parse_level(const YAML::Node& node, Settings::Level& out) {
-    if(!node.IsMap()) {
-        throw YAML::RepresentationException(node.Mark(), "expected level");
+// Parses a level specific parameter
+// Returns true if any parameter was actually set, false if not
+static bool parse_level_parameter(
+    const std::string& key,
+    const YAML::Node& value,
+    Settings::Level& out
+)
+{
+    if (key == "block_size") {
+        out.block_size = value.as<int3>();
     }
-
-    if (node["block_size"]) {
-        out.block_size = node["block_size"].as<int3>();
+    else if (key == "block_energy_epsilon") {
+        out.block_energy_epsilon = value.as<float>();
     }
-
-    if (node["block_energy_epsilon"]) {
-        out.block_energy_epsilon = node["block_energy_epsilon"].as<float>();
+    else if (key == "max_iteration_count") {
+        out.max_iteration_count = value.as<int>();
     }
-
-    if (node["max_iteration_count"]) {
-        out.max_iteration_count = node["max_iteration_count"].as<int>();
+    else if (key == "regularization_weight") {
+        out.regularization_weight = value.as<float>();
     }
-
-    if (node["regularization_weight"]) {
-        out.regularization_weight = node["regularization_weight"].as<float>();
+    else if (key == "regularization_scale") {
+        out.regularization_scale = value.as<float>();
     }
-
-    if (node["regularization_scale"]) {
-        out.regularization_scale = node["regularization_scale"].as<float>();
+    else if (key == "regularization_exponent") {
+        out.regularization_exponent = value.as<float>();
     }
-
-    if (node["regularization_exponent"]) {
-        out.regularization_exponent = node["regularization_exponent"].as<float>();
-    }
-
-    if (node["step_size"]) {
+    else if (key == "step_size") {
         try {
-            out.step_size = node["step_size"].as<float3>();
+            out.step_size = value.as<float3>();
         }
         catch (YAML::RepresentationException&) {
             try {
-                float f = node["step_size"].as<float>();
+                float f = value.as<float>();
                 out.step_size = {f, f, f};
             }
             catch (YAML::RepresentationException&) {
                 throw YAML::RepresentationException(
-                        node["step_size"].Mark(),
+                        value.Mark(),
                         "expected float or sequence of three floats"
                         );
             }
@@ -357,18 +354,19 @@ static void parse_level(const YAML::Node& node, Settings::Level& out) {
             throw ValidationError("Settings: Invalid step_size, step_size should be greater than zero");
         }
     }
-
-    if (node["constraints_weight"]) {
-        out.constraints_weight = node["constraints_weight"].as<float>();
+    else if (key == "constraints_weight") {
+        out.constraints_weight = value.as<float>();
     }
-
-    if (node["landmarks_weight"]) {
-        out.landmarks_weight = node["landmarks_weight"].as<float>();
+    else if (key == "landmarks_weight") {
+        out.landmarks_weight = value.as<float>();
     }
-
-    if (node["landmarks_decay"]) {
-        out.landmarks_decay = node["landmarks_decay"].as<float>();
+    else if (key == "landmarks_decay") {
+        out.landmarks_decay = value.as<float>();
     }
+    else {
+        return false;
+    }
+    return true;
 }
 
 
@@ -427,50 +425,31 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
     settings = {}; // Clean up
 
     try {
+    
+    YAML::Node root = YAML::Load(str);
 
-        YAML::Node root = YAML::Load(str);
+    // First pass we parse global level settings
+    Settings::Level global_level_settings;
 
-        if (root["pyramid_levels"]) {
-            settings.num_pyramid_levels = root["pyramid_levels"].as<int>();
+    // Global settings not connected to specific levels
+    for (const auto& node : root) {
+        std::string key = node.first.as<std::string>();
+        const YAML::Node& value = node.second;
+        
+        if (key == "pyramid_levels") {
+            settings.num_pyramid_levels = value.as<int>();
         }
-
-        if (root["pyramid_stop_level"]) {
-            settings.pyramid_stop_level = root["pyramid_stop_level"].as<int>();
+        else if (key == "pyramid_stop_level") {
+            settings.pyramid_stop_level = value.as<int>();
         }
-
-        // First parse global level settings
-        Settings::Level global_level_settings;
-        parse_level(root, global_level_settings);
-
-        // Apply global settings for all levels
-        settings.levels.resize(settings.num_pyramid_levels);
-        for (int i = 0; i < settings.num_pyramid_levels; ++i) {
-            settings.levels[i] = global_level_settings;
+        else if (key == "landmarks_stop_level") {
+            settings.landmarks_stop_level = value.as<int>();
         }
-
-        // Parse per-level overrides
-        auto levels = root["levels"];
-        if (levels) {
-            for (auto it = levels.begin(); it != levels.end(); ++it) {
-                int l = it->first.as<int>();
-                if (l >= settings.num_pyramid_levels) {
-                    throw ValidationError("Settings: index of level exceed number specified in pyramid_levels");
-                }
-                parse_level(it->second, settings.levels[l]);
-            }
+        else if (key == "regularize_initial_displacement") {
+            settings.regularize_initial_displacement = value.as<bool>();
         }
-
-        if (root["landmarks_stop_level"]) {
-            settings.landmarks_stop_level = root["landmarks_stop_level"].as<int>();
-        }
-
-        if (root["regularize_initial_displacement"]) {
-            settings.regularize_initial_displacement
-                = root["regularize_initial_displacement"].as<bool>();
-        }
-
-        if (root["solver"]) {
-            std::string solver = root["solver"].as<std::string>();
+        else if (key == "solver") {
+            std::string solver = value.as<std::string>();
 
             if (solver == "icm") {
                 settings.solver = Settings::Solver_ICM;
@@ -492,10 +471,10 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
             else {
                 throw ValidationError("Settings: Invalid solver");
             }
-        }
 
-        if (root["update_rule"]) {
-            std::string rule = root["update_rule"].as<std::string>();
+        }
+        else if (key == "update_rule") {
+            std::string rule = value.as<std::string>();
             if (rule == "additive") {
                 settings.update_rule = Settings::UpdateRule_Additive;
             }
@@ -507,8 +486,8 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
                 for (int i = settings.pyramid_stop_level; i < settings.num_pyramid_levels; ++i) {
                     if (settings.levels[i].regularization_exponent != 2) {
                         LOG(Warning) << "Submodularity is only guaranteed for "
-                                     << "regularization_exponent=2 when using the "
-                                     << "compositive update rule";
+                                        << "regularization_exponent=2 when using the "
+                                        << "compositive update rule";
                         break;
                     }
                 }
@@ -517,16 +496,65 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
                 throw ValidationError("Settings: Invalid update rule");
             }
         }
+        else if (parse_level_parameter(key, value, global_level_settings)) {
+            // parse_level_parameter does the parsing
+        }
+        else if (key == "image_slots") {
+            if (value.IsSequence()) {
+                for (size_t i = 0; i < value.size(); ++i) {
+                    settings.image_slots.push_back(value[i].as<Settings::ImageSlot>());
+                }
+            } else {
+                throw ValidationError("Settings: Expeced 'image_slots' to be a sequence");
+            }
+        }
+        else if (key == "levels") {
+            // We parse levels in a second pass, to allow global settings to be set
+        }
+        else {
+            std::stringstream ss;
+            ss << "Settings: Unrecognized parameter: " << key;
+            throw ValidationError(ss.str());
+        }
+    }
 
-        auto is = root["image_slots"];
-        if (is && is.IsSequence()) {
-            for (size_t i = 0; i < is.size(); ++i) {
-                settings.image_slots.push_back(is[i].as<Settings::ImageSlot>());
+    // Apply global settings for all levels
+    settings.levels.resize(settings.num_pyramid_levels);
+    for (int i = 0; i < settings.num_pyramid_levels; ++i) {
+        settings.levels[i] = global_level_settings;
+    }
+
+    // Parse per-level overrides
+    auto levels = root["levels"];
+    if (levels) {
+        for (const auto& level : levels) {
+            int l = level.first.as<int>();
+            if (l >= settings.num_pyramid_levels) {
+                throw ValidationError("Settings: index of level exceed number specified in pyramid_levels");
+            }
+
+            if(!level.second.IsMap()) {
+                throw YAML::RepresentationException(level.second.Mark(), "expected level");
+            }
+
+            for (const auto& node : level.second) {
+                std::string key = node.first.as<std::string>();
+                if (!parse_level_parameter(key, node.second, settings.levels[l])) {
+                    std::stringstream ss;
+                    ss << "Settings: Unrecognized level parameter: " << node.first.as<std::string>();
+                    throw ValidationError(ss.str());
+                }
             }
         }
     }
+
+    }
     catch (YAML::Exception& e) {
         LOG(Error) << "[Settings] " << e.what();
+        return false;
+    }
+    catch (ValidationError& e) {
+        LOG(Error) << e.what();
         return false;
     }
 
