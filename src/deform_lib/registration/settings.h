@@ -165,10 +165,8 @@ struct Settings
 void print_registration_settings(const Settings& settings, std::ostream& s);
 
 // Return true if parsing was successful, false if not
-bool parse_registration_file(const std::string& parameter_file, Settings& settings);
-
-// Return true if parsing was successful, false if not
-bool parse_registration_settings(const std::string& str, Settings& settings);
+// throws ValidationError if settings string is invalid
+void parse_registration_settings(const std::string& str, Settings& settings);
 
 // Returns the string representation of a given solver
 const char* solver_to_str(Settings::Solver solver);

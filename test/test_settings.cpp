@@ -119,193 +119,10 @@ image_slots:
 
 TEST_CASE("parse_registration_settings")
 {
-    SECTION("test_cost_function_single_component")
+    SECTION("test_settings")
     {
         Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: gaussian\n"
-                "    normalize: true\n"
-                "    cost_function: ncc\n";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
-        REQUIRE(settings.image_slots[0].normalize == true);
-        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 1.0f);
-    }
-    SECTION("test_cost_function_multi_component_1")
-    {
-        Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: gaussian\n"
-                "    normalize: true\n"
-                "    cost_function:\n"
-                "      - function: ncc\n"
-                "        weight: 0.3\n";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
-        REQUIRE(settings.image_slots[0].normalize == true);
-        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.3f);
-    }
-    SECTION("test_ncc_window")
-    {
-        Settings settings;
-        std::string  settings_str;
-
-        // cube
-        settings_str =
-                "image_slots:\n"
-                "  - cost_function:\n"
-                "      - function: ncc\n"
-                "        window: cube\n"
-                "        radius: 3";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "cube");
-        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "3");
-
-        // sphere
-        settings_str =
-                "image_slots:\n"
-                "  - cost_function:\n"
-                "      - function: ncc\n"
-                "        window: sphere\n"
-                "        radius: 4";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "sphere");
-        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "4");
-    }
-    SECTION("test_cost_function_multi_component_2")
-    {
-        Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: gaussian\n"
-                "    normalize: true\n"
-                "    cost_function:\n"
-                "      - function: ncc\n"
-                "        weight: 0.5\n"
-                "      - function: ssd\n"
-                "        weight: 0.8\n";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-
-        REQUIRE(settings.image_slots[0].resample_method ==
-                Settings::ImageSlot::Resample_Gaussian);
-        REQUIRE(settings.image_slots[0].normalize == true);
-        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
-                Settings::ImageSlot::CostFunction_NCC);
-        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.5f);
-        REQUIRE(settings.image_slots[0].cost_functions[1].function ==
-                Settings::ImageSlot::CostFunction_SSD);
-        REQUIRE(settings.image_slots[0].cost_functions[1].weight == 0.8f);
-    }
-    SECTION("test_cost_function_broken_1")
-    {
-        Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: gaussian\n"
-                "    normalize: true\n"
-                "    cost_function:\n"
-                "      - function: ncc\n"
-                "      - weight: 0.8\n";
-
-        REQUIRE(!parse_registration_settings(settings_str, settings));
-    }
-    SECTION("test_cost_function_broken_2")
-    {
-        Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: gaussian\n"
-                "    normalize: true\n"
-                "    cost_function:\n"
-                "      - function: crt\n"
-                "        weight: 0.3\n";
-
-        REQUIRE(!parse_registration_settings(settings_str, settings));
-    }
-    SECTION("test_cost_function_broken_3")
-    {
-        Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: gaussian\n"
-                "    normalize: true\n"
-                "    cost_function:\n"
-                "      - function: 0.3\n"
-                "        weight: 0.3\n";
-
-        REQUIRE(!parse_registration_settings(settings_str, settings));
-    }
-    SECTION("test_cost_function_broken_4")
-    {
-        Settings settings;
-        std::string settings_str =
-                "image_slots:\n"
-                "  - resampler: foo\n"
-                "    normalize: true\n"
-                "    cost_function:\n"
-                "      - function: ncc\n"
-                "        weight: 0.3\n";
-
-        REQUIRE(!parse_registration_settings(settings_str, settings));
-    }
-    SECTION("test_vectorial_step_size")
-    {
-        Settings settings;
-        std::string settings_str =
-                "step_size: [1.1, 2.2, 3.3]\n";
-
-        REQUIRE(parse_registration_settings(settings_str, settings));
-        for (int i = 0; i < settings.num_pyramid_levels; ++i) {
-                REQUIRE(settings.levels[i].step_size.x == Approx(1.1f));
-                REQUIRE(settings.levels[i].step_size.y == Approx(2.2f));
-                REQUIRE(settings.levels[i].step_size.z == Approx(3.3f));
-        }
-    }
-    SECTION("test_vectorial_step_size_broken")
-    {
-        Settings settings;
-
-        std::string settings_str = "step_size: foo\n";
-        CHECK(!parse_registration_settings(settings_str, settings));
-
-        settings_str = "step_size: [1.0, 2.0]\n";
-        CHECK(!parse_registration_settings(settings_str, settings));
-    }
-}
-
-TEST_CASE("parse_registration_file", "")
-{
-    SECTION("test_file")
-    {
-        std::ofstream f("test_settings.yml");
-        REQUIRE(f.is_open());
-
-        f.write(sample_settings, strlen(sample_settings));
-        f.close();
-
-        Settings settings;
-        REQUIRE(parse_registration_file("test_settings.yml", settings));
+        parse_registration_settings(sample_settings, settings);
 
         REQUIRE(settings.pyramid_stop_level == 2);
         REQUIRE(settings.num_pyramid_levels == 4);
@@ -416,32 +233,191 @@ TEST_CASE("parse_registration_file", "")
         REQUIRE(settings.image_slots[7].cost_functions[0].weight ==
                 1.0f);
     }
-    SECTION("no_file")
+
+    SECTION("test_cost_function_single_component")
     {
         Settings settings;
-        REQUIRE(!parse_registration_file("no_file_here.yml", settings));
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function: ncc\n";
+
+        parse_registration_settings(settings_str, settings);
+
+        REQUIRE(settings.image_slots[0].resample_method ==
+                Settings::ImageSlot::Resample_Gaussian);
+        REQUIRE(settings.image_slots[0].normalize == true);
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 1.0f);
     }
-    SECTION("broken_file")
+    SECTION("test_cost_function_multi_component_1")
     {
-        std::ofstream f("broken_test_settings.yml");
-        REQUIRE(f.is_open());
-
-        f.write(broken_sample_settings, strlen(broken_sample_settings));
-        f.close();
-
         Settings settings;
-        REQUIRE(!parse_registration_file("broken_test_settings.yml", settings));
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: ncc\n"
+                "        weight: 0.3\n";
+
+        parse_registration_settings(settings_str, settings);
+
+        REQUIRE(settings.image_slots[0].resample_method ==
+                Settings::ImageSlot::Resample_Gaussian);
+        REQUIRE(settings.image_slots[0].normalize == true);
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.3f);
+    }
+    SECTION("test_ncc_window")
+    {
+        Settings settings;
+        std::string  settings_str;
+
+        // cube
+        settings_str =
+                "image_slots:\n"
+                "  - cost_function:\n"
+                "      - function: ncc\n"
+                "        window: cube\n"
+                "        radius: 3";
+
+        parse_registration_settings(settings_str, settings);
+
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "cube");
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "3");
+
+        // sphere
+        settings_str =
+                "image_slots:\n"
+                "  - cost_function:\n"
+                "      - function: ncc\n"
+                "        window: sphere\n"
+                "        radius: 4";
+
+        parse_registration_settings(settings_str, settings);
+
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["window"] == "sphere");
+        REQUIRE(settings.image_slots[0].cost_functions[0].parameters["radius"] == "4");
+    }
+    SECTION("test_cost_function_multi_component_2")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: ncc\n"
+                "        weight: 0.5\n"
+                "      - function: ssd\n"
+                "        weight: 0.8\n";
+
+        parse_registration_settings(settings_str, settings);
+
+        REQUIRE(settings.image_slots[0].resample_method ==
+                Settings::ImageSlot::Resample_Gaussian);
+        REQUIRE(settings.image_slots[0].normalize == true);
+        REQUIRE(settings.image_slots[0].cost_functions[0].function ==
+                Settings::ImageSlot::CostFunction_NCC);
+        REQUIRE(settings.image_slots[0].cost_functions[0].weight == 0.5f);
+        REQUIRE(settings.image_slots[0].cost_functions[1].function ==
+                Settings::ImageSlot::CostFunction_SSD);
+        REQUIRE(settings.image_slots[0].cost_functions[1].weight == 0.8f);
+    }
+    SECTION("test_cost_function_broken_1")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: ncc\n"
+                "      - weight: 0.8\n";
+
+        REQUIRE_THROWS(parse_registration_settings(settings_str, settings));
+    }
+    SECTION("test_cost_function_broken_2")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: crt\n"
+                "        weight: 0.3\n";
+
+        REQUIRE_THROWS(parse_registration_settings(settings_str, settings));
+    }
+    SECTION("test_cost_function_broken_3")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: gaussian\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: 0.3\n"
+                "        weight: 0.3\n";
+
+        REQUIRE_THROWS(parse_registration_settings(settings_str, settings));
+    }
+    SECTION("test_cost_function_broken_4")
+    {
+        Settings settings;
+        std::string settings_str =
+                "image_slots:\n"
+                "  - resampler: foo\n"
+                "    normalize: true\n"
+                "    cost_function:\n"
+                "      - function: ncc\n"
+                "        weight: 0.3\n";
+
+        REQUIRE_THROWS(parse_registration_settings(settings_str, settings));
+    }
+    SECTION("test_vectorial_step_size")
+    {
+        Settings settings;
+        std::string settings_str =
+                "step_size: [1.1, 2.2, 3.3]\n";
+
+        parse_registration_settings(settings_str, settings);
+        for (int i = 0; i < settings.num_pyramid_levels; ++i) {
+                REQUIRE(settings.levels[i].step_size.x == Approx(1.1f));
+                REQUIRE(settings.levels[i].step_size.y == Approx(2.2f));
+                REQUIRE(settings.levels[i].step_size.z == Approx(3.3f));
+        }
+    }
+    SECTION("test_vectorial_step_size_broken")
+    {
+        Settings settings;
+
+        std::string settings_str = "step_size: foo\n";
+        REQUIRE_THROWS(parse_registration_settings(settings_str, settings));
+
+        settings_str = "step_size: [1.0, 2.0]\n";
+        REQUIRE_THROWS(parse_registration_settings(settings_str, settings));
     }
 }
 
-TEST_CASE("settings_file_parameters", "")
+TEST_CASE("settings_parameters", "")
 {
     SECTION("invalid_parameter")
     {
         Settings settings;
         std::string settings_str = "not_a_real_parameter: 1\n";
 
-        REQUIRE(!parse_registration_settings(settings_str, settings));
+        CHECK_THROWS_WITH(parse_registration_settings(settings_str, settings),
+                          Contains("Unrecognized parameter: not_a_real_parameter"));
     }
     SECTION("invalid_parameter_image_slot")
     {
@@ -451,10 +427,11 @@ TEST_CASE("settings_file_parameters", "")
                 "  - not_an_param: gaussian\n"
                 "    normalize: true\n"
                 "    cost_function:\n"
-                "      - function: crt\n"
+                "      - function: ssd\n"
                 "        weight: 0.3\n";
 
-        REQUIRE(!parse_registration_settings(settings_str, settings));
+        CHECK_THROWS_WITH(parse_registration_settings(settings_str, settings),
+                          Contains("Unrecognized image slot parameter: not_an_param"));
     }
     SECTION("invalid_parameter_image_slot")
     {
@@ -462,8 +439,9 @@ TEST_CASE("settings_file_parameters", "")
         std::string settings_str =
                 "levels:\n"
                 "    0:\n"
-                "       - not_an_param: gaussian\n";
+                "        not_an_param: gaussian\n";
 
-        REQUIRE(!parse_registration_settings(settings_str, settings));
+        CHECK_THROWS_WITH(parse_registration_settings(settings_str, settings),
+                          Contains("Unrecognized level parameter: not_an_param"));
     }
 }

@@ -219,38 +219,34 @@ namespace YAML {
                 throw YAML::RepresentationException(node.Mark(), "expected image slot");
             }
 
-            // Cost functions
-            auto& cf = node["cost_function"];
-            if (cf) {
-                if (cf.IsSequence()) {
-                    out.cost_functions.resize(cf.size());
-                    for(size_t k = 0; k < cf.size(); ++k) {
-                        out.cost_functions[k] = cf[k].as<Settings::ImageSlot::WeightedFunction>();
+            for (const auto& c : node) {
+                std::string key = c.first.as<std::string>();
+                const YAML::Node& value = c.second;
+
+                if (key == "cost_function") {
+                    if (value.IsSequence()) {
+                        out.cost_functions.resize(value.size());
+                        for(size_t k = 0; k < value.size(); ++k) {
+                            out.cost_functions[k] = value[k].as<Settings::ImageSlot::WeightedFunction>();
+                        }
+                    }
+                    else {
+                        // NOTE: assuming that the constructor of ImageSlot initialises
+                        // at least the first cost function in the array
+                        out.cost_functions[0].function = value.as<Settings::ImageSlot::CostFunction>();
+                        out.cost_functions[0].weight = 1.0f;
                     }
                 }
+                else if (key == "resampler") {
+                    out.resample_method = value.as<Settings::ImageSlot::ResampleMethod>();
+                }
+                else if (key == "normalize") {
+                    out.normalize = value.as<bool>();
+                }
                 else {
-                    // NOTE: assuming that the constructor of ImageSlot initialises
-                    // at least the first cost function in the array
-                    out.cost_functions[0].function = cf.as<Settings::ImageSlot::CostFunction>();
-                    out.cost_functions[0].weight = 1.0f;
+                    throw YAML::RepresentationException(node.Mark(), "Unrecognized image slot parameter: " + key);
                 }
             }
-
-            // Resampling method
-            if (node["resampler"]) {
-                out.resample_method = node["resampler"].as<Settings::ImageSlot::ResampleMethod>();
-            }
-
-            // Normalisation
-            if (node["normalize"]) {
-                try {
-                    out.normalize = node["normalize"].as<bool>();
-                }
-                catch (YAML::TypedBadConversion<bool> &) {
-                    throw YAML::RepresentationException(node.Mark(), "expected bool");
-                }
-            }
-
             return true;
         }
     };
@@ -420,7 +416,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
     }
 }
 
-bool parse_registration_settings(const std::string& str, Settings& settings)
+void parse_registration_settings(const std::string& str, Settings& settings)
 {
     settings = {}; // Clean up
 
@@ -550,31 +546,9 @@ bool parse_registration_settings(const std::string& str, Settings& settings)
 
     }
     catch (YAML::Exception& e) {
-        LOG(Error) << "[Settings] " << e.what();
-        return false;
+        std::stringstream ss;
+        ss << "Settings: " << e.what();
+        
+        throw ValidationError(ss.str());
     }
-    catch (ValidationError& e) {
-        LOG(Error) << e.what();
-        return false;
-    }
-
-    return true;
 }
-
-bool parse_registration_file(const std::string& parameter_file, Settings& settings)
-{
-    // Defaults
-    settings = Settings();
-
-    std::ifstream f(parameter_file, std::ifstream::in);
-    if (!f.is_open()) {
-        LOG(Error) << "[Settings] Failed to open file '" << parameter_file << "'";
-        return false;
-    }
-
-    std::stringstream ss;
-    ss << f.rdbuf();
-
-    return parse_registration_settings(ss.str(), settings);
-}
-

@@ -62,8 +62,13 @@ int RegistrationCommand::_execute(void)
         param_str << f.rdbuf();
 
         LOG(Info) << "Running with parameter file: '" << param_file << "'";
-        if (!parse_registration_settings(param_str.str(), settings))
+        try {
+            parse_registration_settings(param_str.str(), settings);
+        }
+        catch (std::exception& e) {
+            LOG(Error) << e.what();
             return EXIT_FAILURE;
+        }
 
         // Print only contents of parameter file to Info
         LOG(Info) << "Parameters:" << std::endl << param_str.str();
