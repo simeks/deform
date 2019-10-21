@@ -374,6 +374,7 @@ stk::Volume registration_wrapper(
     // Parse settings
     Settings settings_;
     if (!settings.is_none()) {
+        // Convert the python dict into a YAML string, which then is parseable by settings
         py::object py_yaml_dump = py::module::import("yaml").attr("dump");
         py::object py_settings_str = py_yaml_dump(py::cast<py::dict>(settings));
         std::string settings_str = py::cast<std::string>(py_settings_str);
