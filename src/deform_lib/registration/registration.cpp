@@ -93,6 +93,9 @@ stk::Volume registration(
         const stk::Volume& initial_deformation,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        const stk::Volume& regularization_map,
+#endif
         const int num_threads
 )
 {
@@ -212,6 +215,13 @@ stk::Volume registration(
         engine.set_landmarks(fixed_landmarks, moving_landmarks);
     }
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    if (regularization_map.valid()) {
+        validate_volume_properties(regularization_map, fixed_ref, "regularization map");
+        engine.set_regularization_weight_map(regularization_map);
+    }
+#endif
+
     using namespace std::chrono;
     auto t_start = high_resolution_clock::now();
     stk::Volume def = engine.execute();
@@ -236,6 +246,9 @@ stk::Volume registration(
         const stk::Volume& initial_deformation,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        const stk::Volume& regularization_map,
+#endif
         const int num_threads
 #ifdef DF_USE_CUDA
         , bool use_gpu
@@ -256,6 +269,9 @@ stk::Volume registration(
             initial_deformation,
             constraint_mask,
             constraint_values,
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+            regularization_map,
+#endif
             num_threads
         );
     }else{
@@ -271,6 +287,9 @@ stk::Volume registration(
             initial_deformation,
             constraint_mask,
             constraint_values,
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+            regularization_map,
+#endif
             num_threads
         );
 #ifdef DF_USE_CUDA

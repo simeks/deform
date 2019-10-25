@@ -48,7 +48,7 @@ struct Regularizer
     }
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    void set_weight_map(stk::VolumeFloat& map) { _weight_map = map; }
+    void set_weight_map(const stk::VolumeFloat& map) { _weight_map = map; }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
     /// p   : Position in fixed image

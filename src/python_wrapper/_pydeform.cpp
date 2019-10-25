@@ -264,6 +264,10 @@ constraint_values: stk.Volume
     Value for the constraints on the displacement.
     Requires to provide `constraint_mask`.
 
+regularization_map: stk.Volume
+    Map of voxel-wise regularization weights.
+    Should be the same shape as the fixed image.
+
 settings: dict
     Python dictionary containing the settings for the
     registration.
@@ -303,6 +307,9 @@ stk::Volume registration_wrapper(
         const stk::Volume& initial_displacement,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        const stk::Volume& regularization_map,
+#endif
         const py::object& settings,
         const py::object& log,
         const stk::LogLevel log_level,
@@ -407,10 +414,13 @@ stk::Volume registration_wrapper(
                                             initial_displacement,
                                             constraint_mask,
                                             constraint_values,
+                                        #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+                                            regularization_map,
+                                        #endif
                                             num_threads
-                                            #ifdef DF_USE_CUDA
+                                        #ifdef DF_USE_CUDA
                                             , use_gpu
-                                            #endif
+                                        #endif
                                             );
 
     // This must be done before the `out_stream` goes out of scope
@@ -560,6 +570,9 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("initial_displacement") = stk::Volume(),
           py::arg("constraint_mask") = stk::Volume(),
           py::arg("constraint_values") = stk::Volume(),
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+          py::arg("regularization_map") = stk::Volume(),
+#endif
           py::arg("settings") = py::none(),
           py::arg("log") = py::none(),
           py::arg("log_level") = stk::LogLevel::Info,

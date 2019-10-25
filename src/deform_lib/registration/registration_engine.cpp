@@ -211,6 +211,11 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
     binary_fn.set_regularization_scale(_settings.levels[level].regularization_scale);
     binary_fn.set_regularization_exponent(_settings.levels[level].regularization_exponent);
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    if (_regularization_weight_map.volume(level).valid())
+        binary_fn.set_weight_map(_regularization_weight_map.volume(level));
+#endif
+
     stk::Volume df = _deformation_pyramid.volume(level);
     if (!_settings.regularize_initial_displacement) {
         // Clone the def, because the current copy will be changed when executing the optimizer
@@ -412,11 +417,6 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
     if (_fixed_mask_pyramid.levels() > 0) {
         unary_fn.set_fixed_mask(_fixed_mask_pyramid.volume(level));
     }
-    
-    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-        if (_regularization_weight_map.volume(level).valid())
-            binary_fn.set_weight_map(_regularization_weight_map.volume(l));
-    #endif
 
     auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
                                                                 : stk::VolumeFloat();

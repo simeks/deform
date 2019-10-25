@@ -1,7 +1,7 @@
 #pragma once
 
 //#define DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-//#define DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+#define DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
 // Use the SSE version of linear_at<float>
 // Does not make any real difference in performance on msvc2017

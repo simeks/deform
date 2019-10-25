@@ -36,6 +36,9 @@ stk::Volume registration(
         const stk::Volume& initial_deformation,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        const stk::Volume& regularization_map,
+#endif
         const int num_threads
 #ifdef DF_USE_CUDA
         , bool use_gpu
