@@ -32,6 +32,10 @@ bool RegistrationCommand::_parse_arguments(void)
     _args.add_option("constraint_mask", "--constraint_mask", "Path to the constraint mask");
     _args.add_option("constraint_values", "--constraint_values", "Path to the constraint values");
     _args.add_group();
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    _args.add_option("regularization_map", "-rm, --regularization_map", "Path to a map of voxel-wise regularization terms");
+    _args.add_group();
+#endif
     _args.add_option("jacobian", "-j, --jacobian",  "Path to the resulting jacobian");
     _args.add_option("transform", "-t, --transform",  "Path to the transformed version of the first moving volume");
     _args.add_group();
@@ -173,7 +177,7 @@ int RegistrationCommand::_execute(void)
     }
     else if (!constraint_mask_file.empty() || !constraint_values_file.empty()) {
         // Just a check to make sure the user didn't forget something
-        LOG(Error) << "No constraints used, to use constraints, specify both a mask and a vectorfield";
+        LOG(Error) << "No constraints used, to use constraints, specify both a mask and a vector field";
         return EXIT_FAILURE;
     }
 
@@ -199,6 +203,18 @@ int RegistrationCommand::_execute(void)
         return EXIT_FAILURE;
     }
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    std::string regularization_map_file = _args.get<std::string>("regularization_map", "");
+    LOG(Info) << "Regularization map: '" << regularization_map_file << "'";
+
+    stk::Volume regularization_map;
+    if (!regularization_map_file.empty()) {
+        regularization_map = stk::read_volume(regularization_map_file.c_str());
+        if (!regularization_map.valid()) 
+            return EXIT_FAILURE;
+    }
+#endif
+
 #ifdef DF_USE_CUDA
     bool use_gpu = _args.is_set("use_gpu");
 #endif
@@ -215,10 +231,13 @@ int RegistrationCommand::_execute(void)
                            initial_displacement,
                            constraint_mask,
                            constraint_values,
+                        #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+                           regularization_map,
+                        #endif
                            _args.get<int>("num_threads", 0)
-                       #ifdef DF_USE_CUDA
+                        #ifdef DF_USE_CUDA
                            , use_gpu
-                       #endif
+                        #endif
                            );
     }
     catch (std::exception& e) {
