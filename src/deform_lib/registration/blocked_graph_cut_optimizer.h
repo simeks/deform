@@ -11,10 +11,11 @@
 #include <vector>
 
 template<
+    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
-    >
+>
 class BlockedGraphCutOptimizer
 {
 public:
@@ -22,8 +23,7 @@ public:
         const std::vector<int3>& neighborhood,
         const int3& block_size,
         double block_energy_epsilon,
-        int max_iteration_count,
-        Settings::UpdateRule update_rule
+        int max_iteration_count
     );
     ~BlockedGraphCutOptimizer();
 
@@ -32,7 +32,7 @@ public:
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
         float3 step_size,
-        stk::VolumeFloat3& def
+        TDisplacementField& df
     );
 
 private:
@@ -43,13 +43,13 @@ private:
         const int3& block_dims,
         const int3& block_offset,
         const float3& delta, // delta in [mm]
-        stk::VolumeFloat3& def
+        TDisplacementField& df
     );
 
     double calculate_energy(
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
-        stk::VolumeFloat3& def
+        TDisplacementField& df
     );
 
     std::vector<int3> _neighborhood;
@@ -58,8 +58,6 @@ private:
 
     // Maximum number of iterations, -1 indicates an infinite number of iterations
     int _max_iteration_count;
-
-    Settings::UpdateRule _update_rule;
 };
 
 #include "blocked_graph_cut_optimizer.inl"

@@ -10,8 +10,10 @@
 #endif
 #include "../solver/icm_solver.h"
 
-#include "blocked_graph_cut_optimizer.h"
 #include "cost_functions/cost_function.h"
+
+#include "blocked_graph_cut_optimizer.h"
+#include "displacement_field.h"
 #include "registration_engine.h"
 #include "transform.h"
 
@@ -39,16 +41,17 @@ namespace
         }
     }
 
-    void constrain_deformation_field(stk::VolumeFloat3& def,
+    template<typename TDisplacementField>
+    void constrain_deformation_field(TDisplacementField& df,
         const stk::VolumeUChar& mask, const stk::VolumeFloat3& values)
     {
-        ASSERT(def.size() == mask.size() && def.size() == values.size());
-        dim3 dims = def.size();
+        ASSERT(df.size() == mask.size() && df.size() == values.size());
+        dim3 dims = df.size();
         for (int z = 0; z < int(dims.z); ++z) {
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
                     if (mask(x, y, z) > 0) {
-                        def(x, y, z) = values(x, y, z);
+                        df.set(int3{x,y,z}, values(x, y, z));
                     }
                 }
             }
@@ -616,7 +619,7 @@ stk::Volume RegistrationEngine::execute()
     #endif
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
-        stk::VolumeFloat3 def = _deformation_pyramid.volume(l);
+        auto df = DisplacementField<AdditiveUpdate>(_deformation_pyramid.volume(l));
 
         std::vector<int3> neighborhood = determine_neighborhood(l);
 
@@ -630,7 +633,7 @@ stk::Volume RegistrationEngine::execute()
             {
                 // Fix constrained voxels by updating the initial deformation field
                 constrain_deformation_field(
-                    def,
+                    df,
                     _constraints_mask_pyramid.volume(l),
                     _constraints_pyramid.volume(l)
                 );
@@ -640,40 +643,49 @@ stk::Volume RegistrationEngine::execute()
             build_unary_function(l, unary_fn);
 
             if (_settings.solver == Settings::Solver_ICM) {
-                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, ICMSolver<double>>
-                    optimizer(
+                BlockedGraphCutOptimizer<
+                    DisplacementField<AdditiveUpdate>,
+                    UnaryFunction,
+                    Regularizer,
+                    ICMSolver<double>
+                > optimizer(
                         neighborhood,
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
-                        _settings.levels[l].max_iteration_count,
-                        _settings.update_rule
+                        _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
             }
 #if defined(DF_ENABLE_GCO)
             else if (_settings.solver == Settings::Solver_GCO) {
-                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GCOSolver<double>>
-                    optimizer(
+                BlockedGraphCutOptimizer<
+                    DisplacementField<AdditiveUpdate>,
+                    UnaryFunction,
+                    Regularizer,
+                    GCOSolver<double>
+                > optimizer(
                         neighborhood,
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
-                        _settings.levels[l].max_iteration_count,
-                        _settings.update_rule
+                        _settings.levels[l].max_iteration_count
                     );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
             }
 #endif
 #if defined(DF_ENABLE_GRIDCUT)
             else if (_settings.solver == Settings::Solver_GridCut) {
-                BlockedGraphCutOptimizer<UnaryFunction, Regularizer, GridCutSolver<double>>
-                    optimizer(
+                BlockedGraphCutOptimizer<
+                    DisplacementField<AdditiveUpdate>,
+                    UnaryFunction,
+                    Regularizer,
+                    GridCutSolver<double>
+                > optimizer(
                         neighborhood,
                         _settings.levels[l].block_size,
                         _settings.levels[l].block_energy_epsilon,
-                        _settings.levels[l].max_iteration_count,
-                        _settings.update_rule
+                        _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, def);
+                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
             }
 #endif
 
@@ -682,13 +694,15 @@ stk::Volume RegistrationEngine::execute()
             LOG(Info) << "Skipping level " << l;
         }
 
+        stk::VolumeFloat3 vf = df.volume();
         if (l != 0) {
+
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
             #ifdef DF_ENABLE_DISPLACEMENT_FIELD_RESIDUALS
-                filters::upsample_vectorfield(def, upsampled_dims, _deformation_pyramid.residual(l - 1))
+                filters::upsample_vectorfield(vf, upsampled_dims, _deformation_pyramid.residual(l - 1))
             #else
-                filters::upsample_vectorfield(def, upsampled_dims)
+                filters::upsample_vectorfield(vf, upsampled_dims)
             #endif
             );
 
@@ -697,7 +711,7 @@ stk::Volume RegistrationEngine::execute()
             #endif // DF_OUTPUT_DEBUG_VOLUMES
         }
         else {
-            _deformation_pyramid.set_volume(0, def);
+            _deformation_pyramid.set_volume(0, vf);
         }
     }
 
