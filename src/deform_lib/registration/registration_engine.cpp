@@ -1,5 +1,4 @@
 #include "../config.h"
-#include "../cost_functions/cost_function.h"
 #include "../filters/resample.h"
 #include "../make_unique.h"
 
@@ -12,6 +11,7 @@
 #include "../solver/icm_solver.h"
 
 #include "blocked_graph_cut_optimizer.h"
+#include "cost_functions/cost_function.h"
 #include "registration_engine.h"
 #include "transform.h"
 
