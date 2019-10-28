@@ -278,7 +278,10 @@ stk::Volume GpuRegistrationEngine::execute()
         stk::GpuVolume base = _fixed_pyramids[0].volume(0);
 
         stk::VolumeFloat4 initial(base.size(), float4{0, 0, 0, 0});
-        initial.copy_meta_from(base);
+        initial.set_origin(base.origin());
+        initial.set_spacing(base.spacing());
+        initial.set_direction(base.direction());
+        
         set_initial_deformation(initial);
     }
 
@@ -369,8 +372,8 @@ std::vector<int3> GpuRegistrationEngine::determine_neighborhood(int level) const
     dim3 dim_size {0, 0, 0};
 
     for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
-        stk::Volume fixed;
-        stk::Volume moving;
+        stk::GpuVolume fixed;
+        stk::GpuVolume moving;
 
         if (_fixed_pyramids[i].levels() > 0)
             fixed = _fixed_pyramids[i].volume(level);
