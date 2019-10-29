@@ -401,12 +401,12 @@ struct MIFunction : public SubFunction
      * entropy of the moving image and the joint entropy after each
      * iteration.
      */
-    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    virtual void pre_iteration_hook(const int iteration, const DisplacementField& df)
     {
         if (0 == iteration || 0 == _update_interval || iteration % _update_interval) {
             return;
         }
-        auto tmp = transform_volume(_moving, def, _interpolator);
+        auto tmp = transform_volume(_moving, df, _interpolator);
         _joint_entropy.update(_fixed, tmp);
         _entropy.update(tmp);
     }

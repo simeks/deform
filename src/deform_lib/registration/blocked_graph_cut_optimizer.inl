@@ -76,8 +76,7 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
         if (_max_iteration_count != -1 && num_iterations >= _max_iteration_count)
             break;
 
-        // TODO: !!!!!
-        unary_fn.pre_iteration_hook(num_iterations, df.volume());
+        unary_fn.pre_iteration_hook(num_iterations, df);
 
         done = true;
 

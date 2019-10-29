@@ -6,6 +6,8 @@
 
 #include <limits>
 
+class DisplacementField;
+
 struct SubFunction
 {
     virtual ~SubFunction() {}
@@ -23,10 +25,10 @@ struct SubFunction
      * \param iteration Number of the iteration just completed.
      * \param def Deformation field at the end of the iteration.
      */
-    virtual void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    virtual void pre_iteration_hook(const int iteration, const DisplacementField& df)
     {
         (void) iteration;
-        (void) def;
+        (void) df;
     }
 
     /*!

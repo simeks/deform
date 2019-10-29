@@ -9,8 +9,8 @@ class DisplacementField
 {
 public:
     DisplacementField(
-        Settings::UpdateRule update_rule,
-        const stk::VolumeFloat3& df
+        const stk::VolumeFloat3& df,
+        Settings::UpdateRule update_rule = Settings::UpdateRule_Additive
     ) :
         _update_rule(update_rule),
         _df(df)
@@ -18,13 +18,13 @@ public:
     }
     ~DisplacementField() {}
 
-    inline float3 get(const int3& p)
+    inline float3 get(const int3& p) const
     {
         return _df(p);
     }
 
     // delta : Delta in world space (mm)
-    inline float3 get(const int3& p, const float3& delta)
+    inline float3 get(const int3& p, const float3& delta) const
     {
         if (_update_rule == Settings::UpdateRule_Compositive) {
             // Convert delta to fixed image space
@@ -52,6 +52,13 @@ public:
         _df(p) = get(p, delta);
     }
 
+    // p : Index in displacement field
+    // Returns coordinates in world space
+    inline float3 transform_index(const int3& p)
+    {
+        return _df.index2point(p) + get(p);
+    }
+
     dim3 size() const
     {
         return _df.size();
@@ -61,6 +68,24 @@ public:
     const stk::VolumeFloat3& volume() const
     {
         return _df;
+    }
+
+    inline const float3& operator()(int x, int y, int z) const
+    {
+        return _df(p);
+    }
+    inline float3& operator()(int x, int y, int z)
+    {
+        return _df(p);
+    }
+
+    inline const float3& operator()(const int3& p) const
+    {
+        return _df(p);
+    }
+    inline float3& operator()(const int3& p)
+    {
+        return _df(p);
     }
 
 private:
