@@ -3,40 +3,20 @@
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
 
-struct CompositiveUpdate
-{
-    inline float3 operator()(
-        const stk::VolumeFloat3& df,
-        const int3& p,
-        const float3& delta
-    ) {
-        // Convert delta to fixed image space
-        // TODO: What about orientation?
-        float3 fp {
-            p.x + delta.x / df.spacing().x,
-            p.z + delta.y / df.spacing().y,
-            p.y + delta.z / df.spacing().z
-        };
-        return df.linear_at(fp, stk::Border_Replicate) + delta;
-    }
-};
+#include "settings.h"
 
-struct AdditiveUpdate
-{
-    inline float3 operator()(
-        const stk::VolumeFloat3& df,
-        const int3& p,
-        const float3& delta
-    ) {
-        return df(p) + delta;
-    }
-};
 
-template<typename TUpdate>
 class DisplacementField
 {
 public:
-    DisplacementField(const stk::VolumeFloat3& df) : _df(df) {}
+    DisplacementField(
+        Settings::UpdateRule update_rule,
+        const stk::VolumeFloat3& df
+    ) :
+        _update_rule(update_rule),
+        _df(df)
+    {
+    }
     ~DisplacementField() {}
 
     inline float3 get(const int3& p)
@@ -47,8 +27,19 @@ public:
     // delta : Delta in world space (mm)
     inline float3 get(const int3& p, const float3& delta)
     {
-        TUpdate _update_fn;
-        return _update_fn(_df, p, delta);
+        if (_update_rule == Settings::UpdateRule_Compositive) {
+            // Convert delta to fixed image space
+            // TODO: What about orientation?
+            float3 fp {
+                p.x + delta.x / _df.spacing().x,
+                p.z + delta.y / _df.spacing().y,
+                p.y + delta.z / _df.spacing().z
+            };
+            return _df.linear_at(fp, stk::Border_Replicate) + delta;
+        }
+        else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
+            return _df(p) + delta;
+        }
     }
 
     inline void set(const int3& p, const float3& d)
@@ -59,8 +50,7 @@ public:
     // delta : Delta in world space (mm)
     inline void update(const int3& p, const float3& delta)
     {
-        TUpdate _update_fn;
-        _df(p) = _update_fn(_df, p, delta);
+        _df(p) = get(p, delta);
     }
 
     dim3 size() const
@@ -75,6 +65,7 @@ public:
     }
 
 private:
+    Settings::UpdateRule _update_rule;
     stk::VolumeFloat3 _df;
 
 };

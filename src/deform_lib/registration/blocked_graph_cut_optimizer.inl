@@ -8,13 +8,12 @@
 #include <iomanip>
 
 template<
-    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
     >
 BlockedGraphCutOptimizer
-<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolver>
+<TUnaryTerm, TBinaryTerm, TSolver>
 ::BlockedGraphCutOptimizer(
     const std::vector<int3>& neighborhood,
     const int3& block_size,
@@ -27,27 +26,25 @@ BlockedGraphCutOptimizer
 {
 }
 template<
-    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
 >
-BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolver>
+BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 ::~BlockedGraphCutOptimizer()
 {
 }
 template<
-    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
 >
-void BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolver>
+void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 ::execute(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
     float3 step_size,
-    TDisplacementField& df
+    DisplacementField& df
 )
 {
     dim3 dims = df.size();
@@ -189,12 +186,11 @@ void BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolv
 }
 
 template<
-    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
 >
-bool BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolver>
+bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 ::do_block(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
@@ -202,7 +198,7 @@ bool BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolv
     const int3& block_dims,
     const int3& block_offset,
     const float3& delta, // delta in mm
-    TDisplacementField& df
+    DisplacementField& df
 )
 {
     dim3 dims = df.size();
@@ -355,16 +351,15 @@ bool BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolv
 }
 
 template<
-    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
 >
-double BlockedGraphCutOptimizer<TDisplacementField, TUnaryTerm, TBinaryTerm, TSolver>
+double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 ::calculate_energy(
     TUnaryTerm& unary_fn,
     TBinaryTerm& binary_fn,
-    TDisplacementField& df
+    DisplacementField& df
 )
 {
     dim3 dims = df.size();

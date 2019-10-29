@@ -6,12 +6,12 @@
 #include <stk/math/types.h>
 
 #include "../config.h"
+#include "displacement_field.h"
 #include "settings.h"
 
 #include <vector>
 
 template<
-    typename TDisplacementField,
     typename TUnaryTerm,
     typename TBinaryTerm,
     typename TSolver
@@ -32,7 +32,7 @@ public:
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
         float3 step_size,
-        TDisplacementField& df
+        DisplacementField& df
     );
 
 private:
@@ -43,13 +43,13 @@ private:
         const int3& block_dims,
         const int3& block_offset,
         const float3& delta, // delta in [mm]
-        TDisplacementField& df
+        DisplacementField& df
     );
 
     double calculate_energy(
         TUnaryTerm& unary_fn,
         TBinaryTerm& binary_fn,
-        TDisplacementField& df
+        DisplacementField& df
     );
 
     std::vector<int3> _neighborhood;
