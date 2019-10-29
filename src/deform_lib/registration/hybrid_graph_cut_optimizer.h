@@ -13,6 +13,7 @@
 #include <vector>
 
 class GpuBinaryFunction;
+class GpuDisplacementField;
 class GpuUnaryFunction;
 class WorkerPool;
 class StreamPool;
@@ -29,7 +30,7 @@ public:
         Settings::UpdateRule update_rule,
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
-        stk::GpuVolume& df,
+        GpuDisplacementField& df,
         WorkerPool& worker_pool,
         std::vector<stk::cuda::Stream>& stream_pool
     );
@@ -119,8 +120,8 @@ private:
     GpuUnaryFunction& _unary_fn;
     GpuBinaryFunction& _binary_fn;
 
-    stk::GpuVolume _df;
-    stk::GpuVolume _df_tmp;
+    GpuDisplacementField _df;
+    GpuDisplacementField _df_tmp;
 
     BlockChangeFlags _block_change_flags;
     std::atomic<size_t> _num_blocks_changed;
@@ -137,8 +138,8 @@ private:
 // df_in    : Displacement field from previous iteration
 // df_out   : Target for updated displacement field
 void apply_displacement_delta(
-    stk::GpuVolume& df_in,
-    stk::GpuVolume& df_out,
+    GpuDisplacementField& df_in,
+    GpuDisplacementField& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
     Settings::UpdateRule update_rule,
@@ -149,7 +150,7 @@ void apply_displacement_delta(
 double calculate_energy(
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     stk::GpuVolume& unary_cost,
     stk::GpuVolume& binary_cost_x,
     stk::GpuVolume& binary_cost_y,

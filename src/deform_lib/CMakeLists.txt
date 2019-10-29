@@ -80,6 +80,7 @@ if (DF_USE_CUDA)
         "registration/gpu/cost_functions/cost_function.h"
         "registration/gpu/cost_functions/unary_function.h"
 
+        "registration/gpu/gpu_displacement_field.h"
         "registration/gpu/transform.cu"
         "registration/gpu/transform.h"
         "registration/gpu_registration_engine.cpp"

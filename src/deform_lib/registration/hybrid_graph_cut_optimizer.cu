@@ -1,6 +1,7 @@
 #include "gpu/cost_functions/binary_function.h"
 #include "gpu/cost_functions/cost_function_kernel.h"
 #include "gpu/cost_functions/unary_function.h"
+#include "gpu/gpu_displacement_field.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include <stk/cuda/cuda.h>
@@ -157,7 +158,7 @@ __global__ void reduce_total_energy(
 double calculate_energy(
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     stk::GpuVolume& unary_cost,
     stk::GpuVolume& binary_cost_x,
     stk::GpuVolume& binary_cost_y,

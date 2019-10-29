@@ -18,7 +18,7 @@ HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     Settings::UpdateRule update_rule,
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     WorkerPool& worker_pool,
     std::vector<stk::cuda::Stream>& stream_pool) :
     _neighborhood(neighborhood),
@@ -288,7 +288,7 @@ size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
         //  for the previous iteration since each update may depend on neighbouring
         //  updates. As compared to additive were we only have d(x) = d(x) + delta.
 
-        stk::GpuVolume df_in = _df;
+        GpuDisplacementField df_in = _df;
         if (_update_rule == Settings::UpdateRule_Compositive) {
             _df_tmp.copy_from(_df);
             df_in = _df_tmp;

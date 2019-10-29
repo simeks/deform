@@ -44,7 +44,7 @@ struct Regularizer
     //  identical to the initial displacement will result in zero energy.
     void set_initial_displacement(const stk::VolumeFloat3& initial)
     {
-        _initial = initial;
+        _initial = inTODOOitial;
     }
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
