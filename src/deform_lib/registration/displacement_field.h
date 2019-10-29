@@ -5,44 +5,16 @@
 
 #include "settings.h"
 
-float3 CompositiveUpdate(
-    const stk::VolumeFloat3& df,
-    const int3& p,
-    const float3& delta
-) {
-    // Convert delta to fixed image space
-    // TODO: What about orientation?
-    float3 fp {
-        p.x + delta.x / df.spacing().x,
-        p.z + delta.y / df.spacing().y,
-        p.y + delta.z / df.spacing().z
-    };
-    return df.linear_at(fp, stk::Border_Replicate) + delta;
-}
-
-float3 AdditiveUpdate(
-    const stk::VolumeFloat3& df,
-    const int3& p,
-    const float3& delta
-) {
-    return df(p) + delta;
-}
-
-typedef float3 (*UpdateFn)(const stk::VolumeFloat3&, const int3&, const float3&);
-
 class DisplacementField
 {
 public:
     DisplacementField(
         Settings::UpdateRule update_rule,
         const stk::VolumeFloat3& df
-    ) : _df(df)
+    ) :
+        _update_rule(update_rule),
+        _df(df)
     {
-        if (update_rule == Settings::UpdateRule_Compositive)
-            _update_fn = CompositiveUpdate;
-        else
-            _update_fn = AdditiveUpdate;
-        
     }
     ~DisplacementField() {}
 
@@ -54,7 +26,19 @@ public:
     // delta : Delta in world space (mm)
     inline float3 get(const int3& p, const float3& delta)
     {
-        return _update_fn(_df, p, delta);
+        if (_update_rule == Settings::UpdateRule_Compositive) {
+            // Convert delta to fixed image space
+            // TODO: What about orientation?
+            float3 fp {
+                p.x + delta.x / _df.spacing().x,
+                p.z + delta.y / _df.spacing().y,
+                p.y + delta.z / _df.spacing().z
+            };
+            return _df.linear_at(fp, stk::Border_Replicate) + delta;
+        }
+        else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
+            return _df(p) + delta;
+        }
     }
 
     inline void set(const int3& p, const float3& d)
@@ -80,7 +64,7 @@ public:
     }
 
 private:
-    UpdateFn _update_fn;
+    Settings::UpdateRule _update_rule;
     stk::VolumeFloat3 _df;
 
 };
