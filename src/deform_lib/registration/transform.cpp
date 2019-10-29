@@ -22,7 +22,7 @@ namespace
         dim3 dims = df.size();
 
         stk::VolumeHelper<TVoxelType> out(dims);
-        out.copy_meta_from(df);
+        out.copy_meta_from(df.volume());
 
         #define FAST_ROUND(x_) int(x_+0.5f)
 
@@ -30,8 +30,7 @@ namespace
         for (int z = 0; z < int(dims.z); ++z) {
         for (int y = 0; y < int(dims.y); ++y) {
         for (int x = 0; x < int(dims.x); ++x) {
-            // [fixed] -> [world] -> [moving]
-            const float3 moving_p = src.point2index(df.transform_index(int3{x,y,z});
+            const float3 moving_p = src.point2index(df.transform_index(int3{x,y,z}));
 
             out(x, y, z) = src.at(
                 int(FAST_ROUND(moving_p.x)),
@@ -60,16 +59,16 @@ namespace
         // There should be no requirements on src to have the same size, spacing, origin, and direction
         //  as the fixed image.
 
-        dim3 dims = def.size();
+        dim3 dims = df.size();
 
         stk::VolumeHelper<TVoxelType> out(dims);
-        out.copy_meta_from(def);
+        out.copy_meta_from(df.volume());
 
         #pragma omp parallel for
         for (int z = 0; z < int(dims.z); ++z) {
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
-                    const float3 moving_p = def.index2point(int3({x, y, z})) + def(x, y, z);
+                    const float3 moving_p = df.transform_index(int3{x,y,z});
                     out(x, y, z) = src.linear_at_point(moving_p, stk::Border_Constant);
                 }
             }

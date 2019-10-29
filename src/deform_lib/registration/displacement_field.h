@@ -5,6 +5,11 @@
 
 #include "settings.h"
 
+/** Wrapper for a displacement field image.
+ * 
+ * Users are adviced to use the transform_* methods, rather then applying the
+ * displacements themselves via `df.get(p)`.
+ * */
 class DisplacementField
 {
 public:
@@ -54,7 +59,7 @@ public:
 
     // p : Index in displacement field
     // Returns coordinates in world space
-    inline float3 transform_index(const int3& p)
+    inline float3 transform_index(const int3& p) const
     {
         return _df.index2point(p) + get(p);
     }
@@ -68,24 +73,6 @@ public:
     const stk::VolumeFloat3& volume() const
     {
         return _df;
-    }
-
-    inline const float3& operator()(int x, int y, int z) const
-    {
-        return _df(p);
-    }
-    inline float3& operator()(int x, int y, int z)
-    {
-        return _df(p);
-    }
-
-    inline const float3& operator()(const int3& p) const
-    {
-        return _df(p);
-    }
-    inline float3& operator()(const int3& p)
-    {
-        return _df(p);
     }
 
 private:
