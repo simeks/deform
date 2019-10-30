@@ -1,7 +1,9 @@
 #include "cost_function_kernel.h"
 #include "cross_correlation.h"
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 template<typename T>
 struct NCCImpl

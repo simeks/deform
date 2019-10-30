@@ -1,7 +1,9 @@
 #include "cost_function_kernel.h"
 #include "squared_distance.h"
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 template<typename T>
 struct SSDImpl

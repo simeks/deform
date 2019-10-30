@@ -20,21 +20,20 @@ __global__ void apply_displacement_delta_kernel(
     float4 delta
 )
 {
-    UpdateFn update_fn;
-
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
+    if (x >= df_in.size().x ||
+        y >= df_in.size().y ||
+        z >= df_in.size().z)
     {
         return;
     }
 
-    if (labels(x,y,z))
+    if (labels(x,y,z)) {
         df_out(x,y,z) = df_in.get(int3{x, y, z}, delta);
+    }
 }
 
 void apply_displacement_delta(
@@ -62,24 +61,20 @@ void apply_displacement_delta(
     if (df_in.update_rule() == Settings::UpdateRule_Additive) {
         // In and out buffer for displacement field in the additive case can 
         //  be the same, since all updates are guaranteed to be independent.
-        apply_displacement_delta_kernel<cuda::AdditiveUpdate>
+        apply_displacement_delta_kernel
         <<<grid_size, block_size, 0, stream>>>(
-            df_out,
-            df_out,
+            cuda::DisplacementField<cuda::AdditiveUpdate>(df_out),
+            df_out.volume(),
             labels,
-            dims,
-            inv_spacing,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
     else if (df_in.update_rule() == Settings::UpdateRule_Compositive) {
-        apply_displacement_delta_kernel<cuda::CompositiveUpdate>
+        apply_displacement_delta_kernel
         <<<grid_size, block_size, 0, stream>>>(
-            df_in,
-            df_out,
+            cuda::DisplacementField<cuda::CompositiveUpdate>(df_in),
+            df_out.volume(),
             labels,
-            dims,
-            inv_spacing,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
@@ -171,7 +166,7 @@ double calculate_energy(
     cuda::Stream& stream = stk::cuda::Stream::null();
 
     // Update rule doesn't matter in this case since we don't want the energy for a move.
-    unary_fn(df, {0,0,0}, begin, end, unary_cost, Settings::UpdateRule_Additive, stream);
+    unary_fn(df, {0,0,0}, begin, end, unary_cost, stream);
 
     // Compute binary terms
     binary_fn(

@@ -38,9 +38,6 @@ struct CostFunctionKernel
         _moving_dims(moving.size()),
         _fixed_mask(fixed_mask),
         _moving_mask(moving_mask),
-        _fixed_origin(fixed.origin()),
-        _fixed_spacing(fixed.spacing()),
-        _fixed_direction(fixed.direction()),
         _moving_origin(moving.origin()),
         _inv_moving_spacing(float3{1.0f, 1.0f, 1.0f} / moving.spacing()),
         _inv_moving_direction(moving.inverse_direction()),
@@ -61,7 +58,8 @@ struct CostFunctionKernel
         int x,
         int y,
         int z,
-        TDisplacementField df,
+        const TDisplacementField& df,
+        float4 delta,
         int cost_offset)
     {
 
@@ -89,7 +87,7 @@ struct CostFunctionKernel
             }
         }
 
-        float3 d = df.get(int3{x, y, z}, delta);
+        float4 d = df.get(int3{x, y, z}, delta);
         float c = _impl(
             _fixed,
             _moving,
@@ -97,7 +95,7 @@ struct CostFunctionKernel
             _moving_dims,
             int3{x,y,z},
             moving_p,
-            d
+            float3{d.x, d.y, d.z}
         );
         c *= _weight * fixed_mask_value * moving_mask_value;
 
@@ -147,13 +145,7 @@ __global__ void cost_function_kernel(
     y += offset.y;
     z += offset.z;
 
-    float3 inv_spacing {
-        1.0f / kernel._fixed_spacing.x,
-        1.0f / kernel._fixed_spacing.y,
-        1.0f / kernel._fixed_spacing.z
-    };
-
-    kernel(x, y, z, df, cost_offset);
+    kernel(x, y, z, df, delta, cost_offset);
 }
 
 template<typename TKernel>
@@ -196,7 +188,7 @@ void invoke_cost_function_kernel(
             kernel,
             offset,
             dims,
-            cuda::DisplacementField<CompositiveUpdate>(df),
+            cuda::DisplacementField<cuda::CompositiveUpdate>(df),
             d4,
             1
         );
@@ -206,7 +198,7 @@ void invoke_cost_function_kernel(
             kernel,
             offset,
             dims,
-            cuda::DisplacementField<AdditiveUpdate>(df),
+            cuda::DisplacementField<cuda::AdditiveUpdate>(df),
             d4,
             1
         );

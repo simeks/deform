@@ -9,6 +9,7 @@
 #include <deform_lib/filters/gpu/gaussian_filter.h>
 
 #include <deform_lib/registration/transform.h>
+#include <deform_lib/registration/gpu/gpu_displacement_field.h>
 #include <deform_lib/registration/gpu/transform.h>
 
 #include <stk/image/gpu_volume.h>
@@ -236,9 +237,9 @@ TEST_CASE("gpu_transform", "")
 
     stk::GpuVolume gpu_src(src);
     stk::GpuVolume gpu_def(def4);
-    stk::VolumeFloat gpu_out_lin = gpu::transform_volume(gpu_src, gpu_def, transform::Interp_Linear)
+    stk::VolumeFloat gpu_out_lin = gpu::transform_volume(gpu_src, GpuDisplacementField(gpu_def), transform::Interp_Linear)
         .download();
-    stk::VolumeFloat gpu_out_nn = gpu::transform_volume(gpu_src, gpu_def, transform::Interp_NN)
+    stk::VolumeFloat gpu_out_nn = gpu::transform_volume(gpu_src, GpuDisplacementField(gpu_def), transform::Interp_NN)
         .download();
 
     CHECK(gpu_out_lin.spacing().x == Approx(out_lin.spacing().x));

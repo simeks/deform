@@ -2,7 +2,9 @@
 
 #include "cost_function_kernel.h"
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 template<typename T>
 struct LandmarksImpl

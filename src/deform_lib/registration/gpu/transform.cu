@@ -27,14 +27,14 @@ __global__ void transform_kernel_linear(
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= df_dims.x ||
-        y >= df_dims.y ||
-        z >= df_dims.z)
+    if (x >= df.size().x ||
+        y >= df.size().y ||
+        z >= df.size().z)
     {
         return;
     }
 
-    float3 mp = (inv_moving_direction * (df.transform_index(int3{x,y,z} - moving_origin)
+    float3 mp = inv_moving_direction * (df.transform_index(int3{x,y,z}) - moving_origin)
                 * inv_moving_spacing;
 
     out(x,y,z) = cuda::linear_at_border(src, src_dims, mp.x, mp.y, mp.z);
@@ -55,14 +55,14 @@ __global__ void transform_kernel_nn(
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= df_dims.x ||
-        y >= df_dims.y ||
-        z >= df_dims.z)
+    if (x >= df.size().x ||
+        y >= df.size().y ||
+        z >= df.size().z)
     {
         return;
     }
 
-    float3 mp = inv_moving_direction * (df.transform_index(int3{x,y,z} - moving_origin) 
+    float3 mp = inv_moving_direction * (df.transform_index(int3{x,y,z}) - moving_origin) 
                 * inv_moving_spacing;
 
     int xt = roundf(mp.x);
@@ -181,10 +181,7 @@ stk::GpuVolume gpu::transform_volume(
     const dim3& block_size
 )
 {
-    ASSERT(def.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(src.usage() == stk::gpu::Usage_PitchedPointer);
-    FATAL_IF(def.voxel_type() != stk::Type_Float4)
-        << "Invalid pixel type for displacement";
 
     dim3 dims = df.size();
 

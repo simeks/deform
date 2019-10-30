@@ -11,7 +11,6 @@ namespace cuda {
     using namespace stk::cuda;
 }
 
-
 __device__ float4 energy(
     float4 d0,
     float4 d1,
@@ -70,7 +69,7 @@ __global__ void regularizer_kernel(
     float4 o_y = {0, 0, 0, 0};
     float4 o_z = {0, 0, 0, 0};
 
-    if (gx + 1 < (int) df_dims.x) {
+    if (gx + 1 < (int) df.size().x) {
         int3 step {1, 0, 0};
         float4 dn0 = df.get(p+step) - initial_df.get(p+step);
         float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
@@ -84,7 +83,7 @@ __global__ void regularizer_kernel(
             half_exponent
         );
     }
-    if (gy + 1 < (int) df_dims.y) {
+    if (gy + 1 < (int) df.size().y) {
         int3 step {0, 1, 0};
         float4 dn0 = df.get(p+step) - initial_df.get(p+step);
         float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
@@ -98,7 +97,7 @@ __global__ void regularizer_kernel(
             half_exponent
         );
     }
-    if (gz + 1 < (int) df_dims.z) {
+    if (gz + 1 < (int) df.size().z) {
         int3 step {0, 0, 1};
         float4 dn0 = df.get(p+step) - initial_df.get(p+step);
         float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
@@ -191,7 +190,6 @@ void GpuBinaryFunction::operator()(
         stk::GpuVolume& cost_x,
         stk::GpuVolume& cost_y,
         stk::GpuVolume& cost_z,
-        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
         )
 {

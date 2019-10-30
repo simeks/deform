@@ -4,6 +4,7 @@
 #include <stk/cuda/volume.h>
 #include <stk/image/gpu_volume.h>
 #include <stk/math/float3.h>
+#include <stk/math/matrix3x3f.h>
 
 #include "../settings.h"
 
@@ -15,6 +16,7 @@
 class GpuDisplacementField
 {
 public:
+    GpuDisplacementField() : _update_rule(Settings::UpdateRule_Additive) {}
     GpuDisplacementField(
         const stk::GpuVolume& df,
         Settings::UpdateRule update_rule = Settings::UpdateRule_Additive
@@ -72,19 +74,21 @@ private:
 
 };
 
+#ifdef __CUDACC__
+
 namespace cuda {
 
 struct CompositiveUpdate
 {
     __device__ float4 operator()(
-        const cuda::VolumePtr<float4>& df,
+        const stk::cuda::VolumePtr<float4>& df,
         const dim3& dims,
         const float3& inv_spacing,
         int x, int y, int z,
         const float4& delta
     ) {
         // Convert delta from mm to image space
-        return cuda::linear_at_clamp<float4>(
+        return stk::cuda::linear_at_clamp<float4>(
             df,
             dims,
             x + delta.x * inv_spacing.x,
@@ -97,7 +101,7 @@ struct CompositiveUpdate
 struct AdditiveUpdate
 {
     __device__ float4 operator()(
-        const cuda::VolumePtr<float4>& df,
+        const stk::cuda::VolumePtr<float4>& df,
         const dim3& /*dims*/,
         const float3& /*inv_spacing*/,
         int x, int y, int z,
@@ -112,14 +116,12 @@ class DisplacementField
 {
 public:
     DisplacementField(const GpuDisplacementField& df) :
-        _df(df),
+        _df(df.volume()),
         _dims(df.size()),
         _origin(df.origin()),
         _spacing(df.spacing()),
         _direction(df.direction())
     {
-        ASSERT(_df.voxel_type() == stk::Type_Float4);
-
         _inv_spacing = {
             1.0f / _spacing.x,
             1.0f / _spacing.y,
@@ -128,7 +130,12 @@ public:
     }
     ~DisplacementField() {}
 
-    __device__ float3 get(const int3& p, const float3& delta) const
+    __device__ float4 get(const int3& p) const
+    {
+        return _df(p.x, p.y, p.z);
+    }
+
+    __device__ float4 get(const int3& p, const float4& delta) const
     {
         TUpdateFn fn;
         return fn(_df, _dims, _inv_spacing, p.x, p.y, p.z, delta);
@@ -138,16 +145,23 @@ public:
     // Returns coordinates in world space
     __device__ float3 transform_index(const int3& p) const
     {
-        return _df.index2point(p) + get(p);
+        float4 d = get(p);
+        return index2point(p) + float3{d.x, d.y, d.z};
     }
 
     __device__ float3 index2point(const int3& index) const
     {
-        return _origin + _direction * (_spacing * index);
+        float3 xyz {float(index.x), float(index.y), float(index.z)};
+        return _origin + _direction * (_spacing * xyz);
+    }
+
+    __device__ const dim3& size() const
+    {
+        return _dims;
     }
 
 private:
-    cuda::VolumePtr<float4> _df;
+    stk::cuda::VolumePtr<float4> _df;
     dim3 _dims;
 
     float3 _origin;
@@ -155,5 +169,5 @@ private:
     float3 _inv_spacing;
     Matrix3x3f _direction;
 };
-
 } // namespace cuda
+#endif // __CUDACC__
