@@ -221,7 +221,7 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
     stk::Volume df = _deformation_pyramid.volume(level);
     if (!_settings.regularize_initial_displacement) {
         // Clone the def, because the current copy will be changed when executing the optimizer
-        binary_fn.set_initial_displacement(df.clone());
+        binary_fn.set_initial_displacement(DisplacementField(df.clone()));
     }
     else {
         binary_fn.set_initial_displacement(stk::VolumeFloat3(df.size(), float3{0,0,0}));

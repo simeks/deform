@@ -13,6 +13,7 @@
 class DisplacementField
 {
 public:
+    DisplacementField() : _update_rule(Settings::UpdateRule_Additive) {}
     DisplacementField(
         const stk::VolumeFloat3& df,
         Settings::UpdateRule update_rule = Settings::UpdateRule_Additive
@@ -74,6 +75,13 @@ public:
     {
         return _df;
     }
+
+    // Returns true if the volume is allocated and ready for use
+    bool valid() const
+    {
+        return _df.valid();
+    }
+
 
 private:
     Settings::UpdateRule _update_rule;
