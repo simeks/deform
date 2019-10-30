@@ -4,7 +4,7 @@
 #include <stk/image/gpu_volume.h>
 #include <stk/math/float3.h>
 
-#include "settings.h"
+#include "../settings.h"
 
 /** Wrapper for a displacement field image.
  * 
