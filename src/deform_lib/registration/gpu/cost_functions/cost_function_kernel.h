@@ -56,8 +56,15 @@ struct CostFunctionKernel
     // x,y,z        : Global image coordinates
     // d            : Displacement
     // cost_offset  : Where in `cost` to store the results (0 or 1).
-    __device__ void operator()(int x, int y, int z, float3 d, int cost_offset)
+    template<typename TDisplacementField>
+    __device__ void operator()(
+        int x,
+        int y,
+        int z,
+        TDisplacementField df,
+        int cost_offset)
     {
+
         // Check if the fixed voxel is masked out
         float fixed_mask_value = 1.0f;
         if (_fixed_mask.ptr) {
@@ -67,9 +74,8 @@ struct CostFunctionKernel
             }
         }
 
-        const float3 xyz = float3{float(x),float(y),float(z)};
-        const float3 world_p = _fixed_origin + _fixed_direction * (xyz * _fixed_spacing);
-        const float3 moving_p = (_inv_moving_direction * (world_p + d - _moving_origin))
+        const float3 moving_p = _inv_moving_direction
+            * (df.transform_index({x,y,z}) - _moving_origin)
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
@@ -83,6 +89,7 @@ struct CostFunctionKernel
             }
         }
 
+        float3 d = df.get(int3{x, y, z}, delta);
         float c = _impl(
             _fixed,
             _moving,
@@ -146,9 +153,7 @@ __global__ void cost_function_kernel(
         1.0f / kernel._fixed_spacing.z
     };
 
-    float4 d = df.get(int3{x, y, z}, delta);
-    
-    kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
+    kernel(x, y, z, df, cost_offset);
 }
 
 template<typename TKernel>
