@@ -5,7 +5,12 @@
 
 #include <thrust/device_vector.h>
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
+
+
+class GpuDisplacementField;
 
 struct GpuCostFunction
 {
@@ -19,15 +24,13 @@ struct GpuCostFunction
     // offset       : Offset to region to compute terms in
     // dims         : Size of region
     // cost_acc     : Destination for cost (float2, with cost before (x) and after (y) applying delta)
-    // update_rule  : Update rule to apply
     virtual void cost(
-        stk::GpuVolume& df,
+        GpuDisplacementField& df,
         const float3& delta,
         float weight,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
-        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     ) = 0;
 

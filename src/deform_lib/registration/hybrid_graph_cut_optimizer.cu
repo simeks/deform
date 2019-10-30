@@ -8,15 +8,15 @@
 #include <stk/cuda/stream.h>
 #include <stk/cuda/volume.h>
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
-template<typename UpdateFn>
+template<typename TDisplacementField>
 __global__ void apply_displacement_delta_kernel(
-    cuda::VolumePtr<float4> df_in,
+    TDisplacementField df_in,
     cuda::VolumePtr<float4> df_out,
     cuda::VolumePtr<uint8_t> labels,
-    dim3 dims,
-    float3 inv_spacing,
     float4 delta
 )
 {
@@ -33,24 +33,15 @@ __global__ void apply_displacement_delta_kernel(
         return;
     }
 
-    float4 d = update_fn(
-        df_in,
-        dims,
-        inv_spacing,
-        x, y, z,
-        delta
-    );
-
     if (labels(x,y,z))
-        df_out(x,y,z) = d;
+        df_out(x,y,z) = df_in.get(int3{x, y, z}, delta);
 }
 
 void apply_displacement_delta(
-    stk::GpuVolume& df_in,
-    stk::GpuVolume& df_out,
+    GpuDisplacementField& df_in,
+    GpuDisplacementField& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
-    Settings::UpdateRule update_rule,
     cuda::Stream stream
 )
 {
@@ -191,7 +182,6 @@ double calculate_energy(
         binary_cost_x,
         binary_cost_y,
         binary_cost_z,
-        Settings::UpdateRule_Additive,
         stream
     );
 

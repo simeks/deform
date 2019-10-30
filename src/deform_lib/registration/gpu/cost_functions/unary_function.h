@@ -6,6 +6,8 @@
 
 #include <vector>
 
+class GpuDisplacementField;
+
 // A set of weighted cost functions
 class GpuUnaryFunction
 {
@@ -20,18 +22,16 @@ public:
 
     // cost_acc : Cost accumulator for unary term. float2 with E0 and E1.
     void operator()(
-        stk::GpuVolume& df,
+        GpuDisplacementField& df,
         const float3& delta,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
-        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     )
     {
         for (auto& fn : _functions) {
-            fn.function->cost(df, delta, fn.weight, offset, dims, cost_acc, 
-                              update_rule, stream);
+            fn.function->cost(df, delta, fn.weight, offset, dims, cost_acc, stream);
         }
     }
 

@@ -7,7 +7,10 @@
 #include <stk/cuda/volume.h>
 
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
+
 
 __device__ float4 energy(
     float4 d0,
@@ -25,27 +28,22 @@ __device__ float4 energy(
     };
 }
 
-
-template<typename UpdateFn>
+template<typename TDisplacementField>
 __global__ void regularizer_kernel(
-    cuda::VolumePtr<float4> df,
-    cuda::VolumePtr<float4> initial_df,
+    TDisplacementField df,
+    TDisplacementField initial_df,
     float4 delta,
     float weight,
     float scale,
     float half_exponent,
     int3 offset,
     int3 dims,
-    dim3 df_dims,
-    float3 inv_spacing,
     float3 inv_spacing2_exp,
     cuda::VolumePtr<float4> cost_x, // Regularization cost in x+
     cuda::VolumePtr<float4> cost_y, // y+
     cuda::VolumePtr<float4> cost_z  // z+
 )
 {
-    UpdateFn update_fn;
-
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -61,20 +59,21 @@ __global__ void regularizer_kernel(
     int gy = y + offset.y;
     int gz = z + offset.z;
 
+    int3 p {gx, gy, gz};
+
     // Cost ordered as E00, E01, E10, E11
 
-    float4 d0 = df(gx, gy, gz) - initial_df(gx, gy, gz);
-    float4 d1 = update_fn(df, df_dims, inv_spacing, gx, gy, gz, delta) 
-                    - initial_df(gx, gy, gz);
+    float4 d0 = df.get(p) - initial_df.get(p);
+    float4 d1 = df.get(p, delta) - initial_df.get(p);
 
     float4 o_x = {0, 0, 0, 0};
     float4 o_y = {0, 0, 0, 0};
     float4 o_z = {0, 0, 0, 0};
 
     if (gx + 1 < (int) df_dims.x) {
-        float4 dn0 = df(gx+1, gy, gz) - initial_df(gx+1, gy, gz);
-        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx+1, gy, gz, delta)
-                        - initial_df(gx+1, gy, gz);
+        int3 step {1, 0, 0};
+        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
+        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
 
         o_x = energy(
             d0,
@@ -86,9 +85,9 @@ __global__ void regularizer_kernel(
         );
     }
     if (gy + 1 < (int) df_dims.y) {
-        float4 dn0 = df(gx, gy+1, gz) - initial_df(gx, gy+1, gz);
-        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy+1, gz, delta) 
-                        - initial_df(gx, gy+1, gz);
+        int3 step {0, 1, 0};
+        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
+        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
 
         o_y = energy(
             d0,
@@ -100,9 +99,9 @@ __global__ void regularizer_kernel(
         );
     }
     if (gz + 1 < (int) df_dims.z) {
-        float4 dn0 = df(gx, gy, gz+1) - initial_df(gx, gy, gz+1);
-        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy, gz+1, delta) 
-                        - initial_df(gx, gy, gz+1);
+        int3 step {0, 0, 1};
+        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
+        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
 
         o_z = energy(
             d0,
@@ -121,10 +120,10 @@ __global__ void regularizer_kernel(
      // Compute cost at block border
 
     if (x == 0 && gx != 0) {
-        float4 dn0 = df(gx-1, gy, gz) - initial_df(gx-1, gy, gz);
-        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx-1, gy, gz, delta) 
-                        - initial_df(gx-1, gy, gz);
-        
+        int3 step {-1, 0, 0};
+        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
+        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+
         float4 e = energy(
             d0,
             d1,
@@ -144,10 +143,10 @@ __global__ void regularizer_kernel(
     }
 
     if (y == 0 && gy != 0) {
-        float4 dn0 = df(gx, gy-1, gz) - initial_df(gx, gy-1, gz);
-        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy-1, gz, delta) 
-                        - initial_df(gx, gy-1, gz);
-        
+        int3 step {0, -1, 0};
+        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
+        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+
         float4 e = energy(
             d0,
             d1,
@@ -164,10 +163,10 @@ __global__ void regularizer_kernel(
     }
 
     if (z == 0 && gz != 0) {
-        float4 dn0 = df(gx, gy, gz-1) - initial_df(gx, gy, gz-1);
-        float4 dn1 = update_fn(df, df_dims, inv_spacing, gx, gy, gz-1, delta) 
-                        - initial_df(gx, gy, gz-1);
-        
+        int3 step {0, 0, -1};
+        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
+        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+
         float4 e = energy(
             d0,
             d1,
@@ -185,7 +184,7 @@ __global__ void regularizer_kernel(
 }
 
 void GpuBinaryFunction::operator()(
-        const stk::GpuVolume& df,
+        const GpuDisplacementField& df,
         const float3& delta,
         const int3& offset,
         const int3& dims,
@@ -196,8 +195,6 @@ void GpuBinaryFunction::operator()(
         stk::cuda::Stream& stream
         )
 {
-    DASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
-    ASSERT(df.voxel_type() == stk::Type_Float4);
     ASSERT(cost_x.voxel_type() == stk::Type_Float4);
     ASSERT(cost_y.voxel_type() == stk::Type_Float4);
     ASSERT(cost_z.voxel_type() == stk::Type_Float4);
@@ -215,12 +212,6 @@ void GpuBinaryFunction::operator()(
         (dims.z + block_size.z - 1) / block_size.z
     };
 
-    float3 inv_spacing {
-        1.0f / _spacing.x,
-        1.0f / _spacing.y,
-        1.0f / _spacing.z
-    };
-
     float3 inv_spacing2_exp {
         1.0f / pow(_spacing.x*_spacing.x, _half_exponent),
         1.0f / pow(_spacing.y*_spacing.y, _half_exponent),
@@ -234,8 +225,8 @@ void GpuBinaryFunction::operator()(
         0
     };
 
-    if (update_rule == Settings::UpdateRule_Compositive) {
-        regularizer_kernel<CompositiveUpdate>
+    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+        regularizer_kernel<cuda::DisplacementField<cuda::CompositiveUpdate>>
         <<<grid_size, block_size, 0, stream>>>(
             df,
             _initial,
@@ -245,16 +236,14 @@ void GpuBinaryFunction::operator()(
             _half_exponent,
             offset,
             dims,
-            df.size(),
-            inv_spacing,
             inv_spacing2_exp,
             cost_x,
             cost_y,
             cost_z
         );
     }
-    else if (update_rule == Settings::UpdateRule_Additive) {
-        regularizer_kernel<AdditiveUpdate>
+    else if (df.update_rule() == Settings::UpdateRule_Additive) {
+        regularizer_kernel<cuda::DisplacementField<cuda::AdditiveUpdate>>
         <<<grid_size, block_size, 0, stream>>>(
             df,
             _initial,
@@ -264,8 +253,6 @@ void GpuBinaryFunction::operator()(
             _half_exponent,
             offset,
             dims,
-            df.size(),
-            inv_spacing,
             inv_spacing2_exp,
             cost_x,
             cost_y,

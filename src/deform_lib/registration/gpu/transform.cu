@@ -1,3 +1,4 @@
+#include "gpu_displacement_field.h"
 #include "transform.h"
 
 #include <stk/common/assert.h>
@@ -7,17 +8,15 @@
 #include <stk/math/float3.h>
 #include <stk/math/float4.h>
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 template<typename T>
 __global__ void transform_kernel_linear(
     cuda::VolumePtr<T> src,
     dim3 src_dims,
-    cuda::VolumePtr<float4> df,
-    dim3 df_dims,
-    float3 fixed_origin,
-    float3 fixed_spacing,
-    Matrix3x3f fixed_direction,
+    cuda::DisplacementField<> df, // We don't care about update rule since we don't update
     float3 moving_origin,
     float3 inv_moving_spacing,
     Matrix3x3f inv_moving_direction,
@@ -35,12 +34,7 @@ __global__ void transform_kernel_linear(
         return;
     }
 
-    float3 xyz = float3{float(x), float(y), float(z)};
-
-    float3 wp = fixed_origin + fixed_direction * (xyz * fixed_spacing);
-
-    float4 d = df(x,y,z);
-    float3 mp = (inv_moving_direction * (wp + float3{d.x, d.y, d.z} - moving_origin))
+    float3 mp = (inv_moving_direction * (df.transform_index(int3{x,y,z} - moving_origin)
                 * inv_moving_spacing;
 
     out(x,y,z) = cuda::linear_at_border(src, src_dims, mp.x, mp.y, mp.z);
@@ -50,11 +44,7 @@ template<typename T>
 __global__ void transform_kernel_nn(
     cuda::VolumePtr<T> src,
     dim3 src_dims,
-    cuda::VolumePtr<float4> df,
-    dim3 df_dims,
-    float3 fixed_origin,
-    float3 fixed_spacing,
-    Matrix3x3f fixed_direction,
+    cuda::DisplacementField<> df, // We don't care about update rule since we don't update
     float3 moving_origin,
     float3 inv_moving_spacing,
     Matrix3x3f inv_moving_direction,
@@ -72,12 +62,7 @@ __global__ void transform_kernel_nn(
         return;
     }
 
-    float3 xyz = float3{float(x), float(y), float(z)};
-
-    float3 wp = fixed_origin + fixed_direction * (xyz * fixed_spacing);
-
-    float4 d = df(x,y,z);
-    float3 mp = (inv_moving_direction * (wp + float3{d.x, d.y, d.z} - moving_origin))
+    float3 mp = inv_moving_direction * (df.transform_index(int3{x,y,z} - moving_origin) 
                 * inv_moving_spacing;
 
     int xt = roundf(mp.x);
@@ -100,7 +85,7 @@ static void run_nn_kernel(
     const dim3& grid_size,
     const dim3& block_size,
     const stk::GpuVolume& src,
-    const stk::GpuVolume& df,
+    const GpuDisplacementField& df,
     stk::GpuVolume& out
 )
 {
@@ -111,10 +96,6 @@ static void run_nn_kernel(
                 src, \
                 src.size(), \
                 df, \
-                df.size(), \
-                df.origin(), \
-                df.spacing(), \
-                df.direction(), \
                 src.origin(), \
                 inv_moving_spacing, \
                 src.inverse_direction(), \
@@ -162,7 +143,7 @@ static void run_linear_kernel(
     const dim3& grid_size,
     const dim3& block_size,
     const stk::GpuVolume& src,
-    const stk::GpuVolume& df,
+    const GpuDisplacementField& df,
     stk::GpuVolume& out
 )
 {
@@ -171,10 +152,6 @@ static void run_linear_kernel(
                 src, \
                 src.size(), \
                 df, \
-                df.size(), \
-                df.origin(), \
-                df.spacing(), \
-                df.direction(), \
                 src.origin(), \
                 inv_moving_spacing, \
                 src.inverse_direction(), \
@@ -199,7 +176,7 @@ static void run_linear_kernel(
 
 stk::GpuVolume gpu::transform_volume(
     const stk::GpuVolume& src,
-    const stk::GpuVolume& def,
+    const GpuDisplacementField& df,
     transform::Interp i,
     const dim3& block_size
 )
@@ -209,10 +186,10 @@ stk::GpuVolume gpu::transform_volume(
     FATAL_IF(def.voxel_type() != stk::Type_Float4)
         << "Invalid pixel type for displacement";
 
-    dim3 dims = def.size();
+    dim3 dims = df.size();
 
     stk::GpuVolume out(dims, src.voxel_type());
-    out.copy_meta_from(def);
+    out.copy_meta_from(df.volume());
 
     dim3 grid_size {
         (dims.x + block_size.x - 1) / block_size.x,
@@ -221,9 +198,9 @@ stk::GpuVolume gpu::transform_volume(
     };
 
     if (i == transform::Interp_NN) {
-        run_nn_kernel(src.voxel_type(), grid_size, block_size, src, def, out);
+        run_nn_kernel(src.voxel_type(), grid_size, block_size, src, df, out);
     } else {
-        run_linear_kernel(src.voxel_type(), grid_size, block_size, src, def, out);
+        run_linear_kernel(src.voxel_type(), grid_size, block_size, src, df, out);
     }
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());

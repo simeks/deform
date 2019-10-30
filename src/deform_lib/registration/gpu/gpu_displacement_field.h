@@ -45,8 +45,114 @@ public:
         return _df;
     }
 
+    const float3& origin() const
+    {
+        return _df.origin();
+    }
+
+    const float3& spacing() const
+    {
+        return _df.spacing();
+    }
+    
+    const Matrix3x3f& direction() const
+    {
+        return _df.direction();
+    }
+
+    Settings::UpdateRule update_rule() const
+    {
+        return _update_rule;
+    }
+
 private:
     Settings::UpdateRule _update_rule;
     stk::GpuVolume _df;
 
 };
+
+namespace cuda {
+
+struct CompositiveUpdate
+{
+    __device__ float4 operator()(
+        const cuda::VolumePtr<float4>& df,
+        const dim3& dims,
+        const float3& inv_spacing,
+        int x, int y, int z,
+        const float4& delta
+    ) {
+        // Convert delta from mm to image space
+        return cuda::linear_at_clamp<float4>(
+            df,
+            dims,
+            x + delta.x * inv_spacing.x,
+            y + delta.y * inv_spacing.y,
+            z + delta.z * inv_spacing.z
+        ) + delta;
+    }
+};
+
+struct AdditiveUpdate
+{
+    __device__ float4 operator()(
+        const cuda::VolumePtr<float4>& df,
+        const dim3& /*dims*/,
+        const float3& /*inv_spacing*/,
+        int x, int y, int z,
+        const float4& delta
+    ) {
+        return df(x, y, z) + delta;
+    }
+};
+
+template<typename TUpdateFn = AdditiveUpdate>
+class DisplacementField
+{
+public:
+    DisplacementField(const GpuDisplacementField& df) :
+        _df(df),
+        _dims(df.size()),
+        _origin(df.origin()),
+        _spacing(df.spacing()),
+        _direction(df.direction())
+    {
+        ASSERT(_df.voxel_type() == stk::Type_Float4);
+
+        _inv_spacing = {
+            1.0f / _spacing.x,
+            1.0f / _spacing.y,
+            1.0f / _spacing.z
+        };
+    }
+    ~DisplacementField() {}
+
+    __device__ float3 get(const int3& p, const float3& delta) const
+    {
+        TUpdateFn fn;
+        return fn(_df, _dims, _inv_spacing, p.x, p.y, p.z, delta);
+    }
+
+    // p : Index in displacement field
+    // Returns coordinates in world space
+    __device__ float3 transform_index(const int3& p) const
+    {
+        return _df.index2point(p) + get(p);
+    }
+
+    __device__ float3 index2point(const int3& index) const
+    {
+        return _origin + _direction * (_spacing * index);
+    }
+
+private:
+    cuda::VolumePtr<float4> _df;
+    dim3 _dims;
+
+    float3 _origin;
+    float3 _spacing;
+    float3 _inv_spacing;
+    Matrix3x3f _direction;
+};
+
+} // namespace cuda

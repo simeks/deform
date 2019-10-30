@@ -4,6 +4,7 @@
 #include <stk/image/gpu_volume.h>
 #include <stk/image/volume.h>
 
+#include "gpu/gpu_displacement_field.h"
 #include "block_change_flags.h"
 #include "settings.h"
 
@@ -27,7 +28,6 @@ public:
     HybridGraphCutOptimizer(
         const std::vector<int3>& neighborhood,
         const Settings::Level& settings,
-        Settings::UpdateRule update_rule,
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
         GpuDisplacementField& df,
@@ -92,7 +92,6 @@ private:
     std::vector<int3> _neighborhood;
     
     const Settings::Level& _settings;
-    Settings::UpdateRule _update_rule;
 
     WorkerPool& _worker_pool;
     std::vector<stk::cuda::Stream>& _stream_pool;
@@ -142,7 +141,6 @@ void apply_displacement_delta(
     GpuDisplacementField& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
-    Settings::UpdateRule update_rule,
     stk::cuda::Stream stream
 );
 
