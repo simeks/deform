@@ -12,9 +12,9 @@ namespace cuda {
     using namespace stk::cuda;
 }
 
-template<typename TDisplacementField>
+template<typename UpdateFn>
 __global__ void apply_displacement_delta_kernel(
-    TDisplacementField df_in,
+    cuda::DisplacementField<UpdateFn> df_in,
     cuda::VolumePtr<float4> df_out,
     cuda::VolumePtr<uint8_t> labels,
     float4 delta
@@ -59,10 +59,10 @@ void apply_displacement_delta(
         1.0f / df_in.spacing().z
     };
 
-    if (update_rule == Settings::UpdateRule_Additive) {
+    if (df_in.update_rule() == Settings::UpdateRule_Additive) {
         // In and out buffer for displacement field in the additive case can 
         //  be the same, since all updates are guaranteed to be independent.
-        apply_displacement_delta_kernel<AdditiveUpdate>
+        apply_displacement_delta_kernel<cuda::AdditiveUpdate>
         <<<grid_size, block_size, 0, stream>>>(
             df_out,
             df_out,
@@ -72,8 +72,8 @@ void apply_displacement_delta(
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
-    else if (update_rule == Settings::UpdateRule_Compositive) {
-        apply_displacement_delta_kernel<CompositiveUpdate>
+    else if (df_in.update_rule() == Settings::UpdateRule_Compositive) {
+        apply_displacement_delta_kernel<cuda::CompositiveUpdate>
         <<<grid_size, block_size, 0, stream>>>(
             df_in,
             df_out,

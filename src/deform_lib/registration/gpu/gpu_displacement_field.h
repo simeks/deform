@@ -1,6 +1,7 @@
 #pragma once
 #pragma once
 
+#include <stk/cuda/volume.h>
 #include <stk/image/gpu_volume.h>
 #include <stk/math/float3.h>
 
