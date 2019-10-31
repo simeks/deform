@@ -44,7 +44,7 @@ private:
         const int3& block_offset,
         const float3& delta, // delta in [mm]
         DisplacementField& df,
-        DisplacementField& df_out
+        DisplacementField& df_tmp
     );
 
     double calculate_energy(

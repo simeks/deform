@@ -169,10 +169,6 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
                         df,
                         df_buffer
                     );
-                    if (df.update_rule() == Settings::UpdateRule_Compositive) {
-                        // Only need to copy buffer for compositive updates
-                        df.copy_from(df_buffer);
-                    }
                 }
 
                 if (block_changed)
@@ -214,7 +210,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
     const int3& block_offset,
     const float3& delta, // delta in mm
     DisplacementField& df,
-    DisplacementField& df_out
+    DisplacementField& df_tmp
 )
 {
     dim3 dims = df.size();
@@ -354,11 +350,39 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 
         if (solver.get_var(sub_x, sub_y, sub_z) == 1) {
             int3 p{gx, gy, gz};
-            df_out.set(p, df.get(p, delta));
+            df_tmp.set(p, df.get(p, delta));
             changed_flag = true;
         }
     }
     }
+    }
+
+    // Do the actual update of the real displacement field, since we cannot do 
+    //  that in the previous loop due to dependenceis
+    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+        for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
+        for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
+        for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
+            // Global coordinates
+            int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
+            int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
+            int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
+
+            // Skip voxels outside volume
+            if (gx < 0 || gx >= int(dims.x) ||
+                gy < 0 || gy >= int(dims.y) ||
+                gz < 0 || gz >= int(dims.z))
+            {
+                continue;
+            }
+
+            int3 p{gx, gy, gz};
+
+            df.set(p, df_tmp.get(p));
+            changed_flag = true;
+        }
+        }
+        }
     }
     }
 
