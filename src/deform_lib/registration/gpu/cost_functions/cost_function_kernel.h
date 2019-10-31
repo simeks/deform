@@ -59,7 +59,7 @@ struct CostFunctionKernel
         int y,
         int z,
         const TDisplacementField& df,
-        float4 delta,
+        const float4& delta,
         int cost_offset)
     {
 
@@ -73,7 +73,7 @@ struct CostFunctionKernel
         }
 
         const float3 moving_p = _inv_moving_direction
-            * (df.transform_index({x,y,z}) - _moving_origin)
+            * (df.transform_index({x,y,z}, delta) - _moving_origin)
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out

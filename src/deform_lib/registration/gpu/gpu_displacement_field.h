@@ -141,11 +141,21 @@ public:
         return fn(_df, _dims, _inv_spacing, p.x, p.y, p.z, delta);
     }
 
-    // p : Index in displacement field
+    // p        : Index in displacement field
     // Returns coordinates in world space
     __device__ float3 transform_index(const int3& p) const
     {
         float4 d = get(p);
+        return index2point(p) + float3{d.x, d.y, d.z};
+    }
+
+    // Transforms the index with a given delta
+    // p        : Index in displacement field
+    // delta    : Delta to apply to the transformation 
+    // Returns coordinates in world space
+    __device__ float3 transform_index(const int3& p, const float4& delta) const
+    {
+        float4 d = get(p, delta);
         return index2point(p) + float3{d.x, d.y, d.z};
     }
 
