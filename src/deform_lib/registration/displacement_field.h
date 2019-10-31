@@ -37,8 +37,8 @@ public:
             // TODO: What about orientation?
             float3 fp {
                 p.x + delta.x / _df.spacing().x,
-                p.z + delta.y / _df.spacing().y,
-                p.y + delta.z / _df.spacing().z
+                p.y + delta.y / _df.spacing().y,
+                p.z + delta.z / _df.spacing().z
             };
             return _df.linear_at(fp, stk::Border_Replicate) + delta;
         }
