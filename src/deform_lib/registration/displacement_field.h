@@ -52,12 +52,6 @@ public:
         _df(p) = d;
     }
 
-    // delta : Delta in world space (mm)
-    inline void update(const int3& p, const float3& delta)
-    {
-        _df(p) = get(p, delta);
-    }
-
     // p : Index in displacement field
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
@@ -70,8 +64,24 @@ public:
         return _df.size();
     }
 
+    DisplacementField clone() const
+    {
+        return DisplacementField(_df.clone(), _update_rule);
+    }
+
+    void copy_from(const DisplacementField& other)
+    {
+        _df.copy_from(other._df);
+    }
+
     // Volume containing the displacements only
     const stk::VolumeFloat3& volume() const
+    {
+        return _df;
+    }
+
+    // Volume containing the displacements only
+    stk::VolumeFloat3& volume()
     {
         return _df;
     }
@@ -82,6 +92,10 @@ public:
         return _df.valid();
     }
 
+    Settings::UpdateRule update_rule() const
+    {
+        return _update_rule;
+    }
 
 private:
     Settings::UpdateRule _update_rule;

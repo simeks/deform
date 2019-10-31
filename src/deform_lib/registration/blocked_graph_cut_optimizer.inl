@@ -49,6 +49,17 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 {
     dim3 dims = df.size();
 
+    // Create a buffer displacement field for when doing composition
+    DisplacementField df_buffer;
+    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+        df_buffer = df.clone();
+    }
+    else {
+        // Only need cloning for compositive updates, since Additive updates do independent
+        // updates.
+        df_buffer = df;
+    }
+
     // Setting the block size to (0, 0, 0) will disable blocking and run the whole volume
     int3 block_dims = _block_size;
     if (block_dims.x == 0) block_dims.x = dims.x;
@@ -155,8 +166,13 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
                         block_dims,
                         block_offset,
                         delta,
-                        df
+                        df,
+                        df_buffer
                     );
+                    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+                        // Only need to copy buffer for compositive updates
+                        df.copy_from(df_buffer);
+                    }
                 }
 
                 if (block_changed)
@@ -197,7 +213,8 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
     const int3& block_dims,
     const int3& block_offset,
     const float3& delta, // delta in mm
-    DisplacementField& df
+    DisplacementField& df,
+    DisplacementField& df_out
 )
 {
     dim3 dims = df.size();
@@ -337,7 +354,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 
         if (solver.get_var(sub_x, sub_y, sub_z) == 1) {
             int3 p{gx, gy, gz};
-            df.update(p, delta);
+            df_out.set(p, df.get(p, delta));
             changed_flag = true;
         }
     }
