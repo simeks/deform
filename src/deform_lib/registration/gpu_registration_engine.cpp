@@ -286,7 +286,7 @@ stk::Volume GpuRegistrationEngine::execute()
     }
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
-        stk::GpuVolume df = _deformation_pyramid.volume(l);
+        GpuDisplacementField df(_deformation_pyramid.volume(l), _settings.update_rule);
 
         std::vector<int3> neighborhood = determine_neighborhood(l);
 
@@ -303,7 +303,6 @@ stk::Volume GpuRegistrationEngine::execute()
                 HybridGraphCutOptimizer<ICMSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l],
-                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -317,7 +316,6 @@ stk::Volume GpuRegistrationEngine::execute()
                 HybridGraphCutOptimizer<GCOSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l],
-                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -332,7 +330,6 @@ stk::Volume GpuRegistrationEngine::execute()
                 HybridGraphCutOptimizer<GridCutSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l],
-                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -348,15 +345,15 @@ stk::Volume GpuRegistrationEngine::execute()
             LOG(Info) << "Skipping level " << l;
         }
 
+        stk::GpuVolume vf = df.volume();
         if (l != 0) {
             dim3 upsampled_dims = _deformation_pyramid.volume(l - 1).size();
             _deformation_pyramid.set_volume(l - 1,
-                filters::gpu::upsample_vectorfield(df, upsampled_dims)
+                filters::gpu::upsample_vectorfield(vf, upsampled_dims)
             );
-
         }
         else {
-            _deformation_pyramid.set_volume(0, df);
+            _deformation_pyramid.set_volume(0, vf);
         }
     }
 

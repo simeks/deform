@@ -10,7 +10,9 @@
 
 #include <thrust/device_vector.h>
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 struct GpuCostFunction_Landmarks : public GpuCostFunction
 {
@@ -23,13 +25,12 @@ struct GpuCostFunction_Landmarks : public GpuCostFunction
     ~GpuCostFunction_Landmarks();
     
     void cost(
-        stk::GpuVolume& df,
+        GpuDisplacementField& df,
         const float3& delta,
         float weight,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
-        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     );
 

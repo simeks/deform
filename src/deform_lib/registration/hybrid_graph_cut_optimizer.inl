@@ -15,15 +15,13 @@ template<typename TSolver>
 HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     const std::vector<int3>& neighborhood,
     const Settings::Level& settings,
-    Settings::UpdateRule update_rule,
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     WorkerPool& worker_pool,
     std::vector<stk::cuda::Stream>& stream_pool) :
     _neighborhood(neighborhood),
     _settings(settings),
-    _update_rule(update_rule),
     _worker_pool(worker_pool),
     _stream_pool(stream_pool),
     _unary_fn(unary_fn),
@@ -36,7 +34,7 @@ HybridGraphCutOptimizer<TSolver>::HybridGraphCutOptimizer(
     //  for the previous iteration since each update may depend on neighbouring
     //  updates. As compared to additive were we only have d(x) = d(x) + delta.
 
-    if (_update_rule == Settings::UpdateRule_Compositive) {
+    if (_df.update_rule() == Settings::UpdateRule_Compositive) {
         _df_tmp = _df.clone();
     }
 
@@ -288,8 +286,8 @@ size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
         //  for the previous iteration since each update may depend on neighbouring
         //  updates. As compared to additive were we only have d(x) = d(x) + delta.
 
-        stk::GpuVolume df_in = _df;
-        if (_update_rule == Settings::UpdateRule_Compositive) {
+        GpuDisplacementField df_in = _df;
+        if (_df.update_rule() == Settings::UpdateRule_Compositive) {
             _df_tmp.copy_from(_df);
             df_in = _df_tmp;
         }
@@ -299,7 +297,6 @@ size_t HybridGraphCutOptimizer<TSolver>::dispatch_blocks()
             _df,
             _gpu_labels,
             _current_delta,
-            _update_rule,
             stk::cuda::Stream::null()
         );
     }
@@ -404,7 +401,6 @@ void HybridGraphCutOptimizer<TSolver>::block_cost_task(
         block.begin,
         block_dims,
         _gpu_unary_cost,
-        _update_rule,
         stream
     );
 
@@ -426,7 +422,6 @@ void HybridGraphCutOptimizer<TSolver>::block_cost_task(
         _gpu_binary_cost_x,
         _gpu_binary_cost_y,
         _gpu_binary_cost_z,
-        _update_rule,
         stream
     );
 

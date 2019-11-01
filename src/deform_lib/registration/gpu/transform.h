@@ -5,6 +5,8 @@
 #include <stk/image/dim3.h>
 
 #if DF_USE_CUDA
+class GpuDisplacementField;
+
 namespace stk {
     class GpuVolume;
 }
@@ -12,7 +14,7 @@ namespace stk {
 namespace gpu {
     stk::GpuVolume transform_volume(
         const stk::GpuVolume& src,
-        const stk::GpuVolume& def,
+        const GpuDisplacementField& df,
         transform::Interp i = transform::Interp_Linear,
         const dim3& block_size = {32, 32, 1}
     );

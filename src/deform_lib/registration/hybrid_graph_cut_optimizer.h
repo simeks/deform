@@ -4,6 +4,7 @@
 #include <stk/image/gpu_volume.h>
 #include <stk/image/volume.h>
 
+#include "gpu/gpu_displacement_field.h"
 #include "block_change_flags.h"
 #include "settings.h"
 
@@ -13,6 +14,7 @@
 #include <vector>
 
 class GpuBinaryFunction;
+class GpuDisplacementField;
 class GpuUnaryFunction;
 class WorkerPool;
 class StreamPool;
@@ -26,10 +28,9 @@ public:
     HybridGraphCutOptimizer(
         const std::vector<int3>& neighborhood,
         const Settings::Level& settings,
-        Settings::UpdateRule update_rule,
         GpuUnaryFunction& unary_fn,
         GpuBinaryFunction& binary_fn,
-        stk::GpuVolume& df,
+        GpuDisplacementField& df,
         WorkerPool& worker_pool,
         std::vector<stk::cuda::Stream>& stream_pool
     );
@@ -91,7 +92,6 @@ private:
     std::vector<int3> _neighborhood;
     
     const Settings::Level& _settings;
-    Settings::UpdateRule _update_rule;
 
     WorkerPool& _worker_pool;
     std::vector<stk::cuda::Stream>& _stream_pool;
@@ -119,8 +119,8 @@ private:
     GpuUnaryFunction& _unary_fn;
     GpuBinaryFunction& _binary_fn;
 
-    stk::GpuVolume _df;
-    stk::GpuVolume _df_tmp;
+    GpuDisplacementField _df;
+    GpuDisplacementField _df_tmp;
 
     BlockChangeFlags _block_change_flags;
     std::atomic<size_t> _num_blocks_changed;
@@ -137,11 +137,10 @@ private:
 // df_in    : Displacement field from previous iteration
 // df_out   : Target for updated displacement field
 void apply_displacement_delta(
-    stk::GpuVolume& df_in,
-    stk::GpuVolume& df_out,
+    GpuDisplacementField& df_in,
+    GpuDisplacementField& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
-    Settings::UpdateRule update_rule,
     stk::cuda::Stream stream
 );
 
@@ -149,7 +148,7 @@ void apply_displacement_delta(
 double calculate_energy(
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     stk::GpuVolume& unary_cost,
     stk::GpuVolume& binary_cost_x,
     stk::GpuVolume& binary_cost_y,

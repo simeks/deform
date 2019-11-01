@@ -1,55 +1,46 @@
 #include "gpu/cost_functions/binary_function.h"
 #include "gpu/cost_functions/cost_function_kernel.h"
 #include "gpu/cost_functions/unary_function.h"
+#include "gpu/gpu_displacement_field.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include <stk/cuda/cuda.h>
 #include <stk/cuda/stream.h>
 #include <stk/cuda/volume.h>
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 template<typename UpdateFn>
 __global__ void apply_displacement_delta_kernel(
-    cuda::VolumePtr<float4> df_in,
+    cuda::DisplacementField<UpdateFn> df_in,
     cuda::VolumePtr<float4> df_out,
     cuda::VolumePtr<uint8_t> labels,
-    dim3 dims,
-    float3 inv_spacing,
     float4 delta
 )
 {
-    UpdateFn update_fn;
-
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
+    if (x >= df_in.size().x ||
+        y >= df_in.size().y ||
+        z >= df_in.size().z)
     {
         return;
     }
 
-    float4 d = update_fn(
-        df_in,
-        dims,
-        inv_spacing,
-        x, y, z,
-        delta
-    );
-
-    if (labels(x,y,z))
-        df_out(x,y,z) = d;
+    if (labels(x,y,z)) {
+        df_out(x,y,z) = df_in.get(int3{x, y, z}, delta);
+    }
 }
 
 void apply_displacement_delta(
-    stk::GpuVolume& df_in,
-    stk::GpuVolume& df_out,
+    GpuDisplacementField& df_in,
+    GpuDisplacementField& df_out,
     stk::GpuVolume& labels,
     const float3& delta,
-    Settings::UpdateRule update_rule,
     cuda::Stream stream
 )
 {
@@ -67,27 +58,23 @@ void apply_displacement_delta(
         1.0f / df_in.spacing().z
     };
 
-    if (update_rule == Settings::UpdateRule_Additive) {
+    if (df_in.update_rule() == Settings::UpdateRule_Additive) {
         // In and out buffer for displacement field in the additive case can 
         //  be the same, since all updates are guaranteed to be independent.
-        apply_displacement_delta_kernel<AdditiveUpdate>
+        apply_displacement_delta_kernel
         <<<grid_size, block_size, 0, stream>>>(
-            df_out,
-            df_out,
+            cuda::DisplacementField<cuda::AdditiveUpdate>(df_out),
+            df_out.volume(),
             labels,
-            dims,
-            inv_spacing,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
-    else if (update_rule == Settings::UpdateRule_Compositive) {
-        apply_displacement_delta_kernel<CompositiveUpdate>
+    else if (df_in.update_rule() == Settings::UpdateRule_Compositive) {
+        apply_displacement_delta_kernel
         <<<grid_size, block_size, 0, stream>>>(
-            df_in,
-            df_out,
+            cuda::DisplacementField<cuda::CompositiveUpdate>(df_in),
+            df_out.volume(),
             labels,
-            dims,
-            inv_spacing,
             float4{delta.x, delta.y, delta.z, 0.0f}
         );
     }
@@ -157,7 +144,7 @@ __global__ void reduce_total_energy(
 double calculate_energy(
     GpuUnaryFunction& unary_fn,
     GpuBinaryFunction& binary_fn,
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     stk::GpuVolume& unary_cost,
     stk::GpuVolume& binary_cost_x,
     stk::GpuVolume& binary_cost_y,
@@ -179,7 +166,7 @@ double calculate_energy(
     cuda::Stream& stream = stk::cuda::Stream::null();
 
     // Update rule doesn't matter in this case since we don't want the energy for a move.
-    unary_fn(df, {0,0,0}, begin, end, unary_cost, Settings::UpdateRule_Additive, stream);
+    unary_fn(df, {0,0,0}, begin, end, unary_cost, stream);
 
     // Compute binary terms
     binary_fn(
@@ -190,7 +177,6 @@ double calculate_energy(
         binary_cost_x,
         binary_cost_y,
         binary_cost_z,
-        Settings::UpdateRule_Additive,
         stream
     );
 

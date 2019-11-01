@@ -17,13 +17,12 @@ struct GpuCostFunction_NCC : public GpuCostFunction
     virtual ~GpuCostFunction_NCC() {}
 
     void cost(
-        stk::GpuVolume& df,
+        GpuDisplacementField& df,
         const float3& delta,
         float weight,
         const int3& offset,
         const int3& dims,
         stk::GpuVolume& cost_acc,
-        Settings::UpdateRule update_rule,
         stk::cuda::Stream& stream
     );
 

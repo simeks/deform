@@ -10,40 +10,11 @@
 
 #include <cfloat>
 
-namespace cuda = stk::cuda;
+#include "../gpu_displacement_field.h"
 
-struct CompositiveUpdate
-{
-    __device__ float4 operator()(
-        const cuda::VolumePtr<float4>& df,
-        const dim3& dims,
-        const float3& inv_spacing,
-        int x, int y, int z,
-        const float4& delta
-    ) {
-        // Convert delta from mm to image space
-        return cuda::linear_at_clamp<float4>(
-            df,
-            dims,
-            x + delta.x * inv_spacing.x,
-            y + delta.y * inv_spacing.y,
-            z + delta.z * inv_spacing.z
-        ) + delta;
-    }
-};
-
-struct AdditiveUpdate
-{
-    __device__ float4 operator()(
-        const cuda::VolumePtr<float4>& df,
-        const dim3& /*dims*/,
-        const float3& /*inv_spacing*/,
-        int x, int y, int z,
-        const float4& delta
-    ) {
-        return df(x, y, z) + delta;
-    }
-};
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 // Helper class for implementing intensity-based cost functions on CUDA
 template<typename TImpl>
@@ -57,7 +28,6 @@ struct CostFunctionKernel
         const stk::GpuVolume& moving,
         const stk::GpuVolume& fixed_mask,
         const stk::GpuVolume& moving_mask,
-        const stk::GpuVolume& df,
         float weight,
         stk::GpuVolume& cost // float2
     ) :
@@ -68,10 +38,6 @@ struct CostFunctionKernel
         _moving_dims(moving.size()),
         _fixed_mask(fixed_mask),
         _moving_mask(moving_mask),
-        _df(df),
-        _fixed_origin(fixed.origin()),
-        _fixed_spacing(fixed.spacing()),
-        _fixed_direction(fixed.direction()),
         _moving_origin(moving.origin()),
         _inv_moving_spacing(float3{1.0f, 1.0f, 1.0f} / moving.spacing()),
         _inv_moving_direction(moving.inverse_direction()),
@@ -87,8 +53,16 @@ struct CostFunctionKernel
     // x,y,z        : Global image coordinates
     // d            : Displacement
     // cost_offset  : Where in `cost` to store the results (0 or 1).
-    __device__ void operator()(int x, int y, int z, float3 d, int cost_offset)
+    template<typename TDisplacementField>
+    __device__ void operator()(
+        int x,
+        int y,
+        int z,
+        const TDisplacementField& df,
+        const float4& delta,
+        int cost_offset)
     {
+
         // Check if the fixed voxel is masked out
         float fixed_mask_value = 1.0f;
         if (_fixed_mask.ptr) {
@@ -98,9 +72,8 @@ struct CostFunctionKernel
             }
         }
 
-        const float3 xyz = float3{float(x),float(y),float(z)};
-        const float3 world_p = _fixed_origin + _fixed_direction * (xyz * _fixed_spacing);
-        const float3 moving_p = (_inv_moving_direction * (world_p + d - _moving_origin))
+        const float3 moving_p = _inv_moving_direction
+            * (df.transform_index({x,y,z}, delta) - _moving_origin)
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
@@ -114,6 +87,7 @@ struct CostFunctionKernel
             }
         }
 
+        float4 d = df.get(int3{x, y, z}, delta);
         float c = _impl(
             _fixed,
             _moving,
@@ -121,7 +95,7 @@ struct CostFunctionKernel
             _moving_dims,
             int3{x,y,z},
             moving_p,
-            d
+            float3{d.x, d.y, d.z}
         );
         c *= _weight * fixed_mask_value * moving_mask_value;
 
@@ -137,11 +111,6 @@ struct CostFunctionKernel
 
     cuda::VolumePtr<float> _fixed_mask;
     cuda::VolumePtr<float> _moving_mask;
-    cuda::VolumePtr<float4> _df;
-
-    float3 _fixed_origin;
-    float3 _fixed_spacing;
-    Matrix3x3f _fixed_direction;
 
     float3 _moving_origin;
     float3 _inv_moving_spacing;
@@ -152,16 +121,15 @@ struct CostFunctionKernel
     cuda::VolumePtr<float2> _cost;
 };
 
-template<typename UpdateFn, typename TKernel>
+template<typename TKernel, typename TDisplacementField>
 __global__ void cost_function_kernel(
     TKernel kernel,
     int3 offset,
     int3 dims,
+    TDisplacementField df,
     float4 delta,
     int cost_offset)
 {
-    UpdateFn update_fn;
-    
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
@@ -177,21 +145,7 @@ __global__ void cost_function_kernel(
     y += offset.y;
     z += offset.z;
 
-    float3 inv_spacing {
-        1.0f / kernel._fixed_spacing.x,
-        1.0f / kernel._fixed_spacing.y,
-        1.0f / kernel._fixed_spacing.z
-    };
-
-    float4 d = update_fn(
-        kernel._df,
-        kernel._fixed_dims,
-        inv_spacing,
-        x, y, z,
-        delta
-    );
-
-    kernel(x, y, z, {d.x, d.y, d.z}, cost_offset);
+    kernel(x, y, z, df, delta, cost_offset);
 }
 
 template<typename TKernel>
@@ -200,7 +154,7 @@ void invoke_cost_function_kernel(
     const float3& delta,
     const int3& offset,
     const int3& dims,
-    Settings::UpdateRule update_rule,
+    GpuDisplacementField& df,
     stk::cuda::Stream& stream
 )
 {
@@ -217,33 +171,34 @@ void invoke_cost_function_kernel(
     };
 
     // Same for both compositive and additive
-    cost_function_kernel<AdditiveUpdate>
+    cost_function_kernel
     <<<grid_size, block_size, 0, stream>>>(
         kernel,
         offset,
         dims,
+        cuda::DisplacementField<>(df),
         float4{0,0,0,0},
         0
     );
 
     float4 d4 { delta.x, delta.y, delta.z, 0 };
 
-    if (update_rule == Settings::UpdateRule_Compositive) {
-        cost_function_kernel<CompositiveUpdate>
-        <<<grid_size, block_size, 0, stream>>>(
+    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+        cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,
             dims,
+            cuda::DisplacementField<cuda::CompositiveUpdate>(df),
             d4,
             1
         );
     }
-    else if (update_rule == Settings::UpdateRule_Additive) {
-        cost_function_kernel<AdditiveUpdate>
-        <<<grid_size, block_size, 0, stream>>>(
+    else if (df.update_rule() == Settings::UpdateRule_Additive) {
+        cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,
             dims,
+            cuda::DisplacementField<cuda::AdditiveUpdate>(df),
             d4,
             1
         );

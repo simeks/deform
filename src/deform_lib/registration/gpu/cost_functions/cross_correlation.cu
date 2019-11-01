@@ -1,7 +1,9 @@
 #include "cost_function_kernel.h"
 #include "cross_correlation.h"
 
-namespace cuda = stk::cuda;
+namespace cuda {
+    using namespace stk::cuda;
+}
 
 template<typename T>
 struct NCCImpl
@@ -88,17 +90,15 @@ struct NCCImpl
 };
 
 void GpuCostFunction_NCC::cost(
-    stk::GpuVolume& df,
+    GpuDisplacementField& df,
     const float3& delta,
     float weight,
     const int3& offset,
     const int3& dims,
     stk::GpuVolume& cost_acc,
-    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
-    ASSERT(df.usage() == stk::gpu::Usage_PitchedPointer);
     ASSERT(cost_acc.voxel_type() == stk::Type_Float2);
 
     FATAL_IF(_fixed.voxel_type() != stk::Type_Float ||
@@ -113,11 +113,10 @@ void GpuCostFunction_NCC::cost(
         _moving,
         _fixed_mask,
         _moving_mask,
-        df,
         weight,
         cost_acc
     );
 
-    invoke_cost_function_kernel(kernel, delta, offset, dims, update_rule, stream);
+    invoke_cost_function_kernel(kernel, delta, offset, dims, df, stream);
 }
 

@@ -104,7 +104,7 @@ class Test_API(unittest.TestCase):
 
         res = _transform(moving, np.array(d), interpolator=sitk.sitkNearestNeighbor)
 
-        self.assertGreater(_jaccard(res > 0.1, fixed > 0.1), 0.98)
+        self.assertGreater(_jaccard(res > 0.1, fixed > 0.1), 0.97)
 
     def test_transform(self):
         for _ in range(100):

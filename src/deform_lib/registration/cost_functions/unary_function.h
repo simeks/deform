@@ -41,10 +41,10 @@ struct UnaryFunction
         return mask_value * sum;
     }
 
-    void pre_iteration_hook(const int iteration, const stk::VolumeFloat3& def)
+    void pre_iteration_hook(const int iteration, const DisplacementField& df)
     {
         for (auto& fn : _functions) {
-            fn.function->pre_iteration_hook(iteration, def);
+            fn.function->pre_iteration_hook(iteration, df);
         }
     }
 
