@@ -176,6 +176,10 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 
                 change_flags.set_block(block_p, block_changed, use_shift == 1);
             }
+
+            if (df.update_rule() == Settings::UpdateRule_Compositive) {
+                df.copy_from(df_buffer);
+            }
             }
         }
         }
@@ -357,36 +361,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
     }
     }
     }
-
-    // Do the actual update of the real displacement field, since we cannot do 
-    //  that in the previous loop due to dependenceis
-    if (df.update_rule() == Settings::UpdateRule_Compositive) {
-        for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
-        for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
-        for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
-            // Global coordinates
-            int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
-            int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
-            int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
-
-            // Skip voxels outside volume
-            if (gx < 0 || gx >= int(dims.x) ||
-                gy < 0 || gy >= int(dims.y) ||
-                gz < 0 || gz >= int(dims.z))
-            {
-                continue;
-            }
-
-            int3 p{gx, gy, gz};
-
-            df.set(p, df_tmp.get(p));
-            changed_flag = true;
-        }
-        }
-        }
     }
-    }
-
 
     return changed_flag;
 }
