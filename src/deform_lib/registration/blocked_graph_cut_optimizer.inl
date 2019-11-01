@@ -118,6 +118,15 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
             PROFILER_SCOPE("red_black", 0xFF339955);
             int num_blocks = real_block_count.x * real_block_count.y * real_block_count.z;
 
+            for (int3 n : _neighborhood) {
+            
+            // delta in [mm]
+            float3 delta {
+                step_size.x * n.x,
+                step_size.y * n.y,
+                step_size.z * n.z
+            };
+            
             #pragma omp parallel for schedule(dynamic) reduction(+:num_blocks_changed)
             for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
                 PROFILER_SCOPE("block", 0xFFAA623D);
@@ -136,8 +145,8 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
                 int3 block_p{block_x, block_y, block_z};
 
                 bool need_update = change_flags.is_block_set(block_p, use_shift == 1);
-                for (int3 n : _neighborhood) {
-                    int3 neighbor = block_p + n;
+                for (int3 n2 : _neighborhood) {
+                    int3 neighbor = block_p + n2;
                     if (0 <= neighbor.x && neighbor.x < real_block_count.x &&
                         0 <= neighbor.y && neighbor.y < real_block_count.y &&
                         0 <= neighbor.z && neighbor.z < real_block_count.z) {
@@ -151,30 +160,26 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
 
                 bool block_changed = false;
                 
-                for (int3 n : _neighborhood) {
-                    // delta in [mm]
-                    float3 delta {
-                        step_size.x * n.x,
-                        step_size.y * n.y,
-                        step_size.z * n.z
-                    };
-
-                    block_changed |= do_block(
-                        unary_fn,
-                        binary_fn,
-                        block_p,
-                        block_dims,
-                        block_offset,
-                        delta,
-                        df,
-                        df_buffer
-                    );
-                }
+                block_changed |= do_block(
+                    unary_fn,
+                    binary_fn,
+                    block_p,
+                    block_dims,
+                    block_offset,
+                    delta,
+                    df,
+                    df_buffer
+                );
 
                 if (block_changed)
                     ++num_blocks_changed;
 
                 change_flags.set_block(block_p, block_changed, use_shift == 1);
+            }
+
+            if (df.update_rule() == Settings::UpdateRule_Compositive) {
+                df.copy_from(df_buffer);
+            }
             }
         }
         }
@@ -356,36 +361,7 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
     }
     }
     }
-
-    // Do the actual update of the real displacement field, since we cannot do 
-    //  that in the previous loop due to dependenceis
-    if (df.update_rule() == Settings::UpdateRule_Compositive) {
-        for (int sub_z = 0; sub_z < block_dims.z; sub_z++) {
-        for (int sub_y = 0; sub_y < block_dims.y; sub_y++) {
-        for (int sub_x = 0; sub_x < block_dims.x; sub_x++) {
-            // Global coordinates
-            int gx = block_p.x * block_dims.x - block_offset.x + sub_x;
-            int gy = block_p.y * block_dims.y - block_offset.y + sub_y;
-            int gz = block_p.z * block_dims.z - block_offset.z + sub_z;
-
-            // Skip voxels outside volume
-            if (gx < 0 || gx >= int(dims.x) ||
-                gy < 0 || gy >= int(dims.y) ||
-                gz < 0 || gz >= int(dims.z))
-            {
-                continue;
-            }
-
-            int3 p{gx, gy, gz};
-
-            df.set(p, df_tmp.get(p));
-            changed_flag = true;
-        }
-        }
-        }
     }
-    }
-
 
     return changed_flag;
 }
