@@ -24,6 +24,7 @@ public:
         _update_rule(update_rule),
         _df(df)
     {
+        ASSERT(_df.voxel_type() == stk::Type_Float4);
     }
     ~GpuDisplacementField() {}
 
