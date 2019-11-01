@@ -161,8 +161,8 @@ void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& 
         binary_fn.set_initial_displacement(df.clone());
     }
     else {
-        stk::VolumeFloat3 zeros(df.size(), float3{0,0,0});
-        binary_fn.set_initial_displacement(stk::GpuVolume(df));
+        stk::VolumeFloat4 zeros(df.size(), float4{0,0,0,0});
+        binary_fn.set_initial_displacement(stk::GpuVolume(zeros));
     }
 }
 
