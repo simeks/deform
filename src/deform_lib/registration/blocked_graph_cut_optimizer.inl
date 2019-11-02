@@ -7,13 +7,9 @@
 #include <functional>
 #include <iomanip>
 
-template<
-    typename TUnaryTerm,
-    typename TBinaryTerm,
-    typename TSolver
-    >
+template<typename TSolver>
 BlockedGraphCutOptimizer
-<TUnaryTerm, TBinaryTerm, TSolver>
+<TSolver>
 ::BlockedGraphCutOptimizer(
     const std::vector<int3>& neighborhood,
     const int3& block_size,
@@ -25,24 +21,16 @@ BlockedGraphCutOptimizer
     _max_iteration_count(max_iteration_count)
 {
 }
-template<
-    typename TUnaryTerm,
-    typename TBinaryTerm,
-    typename TSolver
->
-BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
+template<typename TSolver>
+BlockedGraphCutOptimizer<TSolver>
 ::~BlockedGraphCutOptimizer()
 {
 }
-template<
-    typename TUnaryTerm,
-    typename TBinaryTerm,
-    typename TSolver
->
-void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
+template<typename TSolver>
+void BlockedGraphCutOptimizer<TSolver>
 ::execute(
-    TUnaryTerm& unary_fn,
-    TBinaryTerm& binary_fn,
+    UnaryFunction& unary_fn,
+    Regularizer& binary_fn,
     float3 step_size,
     DisplacementField& df
 )
@@ -201,15 +189,11 @@ void BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
               << "Iterations: " << num_iterations;
 }
 
-template<
-    typename TUnaryTerm,
-    typename TBinaryTerm,
-    typename TSolver
->
-bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
+template<typename TSolver>
+bool BlockedGraphCutOptimizer<TSolver>
 ::do_block(
-    TUnaryTerm& unary_fn,
-    TBinaryTerm& binary_fn,
+    UnaryFunction& unary_fn,
+    Regularizer& binary_fn,
     const int3& block_p,
     const int3& block_dims,
     const int3& block_offset,
@@ -366,15 +350,11 @@ bool BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
     return changed_flag;
 }
 
-template<
-    typename TUnaryTerm,
-    typename TBinaryTerm,
-    typename TSolver
->
-double BlockedGraphCutOptimizer<TUnaryTerm, TBinaryTerm, TSolver>
+template<typename TSolver>
+double BlockedGraphCutOptimizer<TSolver>
 ::calculate_energy(
-    TUnaryTerm& unary_fn,
-    TBinaryTerm& binary_fn,
+    UnaryFunction& unary_fn,
+    Regularizer& binary_fn,
     DisplacementField& df
 )
 {
