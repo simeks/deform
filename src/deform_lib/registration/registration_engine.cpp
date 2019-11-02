@@ -642,11 +642,7 @@ stk::Volume RegistrationEngine::execute()
             build_unary_function(l, unary_fn);
 
             if (_settings.solver == Settings::Solver_ICM) {
-                BlockedGraphCutOptimizer<
-                    UnaryFunction,
-                    Regularizer,
-                    ICMSolver<double>
-                > optimizer(
+                BlockedGraphCutOptimizer<ICMSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l].block_size,
                     _settings.levels[l].block_energy_epsilon,
@@ -656,11 +652,7 @@ stk::Volume RegistrationEngine::execute()
             }
 #if defined(DF_ENABLE_GCO)
             else if (_settings.solver == Settings::Solver_GCO) {
-                BlockedGraphCutOptimizer<
-                    UnaryFunction,
-                    Regularizer,
-                    GCOSolver<double>
-                > optimizer(
+                BlockedGraphCutOptimizer<GCOSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l].block_size,
                     _settings.levels[l].block_energy_epsilon,
@@ -671,11 +663,7 @@ stk::Volume RegistrationEngine::execute()
 #endif
 #if defined(DF_ENABLE_GRIDCUT)
             else if (_settings.solver == Settings::Solver_GridCut) {
-                BlockedGraphCutOptimizer<
-                    UnaryFunction,
-                    Regularizer,
-                    GridCutSolver<double>
-                > optimizer(
+                BlockedGraphCutOptimizer<GridCutSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l].block_size,
                     _settings.levels[l].block_energy_epsilon,

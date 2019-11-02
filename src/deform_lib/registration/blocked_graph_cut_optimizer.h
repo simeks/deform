@@ -11,11 +11,7 @@
 
 #include <vector>
 
-template<
-    typename TUnaryTerm,
-    typename TBinaryTerm,
-    typename TSolver
->
+template<typename TSolver>
 class BlockedGraphCutOptimizer
 {
 public:
@@ -29,16 +25,16 @@ public:
 
     /// step_size : Step size in [mm]
     void execute(
-        TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
+        UnaryFunction& unary_fn,
+        Regularizer& binary_fn,
         float3 step_size,
         DisplacementField& df
     );
 
 private:
     bool do_block(
-        TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
+        UnaryFunction& unary_fn,
+        Regularizer& binary_fn,
         const int3& block_p,
         const int3& block_dims,
         const int3& block_offset,
@@ -48,8 +44,8 @@ private:
     );
 
     double calculate_energy(
-        TUnaryTerm& unary_fn,
-        TBinaryTerm& binary_fn,
+        UnaryFunction& unary_fn,
+        Regularizer& binary_fn,
         DisplacementField& df
     );
 

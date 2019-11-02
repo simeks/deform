@@ -37,7 +37,6 @@ struct SquaredDistanceFunction : public SubFunction
 
         T moving_v = _moving.linear_at(moving_p, stk::Border_Constant);
 
-        // TODO: Float cast
         float f = float(_fixed(p) - moving_v);
         return mask_value * f*f;
     }
