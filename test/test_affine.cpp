@@ -31,7 +31,7 @@ TEST_CASE("parse_affine")
         AffineTransform transform = parse_affine_transform_file(filename);
 
         float3 pt1 = transform.transform_point(float3{1,2,3});
-        float3 pt2 = transform.transform_point(float3{-5.1,-7.2,-8.3});
+        float3 pt2 = transform.transform_point(float3{-5.1f,-7.2f,-8.3f});
 
         // Expected values computed by SimpleITK
         
