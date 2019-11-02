@@ -1,4 +1,5 @@
-set(DEFORM_TEST_SRCS 
+set(DEFORM_TEST_SRCS
+    "test_affine.cpp"
     "test_arg_parser.cpp"
     "test_gpu.cpp"
     "test_gpu_cost.cpp"
