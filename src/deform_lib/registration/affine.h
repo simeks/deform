@@ -17,6 +17,12 @@ public:
         return _matrix * pt + _offset;
     }
 
+    // Returns the resulting displacement vector at the given point
+    inline float3 displacement_vector(const float3& pt)
+    {
+        return transform_point(pt) - pt;
+    }
+
     const Matrix3x3f& matrix() const;
     const float3& offset() const;
 
