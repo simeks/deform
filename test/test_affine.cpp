@@ -104,4 +104,44 @@ TEST_CASE("parse_affine")
         CHECK_THROWS_WITH(parse_affine_transform_file(filename),
             Contains("Invalid transform name"));
     }
+
+    SECTION("test_transform_point")
+    {
+        // Identity transform
+        AffineTransform transform1(
+            Matrix3x3f::Identity,
+            float3{0, 0, 0}
+        );
+
+        float3 pt1 = transform1.transform_point(float3{1, 2, 3});
+        CHECK(1.0f == pt1.x);
+        CHECK(2.0f == pt1.y);
+        CHECK(3.0f == pt1.z);
+
+        // Scaling
+        AffineTransform transform2(
+            Matrix3x3f{
+                float3{2, 0, 0},
+                float3{0, 3, 0},
+                float3{0, 0, 4}
+            },
+            float3{0, 0, 0}
+        );
+
+        float3 pt2 = transform2.transform_point(float3{1, 2, 3});
+        CHECK(2.0f == pt2.x);
+        CHECK(6.0f == pt2.y);
+        CHECK(12.0f == pt2.z);
+
+        // Translation
+        AffineTransform transform3(
+            Matrix3x3f::Identity,
+            float3{4, 6, 8}
+        );
+
+        float3 pt3 = transform3.transform_point(float3{1, 2, 3});
+        CHECK(5.0f == pt3.x);
+        CHECK(8.0f == pt3.y);
+        CHECK(11.0f == pt3.z);
+    }
 }
