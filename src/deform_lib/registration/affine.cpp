@@ -46,8 +46,6 @@ AffineTransform parse_affine_transform_file(
     const std::string& filename
 )
 {
-    // TODO: Cleanup, should probably be less strict (ordering of keys, etc)
-
     std::string line;
 
     std::ifstream f {filename, std::ifstream::in};
@@ -63,64 +61,61 @@ AffineTransform parse_affine_transform_file(
     // #Transform <i>
     std::getline(f, line);
 
-    auto split = [](const std::string& line) {
+    std::map<std::string, std::string> keyvalues;
+    while (std::getline(f, line))
+    {
         size_t p = line.find(':');
         if (p != std::string::npos) {
-            return std::pair<std::string, std::string>(
-                trim_string(line.substr(0, p)),
-                trim_string(line.substr(p+1, std::string::npos))
+            std::string key = trim_string(line.substr(0, p));
+            std::string value = trim_string(line.substr(p+1, std::string::npos));
+
+            keyvalues[key] = value;
+        }
+    }
+
+    if (keyvalues.find("Transform") != keyvalues.end()) {
+        if (keyvalues["Transform"] != "AffineTransform_double_3_3") {
+            throw ValidationError(
+                "Invalid transform name, only 'AffineTransform_double_3_3' is supported."
             );
         }
-        return std::pair<std::string, std::string>(
-            "",""
-        );
-    };
-
-    // Transform: AffineTransform_double_3_3
-    std::getline(f, line);
-    auto p = split(line);
-
-    if (p.first != "Transform") {
-        throw ValidationError("Invalid file format");
     }
-
-    if (p.second != "AffineTransform_double_3_3") {
-        throw ValidationError("Invalid transform name, only 'AffineTransform_double_3_3' is supported.");
-    }
-
-    // Parameters: <x>*12
-    std::getline(f, line);
-    p = split(line);
-    if (p.first != "Parameters") {
-        throw ValidationError("Invalid file format");
+    else {
+        throw ValidationError("Invalid file format: Missing \"Transform\"");
     }
 
     Matrix3x3f matrix = Matrix3x3f::Identity;
-    float* pmatrix = &matrix._rows[0].x;
-    std::istringstream s_p(p.second);
+    float3 translation{0, 0, 0};
 
-    for (int i = 0; i < 9; ++i) {
-        s_p >> pmatrix[i];
+    if (keyvalues.find("Parameters") != keyvalues.end()) {
+        // Parameters: <x>*12
+
+        std::istringstream ss(keyvalues["Parameters"]);
+            
+        float* pmatrix = &matrix._rows[0].x;
+        for (int i = 0; i < 9; ++i) {
+            ss >> pmatrix[i];
+        }
+
+        ss >> translation.x;
+        ss >> translation.y;
+        ss >> translation.z;
+    }
+    else {
+        throw ValidationError("Invalid file format: Missing \"Parameters\"");
     }
 
-    float3 translation;
-    s_p >> translation.x;
-    s_p >> translation.y;
-    s_p >> translation.z;
+    float3 fixed_parameters{0, 0, 0};
 
-    // FixedParameters: <x> <y> <z>
-    std::getline(f, line);
-    p = split(line);
-    if (p.first != "FixedParameters") {
-        throw ValidationError("Invalid file format");
+    // FixedParameters are optional
+    if (keyvalues.find("FixedParameters") != keyvalues.end()) {
+        // FixedParameters: <x> <y> <z>
+
+        std::istringstream ss(keyvalues["FixedParameters"]);
+        ss >> fixed_parameters.x;
+        ss >> fixed_parameters.y;
+        ss >> fixed_parameters.z;
     }
-
-    std::istringstream s_fp(p.second);
-
-    float3 fixed_parameters;
-    s_fp >> fixed_parameters.x;
-    s_fp >> fixed_parameters.y;
-    s_fp >> fixed_parameters.z;
 
     float3 center = fixed_parameters;
     float3 offset = translation + center - matrix * center;
