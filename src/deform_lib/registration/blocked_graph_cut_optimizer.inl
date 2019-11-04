@@ -32,21 +32,13 @@ void BlockedGraphCutOptimizer<TSolver>
     UnaryFunction& unary_fn,
     Regularizer& binary_fn,
     float3 step_size,
-    DisplacementField& df
+    DisplacementField& df,
+    Settings::UpdateRule update_rule
 )
 {
     dim3 dims = df.size();
 
-    // Create a buffer displacement field for when doing composition
-    DisplacementField df_buffer;
-    if (df.update_rule() == Settings::UpdateRule_Compositive) {
-        df_buffer = df.clone();
-    }
-    else {
-        // Only need cloning for compositive updates, since Additive updates do independent
-        // updates.
-        df_buffer = df;
-    }
+    DisplacementField update_field(df.size());
 
     // Setting the block size to (0, 0, 0) will disable blocking and run the whole volume
     int3 block_dims = _block_size;
@@ -156,7 +148,7 @@ void BlockedGraphCutOptimizer<TSolver>
                     block_offset,
                     delta,
                     df,
-                    df_buffer
+                    update_field
                 );
 
                 if (block_changed)
@@ -165,9 +157,7 @@ void BlockedGraphCutOptimizer<TSolver>
                 change_flags.set_block(block_p, block_changed, use_shift == 1);
             }
 
-            if (df.update_rule() == Settings::UpdateRule_Compositive) {
-                df.copy_from(df_buffer);
-            }
+            df.update(update_field, (update_rule == Settings::UpdateRule_Compositive));
             }
         }
         }
@@ -198,8 +188,8 @@ bool BlockedGraphCutOptimizer<TSolver>
     const int3& block_dims,
     const int3& block_offset,
     const float3& delta, // delta in mm
-    DisplacementField& df,
-    DisplacementField& df_tmp
+    const DisplacementField& df,
+    DisplacementField& update_field
 )
 {
     dim3 dims = df.size();
@@ -338,8 +328,7 @@ bool BlockedGraphCutOptimizer<TSolver>
         }
 
         if (solver.get_var(sub_x, sub_y, sub_z) == 1) {
-            int3 p{gx, gy, gz};
-            df_tmp.set(p, df.get(p, delta));
+            update_field.set(int3{gx, gy, gz}, delta);
             changed_flag = true;
         }
     }

@@ -618,7 +618,7 @@ stk::Volume RegistrationEngine::execute()
     #endif
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
-        DisplacementField df(_deformation_pyramid.volume(l), _settings.update_rule);
+        DisplacementField df(_deformation_pyramid.volume(l));
 
         std::vector<int3> neighborhood = determine_neighborhood(l);
 
@@ -648,7 +648,13 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
+                optimizer.execute(
+                    unary_fn,
+                    binary_fn,
+                    _settings.levels[l].step_size,
+                    df,
+                    _settings.update_rule
+                );
             }
 #if defined(DF_ENABLE_GCO)
             else if (_settings.solver == Settings::Solver_GCO) {
@@ -658,7 +664,13 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
+                optimizer.execute(
+                    unary_fn,
+                    binary_fn,
+                    _settings.levels[l].step_size,
+                    df,
+                    _settings.update_rule
+                );
             }
 #endif
 #if defined(DF_ENABLE_GRIDCUT)
@@ -669,7 +681,13 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
+                optimizer.execute(
+                    unary_fn,
+                    binary_fn,
+                    _settings.levels[l].step_size,
+                    df,
+                    _settings.update_rule
+                );
             }
 #endif
 

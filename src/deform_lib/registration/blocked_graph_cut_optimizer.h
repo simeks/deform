@@ -28,7 +28,8 @@ public:
         UnaryFunction& unary_fn,
         Regularizer& binary_fn,
         float3 step_size,
-        DisplacementField& df
+        DisplacementField& df,
+        Settings::UpdateRule update_rule
     );
 
 private:
@@ -39,8 +40,8 @@ private:
         const int3& block_dims,
         const int3& block_offset,
         const float3& delta, // delta in [mm]
-        DisplacementField& df,
-        DisplacementField& df_tmp
+        const DisplacementField& df,
+        DisplacementField& update_field
     );
 
     double calculate_energy(
