@@ -25,16 +25,20 @@ public:
     }
     ~DisplacementField() {}
 
+    // Returns displacement at index p
     // p : Index in displacement field
     inline float3 get(const int3& p) const
     {
-        return get(_df.index2point(p));//_df(p);
+        float3 p2 = _affine.transform_point(transform_index(p));
+        return p2 - float3{(float)p.x, (float)p.y, (float)p.z};
     }
 
+    // Returns displacement at point p
     // p : Point in world space
     inline float3 get(const float3& p) const
     {
-        return _df.linear_at_point(_affine.transform_point(p), stk::Border_Replicate);
+        float3 p2 = _affine.transform_point(transform_point(p));
+        return p2 - p;
     }
 
     // delta : Delta in world space (mm)
@@ -53,18 +57,25 @@ public:
     }
 
     // Sets the displacement at given index p to value d.
-    // This modifies the displacement field directly with no regards to the affine transform
+    // This modifies the displacement field directly with no regards to the affine
+    // transformation
     inline void set(const int3& p, const float3& d)
     {
         _df(p) = d;
+    }
+
+    // p : Point in world space
+    // Returns coordinates in world space
+    inline float3 transform_point(const float3& p) const
+    {
+        return p + _df.linear_at_point(p, stk::Border_Replicate);
     }
 
     // p : Index in displacement field
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-        float3 fp = _df.index2point(p);
-        return fp + get(fp);
+        return _df.index2point(p) + _df(p);
     }
 
     void update(const DisplacementField& update_field, bool composite)

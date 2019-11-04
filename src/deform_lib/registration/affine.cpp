@@ -42,9 +42,7 @@ const float3& AffineTransform::offset() const
 }
 
 
-AffineTransform parse_affine_transform_file(
-    const std::string& filename
-)
+AffineTransform parse_affine_transform_file(const std::string& filename)
 {
     std::string line;
 
