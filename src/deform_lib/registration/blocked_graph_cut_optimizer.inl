@@ -148,6 +148,7 @@ void BlockedGraphCutOptimizer<TSolver>
                     block_offset,
                     delta,
                     df,
+                    update_rule,
                     update_field
                 );
 
@@ -191,6 +192,7 @@ bool BlockedGraphCutOptimizer<TSolver>
     const int3& block_offset,
     const float3& delta, // delta in mm
     const DisplacementField& df,
+    Settings::UpdateRule update_rule,
     DisplacementField& update_field
 )
 {
@@ -222,7 +224,7 @@ bool BlockedGraphCutOptimizer<TSolver>
         }
 
         float3 d1 = df.get(p);
-        float3 d1d = df.get(p, delta);
+        float3 d1d = df.get(p, delta, update_rule == Settings::UpdateRule_Compositive);
 
         double f0 = unary_fn(p, d1);
         double f1 = unary_fn(p, d1d);
@@ -275,7 +277,7 @@ bool BlockedGraphCutOptimizer<TSolver>
         #define ADD_STEP(x_, y_, z_) \
             int3 step = int3{x_, y_, z_}; \
             float3 d2 = df.get(p+step); \
-            float3 d2d = df.get(p+step, delta); \
+            float3 d2d = df.get(p+step, delta, update_rule == Settings::UpdateRule_Compositive); \
             double f00 = binary_fn(p, d1, d2, step); \
             double f01 = binary_fn(p, d1, d2d, step); \
             double f10 = binary_fn(p, d1d, d2, step); \

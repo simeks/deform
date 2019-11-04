@@ -41,6 +41,7 @@ private:
         const int3& block_offset,
         const float3& delta, // delta in [mm]
         const DisplacementField& df,
+        Settings::UpdateRule update_rule,
         DisplacementField& update_field
     );
 
