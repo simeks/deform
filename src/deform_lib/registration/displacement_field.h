@@ -59,7 +59,13 @@ public:
 
     void update(const DisplacementField& update_field, bool composite)
     {
-        for (int3 p : _df.size()) {
+        dim3 dims = update_field.size();
+        
+        #pragma omp parallel for
+        for (int z = 0; z < (int)dims.z; ++z) {
+        for (int y = 0; y < (int)dims.y; ++y) {
+        for (int x = 0; x < (int)dims.x; ++x) {
+            int3 p {x, y, z};
             if (composite) {
                 float3 p1 = _df.index2point(p);
                 float3 p2 = p1 + update_field.get(p);
@@ -70,7 +76,8 @@ public:
             else {
                 _df(p) += update_field.get(p);
             }
-        }
+        }}}
+    }
 
     void fill(const float3& v)
     {
