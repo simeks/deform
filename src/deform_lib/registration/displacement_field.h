@@ -25,26 +25,35 @@ public:
     }
     ~DisplacementField() {}
 
+    // p : Index in displacement field
     inline float3 get(const int3& p) const
     {
-        return _df(p);
+        return get(_df.index2point(p));//_df(p);
+    }
+
+    // p : Point in world space
+    inline float3 get(const float3& p) const
+    {
+        return _df.linear_at_point(_affine.transform_point(p), stk::Border_Replicate);
     }
 
     // delta : Delta in world space (mm)
     inline float3 get(const int3& p, const float3& delta, bool composite) const
     {
-        // if (composite) {
-        //     float3 p1 = _df.index2point(p);
-        //     float3 p2 = p1 + delta;
-        //     float3 p3 = p2 + _df.linear_at_point(p2, stk::Border_Replicate);
+        if (composite) {
+            float3 p1 = _df.index2point(p);
+            float3 p2 = p1 + delta;
+            float3 p3 = p2 + get(p2);//_df.linear_at_point(p2, stk::Border_Replicate);
 
-        //     return p3 - p1;
-        // }
-        //else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
-            return _df(p) + delta;
-        //}
+            return p3 - p1;
+        }
+        else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
+            return get(p) + delta;
+        }
     }
 
+    // Sets the displacement at given index p to value d.
+    // This modifies the displacement field directly with no regards to the affine transform
     inline void set(const int3& p, const float3& d)
     {
         _df(p) = d;
@@ -54,7 +63,8 @@ public:
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-        return _df.index2point(p) + _df(p);
+        float3 fp = _df.index2point(p);
+        return fp + get(fp);
     }
 
     void update(const DisplacementField& update_field, bool composite)
@@ -69,7 +79,7 @@ public:
             if (composite) {
                 float3 p1 = _df.index2point(p);
                 float3 p2 = p1 + update_field.get(p);
-                float3 p3 = p2 + _df.linear_at_point(p2, stk::Border_Replicate);
+                float3 p3 = p2 + get(p2);
 
                 _df(p) = p3 - p1;
             }
