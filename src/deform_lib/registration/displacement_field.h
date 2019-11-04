@@ -63,7 +63,19 @@ public:
     void update(const DisplacementField& update_field, bool composite)
     {
         for (int3 p : _df.size()) {
-            _df(p) += update_field.get(p);
+            float3 d = update_field.get(p);
+
+            if (composite) {
+                float3 fp {
+                    p.x + d.x / _df.spacing().x,
+                    p.y + d.y / _df.spacing().y,
+                    p.z + d.z / _df.spacing().z
+                };
+                _df(p) = _df.linear_at(fp, stk::Border_Replicate) + d;
+            }
+            else {
+                _df(p) += d;
+            }
         }
     }
 
