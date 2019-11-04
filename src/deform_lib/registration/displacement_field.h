@@ -33,16 +33,16 @@ public:
     // delta : Delta in world space (mm)
     inline float3 get(const int3& p, const float3& delta, bool composite) const
     {
-        if (composite) {
-            float3 p1 = _df.index2point(p);
-            float3 p2 = p1 + delta;
-            float3 p3 = p2 + _df.linear_at_point(p2, stk::Border_Replicate);
+        // if (composite) {
+        //     float3 p1 = _df.index2point(p);
+        //     float3 p2 = p1 + delta;
+        //     float3 p3 = p2 + _df.linear_at_point(p2, stk::Border_Replicate);
 
-            return p3 - p1;
-        }
-        else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
+        //     return p3 - p1;
+        // }
+        //else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
             return _df(p) + delta;
-        }
+        //}
     }
 
     inline void set(const int3& p, const float3& d)
