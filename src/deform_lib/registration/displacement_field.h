@@ -57,7 +57,7 @@ public:
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-        return float3{float(p.x), float(p.y), float(p.z)} + _df(p);
+        return _df.index2point(p) + _df(p);
     }
 
     void update(const DisplacementField& update_field, bool composite)
