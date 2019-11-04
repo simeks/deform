@@ -12,13 +12,13 @@ public:
     AffineTransform(const Matrix3x3f& matrix, const float3& offset);
     ~AffineTransform();
 
-    inline float3 transform_point(const float3& pt)
+    inline float3 transform_point(const float3& pt) const
     {
         return _matrix * pt + _offset;
     }
 
     // Returns the resulting displacement vector at the given point
-    inline float3 displacement_vector(const float3& pt)
+    inline float3 displacement(const float3& pt) const
     {
         return transform_point(pt) - pt;
     }

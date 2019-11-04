@@ -3,6 +3,7 @@
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
 
+#include "affine.h"
 #include "settings.h"
 
 /** Wrapper for a displacement field image.
@@ -56,7 +57,10 @@ public:
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-        return _df.index2point(p) + get(p);
+
+    void set_affine_transform(const AffineTransform& transform)
+    {
+        _affine = transform;
     }
 
     dim3 size() const
@@ -100,5 +104,7 @@ public:
 private:
     Settings::UpdateRule _update_rule;
     stk::VolumeFloat3 _df;
+
+    AffineTransform _affine;
 
 };
