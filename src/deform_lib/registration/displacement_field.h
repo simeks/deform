@@ -71,6 +71,10 @@ public:
                 _df(p) += update_field.get(p);
             }
         }
+
+    void fill(const float3& v)
+    {
+        _df.fill(v);
     }
 
     void set_affine_transform(const AffineTransform& transform)

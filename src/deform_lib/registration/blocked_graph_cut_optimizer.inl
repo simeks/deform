@@ -159,8 +159,7 @@ void BlockedGraphCutOptimizer<TSolver>
             }
 
             df.update(update_field, (update_rule == Settings::UpdateRule_Compositive));
-            // TODO: Reset
-            update_field = DisplacementField(update_field.size());
+            update_field.fill(float3{0, 0, 0});
             }
         }
         }
