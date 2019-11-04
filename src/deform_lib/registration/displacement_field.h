@@ -30,7 +30,7 @@ public:
     inline float3 get(const int3& p) const
     {
         float3 p2 = _affine.transform_point(transform_index(p));
-        return p2 - float3{(float)p.x, (float)p.y, (float)p.z};
+        return p2 - _df.index2point(p);
     }
 
     // Returns displacement at point p
@@ -47,7 +47,7 @@ public:
         if (composite) {
             float3 p1 = _df.index2point(p);
             float3 p2 = p1 + delta;
-            float3 p3 = p2 + get(p2);//_df.linear_at_point(p2, stk::Border_Replicate);
+            float3 p3 = p2 + _df.linear_at_point(p2, stk::Border_Replicate);
 
             return p3 - p1;
         }
