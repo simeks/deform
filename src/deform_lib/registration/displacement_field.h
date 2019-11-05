@@ -15,8 +15,12 @@ class DisplacementField
 {
 public:
     DisplacementField() {}
-    DisplacementField(const stk::VolumeFloat3& df) :
-        _df(df)
+    DisplacementField(
+        const stk::VolumeFloat3& df,
+        const AffineTransform& affine = AffineTransform()
+    ) :
+        _df(df),
+        _affine(affine)
     {
     }
     DisplacementField(const dim3& dims) :
@@ -45,7 +49,7 @@ public:
         if (composite) {
             float3 p1 = _df.index2point(p);
             float3 p2 = p1 + delta;
-            float3 p3 = p2 + _df.linear_at_point(p2, stk::Border_Replicate);
+            float3 p3 = transform_point(p2);
 
             return p3 - p1;
         }
@@ -66,22 +70,41 @@ public:
     // Returns coordinates in world space
     inline float3 transform_point(const float3& p) const
     {
-        return _affine.transform_point(
+
+
+        float3 d1 = p + _df.linear_at_point(p, stk::Border_Replicate);
+        
+        float3 d2 = _affine.transform_point(
             p + _df.linear_at_point(p, stk::Border_Replicate)
         );
+
+        // if (abs(d1.x - d2.x) > 0.000000001f
+        //  || abs(d1.y - d2.y) > 0.000000001f
+        //  || abs(d1.z - d2.z) > 0.000000001f) {
+        //     LOG(Info) << "pt: " << d1 << " != " << d2;
+        //     LOG(Info) << p;
+        // }
+
+        return d2;
     }
 
     // p : Index in displacement field
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-        return _affine.transform_point(_df.index2point(p) + _df(p));
+
+        float3 d1 = _df.index2point(p) + _df(p);
+        float3 d2 = _affine.transform_point(_df.index2point(p) + _df(p));
+        
+        return d2;
     }
 
     void update(const DisplacementField& update_field, bool composite)
     {
         dim3 dims = update_field.size();
         
+        DisplacementField buffer = this->clone();
+
         #pragma omp parallel for
         for (int z = 0; z < (int)dims.z; ++z) {
         for (int y = 0; y < (int)dims.y; ++y) {
@@ -90,7 +113,7 @@ public:
             if (composite) {
                 float3 p1 = _df.index2point(p);
                 float3 p2 = p1 + update_field.get(p);
-                float3 p3 = p2 + get(p2);
+                float3 p3 = buffer.transform_point(p2);
 
                 _df(p) = p3 - p1;
             }
@@ -110,14 +133,14 @@ public:
         _affine = transform;
     }
 
+    DisplacementField clone() const
+    {
+        return DisplacementField(_df.clone(), _affine);
+    }
+
     dim3 size() const
     {
         return _df.size();
-    }
-
-    void copy_from(const DisplacementField& other)
-    {
-        _df.copy_from(other._df);
     }
 
     // Volume containing the displacements only

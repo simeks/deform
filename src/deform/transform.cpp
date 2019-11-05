@@ -11,7 +11,7 @@ bool TransformCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("source", "Path to the image you want to transform");
-    _args.add_positional("displacement", "Path to the displacement field used to transform");
+    _args.add_positional("transform", "Path to the transform file, could be either affine or a displacement field");
     _args.add_positional("output", "Path to the resulting file");
 
     _args.add_option("interp", "-i, --interp", "Interpolation to use, either 'nn' or 'linear' (default)");
