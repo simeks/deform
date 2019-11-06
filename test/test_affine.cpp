@@ -144,44 +144,4 @@ TEST_CASE("parse_affine")
         CHECK(8.0f == pt3.y);
         CHECK(11.0f == pt3.z);
     }
-    SECTION("test_displacement_vector")
-    {
-        // Identity transform
-        AffineTransform transform1(
-            Matrix3x3f::Identity,
-            float3{0, 0, 0}
-        );
-
-        float3 d1 = transform1.displacement_vector(float3{2,3,4});
-        CHECK(0.0f == d1.x);
-        CHECK(0.0f == d1.y);
-        CHECK(0.0f == d1.z);
-
-        // Scaling
-        AffineTransform transform2(
-            Matrix3x3f{
-                float3{2, 0, 0},
-                float3{0, 3, 0},
-                float3{0, 0, 4}
-            },
-            float3{0, 0, 0}
-        );
-
-        float3 pt2 = transform2.displacement_vector(float3{1, 2, 3});
-        CHECK(1.0f == pt2.x);
-        CHECK(4.0f == pt2.y);
-        CHECK(9.0f == pt2.z);
-
-        // Translation
-        AffineTransform transform3(
-            Matrix3x3f::Identity,
-            float3{4, 6, 8}
-        );
-
-        float3 pt3 = transform3.displacement_vector(float3{1, 2, 3});
-        CHECK(4.0f == pt3.x);
-        CHECK(6.0f == pt3.y);
-        CHECK(8.0f == pt3.z);
-
-    }
 }
