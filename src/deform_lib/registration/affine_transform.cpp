@@ -1,4 +1,4 @@
-#include "affine.h"
+#include "affine_transform.h"
 
 #include <deform_lib/registration/settings.h>
 #include <stk/math/float3.h>
@@ -89,7 +89,7 @@ AffineTransform parse_affine_transform_file(const std::string& filename)
         // Parameters: <x>*12
 
         std::istringstream ss(keyvalues["Parameters"]);
-            
+
         float* pmatrix = &matrix._rows[0].x;
         for (int i = 0; i < 9; ++i) {
             ss >> pmatrix[i];

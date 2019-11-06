@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <deform_lib/registration/affine.h>
+#include <deform_lib/registration/affine_transform.h>
 #include <stk/math/types.h>
 
 #include <cassert>

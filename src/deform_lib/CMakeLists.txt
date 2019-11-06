@@ -16,8 +16,8 @@ set(DEFORM_LIB_SRCS
     "registration/cost_functions/sub_function.h"
     "registration/cost_functions/unary_function.h"
 
-    "registration/affine.cpp"
-    "registration/affine.h"
+    "registration/affine_transform.cpp"
+    "registration/affine_transform.h"
     "registration/block_change_flags.cpp"
     "registration/block_change_flags.h"
     "registration/blocked_graph_cut_optimizer.h"

@@ -3,7 +3,7 @@
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
 
-#include "affine.h"
+#include "affine_transform.h"
 #include "settings.h"
 
 /** Wrapper for a displacement field image.
