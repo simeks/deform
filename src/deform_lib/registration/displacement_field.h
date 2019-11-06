@@ -14,20 +14,14 @@
 class DisplacementField
 {
 public:
-    DisplacementField() {}
+    DisplacementField();
     DisplacementField(
         const stk::VolumeFloat3& df,
         const AffineTransform& affine = AffineTransform()
-    ) :
-        _df(df),
-        _affine(affine)
-    {
-    }
-    DisplacementField(const dim3& dims) :
-        _df(dims, float3{0, 0, 0})
-    {
-    }
-    ~DisplacementField() {}
+    );
+    // Creates a new identity displacement field of size dims
+    DisplacementField(const dim3& dims);
+    ~DisplacementField();
 
     // Returns displacement at index p
     // p : Index in displacement field
@@ -53,7 +47,7 @@ public:
 
             return p3 - p1;
         }
-        else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
+        else {
             return get(p) + delta;
         }
     }
@@ -70,101 +64,40 @@ public:
     // Returns coordinates in world space
     inline float3 transform_point(const float3& p) const
     {
-
-
-        float3 d1 = p + _df.linear_at_point(p, stk::Border_Replicate);
-        
-        float3 d2 = _affine.transform_point(
+        return _affine.transform_point(
             p + _df.linear_at_point(p, stk::Border_Replicate)
         );
-
-        // if (abs(d1.x - d2.x) > 0.000000001f
-        //  || abs(d1.y - d2.y) > 0.000000001f
-        //  || abs(d1.z - d2.z) > 0.000000001f) {
-        //     LOG(Info) << "pt: " << d1 << " != " << d2;
-        //     LOG(Info) << p;
-        // }
-
-        return d2;
     }
 
     // p : Index in displacement field
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-
-        float3 d1 = _df.index2point(p) + _df(p);
-        float3 d2 = _affine.transform_point(_df.index2point(p) + _df(p));
-        
-        return d2;
+        return _affine.transform_point(_df.index2point(p) + _df(p));
     }
 
-    void update(const DisplacementField& update_field, bool composite)
-    {
-        dim3 dims = update_field.size();
-        
-        DisplacementField buffer = this->clone();
+    void update(const DisplacementField& update_field, bool composite);
 
-        #pragma omp parallel for
-        for (int z = 0; z < (int)dims.z; ++z) {
-        for (int y = 0; y < (int)dims.y; ++y) {
-        for (int x = 0; x < (int)dims.x; ++x) {
-            int3 p {x, y, z};
-            if (composite) {
-                float3 p1 = _df.index2point(p);
-                float3 p2 = p1 + update_field.get(p);
-                float3 p3 = buffer.transform_point(p2);
+    // Fills the displacement field component with vector v
+    void fill(const float3& v);
 
-                _df(p) = p3 - p1;
-            }
-            else {
-                _df(p) += update_field.get(p);
-            }
-        }}}
-    }
+    // Clones the displacement field and any affine transformation
+    DisplacementField clone() const;
 
-    void fill(const float3& v)
-    {
-        _df.fill(v);
-    }
-
-    void set_affine_transform(const AffineTransform& transform)
-    {
-        _affine = transform;
-    }
-
-    DisplacementField clone() const
-    {
-        return DisplacementField(_df.clone(), _affine);
-    }
-
-    dim3 size() const
-    {
-        return _df.size();
-    }
+    // Size of the displacement field
+    dim3 size() const;
 
     // Volume containing the displacements only
-    const stk::VolumeFloat3& volume() const
-    {
-        return _df;
-    }
+    const stk::VolumeFloat3& volume() const;
 
     // Volume containing the displacements only
-    stk::VolumeFloat3& volume()
-    {
-        return _df;
-    }
+    stk::VolumeFloat3& volume();
 
     // Returns true if the volume is allocated and ready for use
-    bool valid() const
-    {
-        return _df.valid();
-    }
-
+    bool valid() const;
 
 private:
     stk::VolumeFloat3 _df;
-
     AffineTransform _affine;
 
 };

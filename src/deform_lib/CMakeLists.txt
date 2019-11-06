@@ -22,6 +22,8 @@ set(DEFORM_LIB_SRCS
     "registration/block_change_flags.h"
     "registration/blocked_graph_cut_optimizer.h"
     "registration/blocked_graph_cut_optimizer.inl"
+    "registration/displacement_field.cpp"
+    "registration/displacement_field.h"
     "registration/landmarks.cpp"
     "registration/landmarks.h"
     "registration/registration_engine.cpp"
