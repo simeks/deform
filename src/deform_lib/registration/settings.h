@@ -134,9 +134,6 @@ struct Settings
 
     std::vector<ImageSlot> image_slots;
 
-    // Should the regularization also apply on the initial displacement?
-    bool regularize_initial_displacement;
-
     // What solver to use for the energy minimization
     Solver solver;
 
@@ -147,7 +144,6 @@ struct Settings
         pyramid_stop_level(0),
         num_pyramid_levels(6),
         landmarks_stop_level(0),
-        regularize_initial_displacement(false),
     #if defined(DF_ENABLE_GCO)
         solver(Solver_GCO),
     #elif defined(DF_ENABLE_GRIDCUT)

@@ -217,20 +217,6 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
     if (_regularization_weight_map.volume(level).valid())
         binary_fn.set_weight_map(_regularization_weight_map.volume(level));
 #endif
-
-    stk::Volume df = _deformation_pyramid.volume(level);
-    if (!_settings.regularize_initial_displacement) {
-        // Clone the def, because the current copy will be changed when executing the optimizer
-        binary_fn.set_initial_displacement(DisplacementField(df.clone()));
-    }
-    else {
-        binary_fn.set_initial_displacement(stk::VolumeFloat3(df.size(), float3{0,0,0}));
-    }
-
-    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-        if (_regularization_weight_map.volume(level).valid())
-            binary_fn.set_weight_map(_regularization_weight_map.volume(level));
-    #endif
 }
 
 void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
@@ -652,8 +638,8 @@ stk::Volume RegistrationEngine::execute()
                     unary_fn,
                     binary_fn,
                     _settings.levels[l].step_size,
-                    df,
-                    _settings.update_rule
+                    _settings.update_rule,
+                    df
                 );
             }
 #if defined(DF_ENABLE_GCO)
@@ -668,8 +654,8 @@ stk::Volume RegistrationEngine::execute()
                     unary_fn,
                     binary_fn,
                     _settings.levels[l].step_size,
-                    df,
-                    _settings.update_rule
+                    _settings.update_rule,
+                    df
                 );
             }
 #endif
@@ -685,8 +671,8 @@ stk::Volume RegistrationEngine::execute()
                     unary_fn,
                     binary_fn,
                     _settings.levels[l].step_size,
-                    df,
-                    _settings.update_rule
+                    _settings.update_rule,
+                    df
                 );
             }
 #endif

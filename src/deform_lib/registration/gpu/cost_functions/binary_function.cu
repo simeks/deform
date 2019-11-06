@@ -30,7 +30,6 @@ __device__ float4 energy(
 template<typename TDisplacementField>
 __global__ void regularizer_kernel(
     TDisplacementField df,
-    TDisplacementField initial_df,
     float4 delta,
     float weight,
     float scale,
@@ -62,8 +61,8 @@ __global__ void regularizer_kernel(
 
     // Cost ordered as E00, E01, E10, E11
 
-    float4 d0 = df.get(p) - initial_df.get(p);
-    float4 d1 = df.get(p, delta) - initial_df.get(p);
+    float4 d0 = df.get(p);
+    float4 d1 = df.get(p, delta);
 
     float4 o_x = {0, 0, 0, 0};
     float4 o_y = {0, 0, 0, 0};
@@ -71,8 +70,8 @@ __global__ void regularizer_kernel(
 
     if (gx + 1 < (int) df.size().x) {
         int3 step {1, 0, 0};
-        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
-        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+        float4 dn0 = df.get(p+step);
+        float4 dn1 = df.get(p+step, delta);
 
         o_x = energy(
             d0,
@@ -85,8 +84,8 @@ __global__ void regularizer_kernel(
     }
     if (gy + 1 < (int) df.size().y) {
         int3 step {0, 1, 0};
-        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
-        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+        float4 dn0 = df.get(p+step);
+        float4 dn1 = df.get(p+step, delta);
 
         o_y = energy(
             d0,
@@ -99,8 +98,8 @@ __global__ void regularizer_kernel(
     }
     if (gz + 1 < (int) df.size().z) {
         int3 step {0, 0, 1};
-        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
-        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+        float4 dn0 = df.get(p+step);
+        float4 dn1 = df.get(p+step, delta);
 
         o_z = energy(
             d0,
@@ -120,8 +119,8 @@ __global__ void regularizer_kernel(
 
     if (x == 0 && gx != 0) {
         int3 step {-1, 0, 0};
-        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
-        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+        float4 dn0 = df.get(p+step);
+        float4 dn1 = df.get(p+step, delta);
 
         float4 e = energy(
             d0,
@@ -143,8 +142,8 @@ __global__ void regularizer_kernel(
 
     if (y == 0 && gy != 0) {
         int3 step {0, -1, 0};
-        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
-        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+        float4 dn0 = df.get(p+step);
+        float4 dn1 = df.get(p+step, delta);
 
         float4 e = energy(
             d0,
@@ -163,8 +162,8 @@ __global__ void regularizer_kernel(
 
     if (z == 0 && gz != 0) {
         int3 step {0, 0, -1};
-        float4 dn0 = df.get(p+step) - initial_df.get(p+step);
-        float4 dn1 = df.get(p+step, delta) - initial_df.get(p+step);
+        float4 dn0 = df.get(p+step);
+        float4 dn1 = df.get(p+step, delta);
 
         float4 e = energy(
             d0,
@@ -227,7 +226,6 @@ void GpuBinaryFunction::operator()(
         regularizer_kernel<cuda::DisplacementField<cuda::CompositiveUpdate>>
         <<<grid_size, block_size, 0, stream>>>(
             df,
-            _initial,
             delta4,
             _weight,
             _scale,
@@ -244,7 +242,6 @@ void GpuBinaryFunction::operator()(
         regularizer_kernel<cuda::DisplacementField<cuda::AdditiveUpdate>>
         <<<grid_size, block_size, 0, stream>>>(
             df,
-            _initial,
             delta4,
             _weight,
             _scale,

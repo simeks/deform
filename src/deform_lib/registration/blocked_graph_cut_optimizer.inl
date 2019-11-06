@@ -32,8 +32,8 @@ void BlockedGraphCutOptimizer<TSolver>
     UnaryFunction& unary_fn,
     Regularizer& binary_fn,
     float3 step_size,
-    DisplacementField& df,
-    Settings::UpdateRule update_rule
+    Settings::UpdateRule update_rule,
+    DisplacementField& df
 )
 {
     dim3 dims = df.size();

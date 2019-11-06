@@ -35,14 +35,6 @@ public:
         _spacing = spacing;
     }
 
-    // Sets the initial displacement for this registration level. This will be
-    //  the reference when computing the regularization energy. Any displacement
-    //  identical to the initial displacement will result in zero energy.
-    void set_initial_displacement(const GpuDisplacementField& initial)
-    {
-        _initial = initial;
-    }
-
     // Computes the regularization cost in three directions (x+, y+, z+), with and without
     //  applied delta. Results are stored into the three provided cost volumes (of type float2)
     // df           : Displacement field
@@ -69,7 +61,5 @@ private:
     float _scale;
     float _half_exponent;
     float3 _spacing;
-
-    GpuDisplacementField _initial;
 };
 
