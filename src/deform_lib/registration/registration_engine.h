@@ -18,6 +18,8 @@ public:
     ~RegistrationEngine();
 
     void set_initial_deformation(const stk::Volume& def);
+    void set_affine_transform(const AffineTransform& affine_transform);
+
     void set_image_pair(
         int i,
         const stk::Volume& fixed,
@@ -81,6 +83,7 @@ private:
     VolumePyramid _regularization_weight_map;
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
+    AffineTransform _affine_transform;
 
     VolumePyramid _constraints_pyramid;
     VolumePyramid _constraints_mask_pyramid;

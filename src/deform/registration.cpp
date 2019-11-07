@@ -2,6 +2,7 @@
 
 #include <deform_lib/jacobian.h>
 
+#include <deform_lib/registration/affine_transform.h>
 #include <deform_lib/registration/landmarks.h>
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/settings.h>
@@ -24,7 +25,8 @@ bool RegistrationCommand::_parse_arguments(void)
     _args.add_option("fixed_mask",   "-fm, --fixed-mask",   "Path to the fixed image mask");
     _args.add_option("moving_mask",  "-mm, --moving-mask", "Path to the moving image mask");
     _args.add_group();
-    _args.add_option("init_deform",  "-d0", "Path to the initial displacement field");
+    _args.add_option("init_deform",  "-d0", "Path to an initial displacement field");
+    _args.add_option("affine", "-a,--affine", "Path to an initial affine transformation");
     _args.add_group();
     _args.add_option("fixed_points", "-fp, --fixed-points", "Path to the fixed landmark points");
     _args.add_option("moving_points", "-mp, --moving-points", "Path to the moving landmark points");
@@ -157,6 +159,14 @@ int RegistrationCommand::_execute(void)
             return EXIT_FAILURE;
     }
 
+    std::string affine_file = _args.get<std::string>("affine", "");
+    LOG(Info) << "Affine transform: '" << affine_file << "'";
+
+    AffineTransform affine_transform;
+    if (!affine_file.empty()) {
+        affine_transform = parse_affine_transform_file(affine_file);
+    }
+
     // Constraints
     std::string constraint_mask_file = _args.get<std::string>("constraint_mask", "");
     std::string constraint_values_file = _args.get<std::string>("constraint_values", "");
@@ -229,6 +239,7 @@ int RegistrationCommand::_execute(void)
                            fixed_landmarks,
                            moving_landmarks,
                            initial_displacement,
+                           affine_transform,
                            constraint_mask,
                            constraint_values,
                         #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP

@@ -6,6 +6,8 @@
 
 #include <vector>
 
+class AffineTransform;
+
 /*!
  * \brief Ensure that the input volume properties (size, origin,
  *        spacing, direction) match the reference volume ones.
@@ -34,6 +36,7 @@ stk::Volume registration(
         const std::vector<float3>& fixed_landmarks,
         const std::vector<float3>& moving_landmarks,
         const stk::Volume& initial_deformation,
+        const AffineTransform& affine_transform,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP

@@ -91,6 +91,7 @@ stk::Volume registration(
         const std::vector<float3>& fixed_landmarks,
         const std::vector<float3>& moving_landmarks,
         const stk::Volume& initial_deformation,
+        const AffineTransform& affine_transform,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -194,6 +195,8 @@ stk::Volume registration(
         validate_volume_properties(initial_deformation, fixed_ref, "initial deformation field");
         engine.set_initial_deformation(initial_deformation);
     }
+
+    engine.set_affine_transform(affine_transform);
 
     // Constraints
     if (constraint_mask.valid() && constraint_values.valid()) {

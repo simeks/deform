@@ -538,6 +538,10 @@ void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
     _deformation_pyramid.build_from_base(def, filters::downsample_vectorfield_by_2);
 #endif
 }
+void RegistrationEngine::set_affine_transform(const AffineTransform& affine_transform)
+{
+    _affine_transform = affine_transform;
+}
 void RegistrationEngine::set_image_pair(
     int i,
     const stk::Volume& fixed,
