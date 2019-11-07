@@ -47,14 +47,12 @@ namespace
         ASSERT(df.size() == mask.size() && df.size() == values.size());
         dim3 dims = df.size();
         for (int z = 0; z < int(dims.z); ++z) {
-            for (int y = 0; y < int(dims.y); ++y) {
-                for (int x = 0; x < int(dims.x); ++x) {
-                    if (mask(x, y, z) > 0) {
-                        df.set(int3{x,y,z}, values(x, y, z));
-                    }
-                }
+        for (int y = 0; y < int(dims.y); ++y) {
+        for (int x = 0; x < int(dims.x); ++x) {
+            if (mask(x, y, z) > 0) {
+                df.set(int3{x,y,z}, values(x, y, z));
             }
-        }
+        }}}
     }
 
     template<typename T>
