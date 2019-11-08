@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../config.h"
+#include "affine_transform.h"
 #include "settings.h"
 #include "volume_pyramid.h"
 
@@ -23,7 +24,8 @@ public:
     void set_image_pair(
         int i,
         const stk::Volume& fixed,
-        const stk::Volume& moving);
+        const stk::Volume& moving
+    );
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_regularization_weight_map(const stk::Volume& map);
