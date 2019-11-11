@@ -606,7 +606,7 @@ stk::Volume RegistrationEngine::execute()
     #endif
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
-        DisplacementField df(_deformation_pyramid.volume(l));
+        DisplacementField df(_deformation_pyramid.volume(l), _affine_transform);
 
         std::vector<int3> neighborhood = determine_neighborhood(l);
 
