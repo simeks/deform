@@ -59,8 +59,15 @@ int TransformCommand::_execute(void)
     ASSERT(df.voxel_type() == stk::Type_Float3);
 
     AffineTransform affine;
-    if (_args.is_set("affine"))
-        affine = parse_affine_transform_file(_args.option("affine"));
+    if (_args.is_set("affine")) {
+        try{
+            affine = parse_affine_transform_file(_args.option("affine"));
+        }
+        catch (ValidationError& e) {
+            LOG(Error) << e.what();
+            return EXIT_FAILURE;
+        }
+    }
 
     stk::Volume result = transform_volume(src, DisplacementField(df, affine), interp);
     if (!result.valid())

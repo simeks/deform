@@ -164,7 +164,13 @@ int RegistrationCommand::_execute(void)
 
     AffineTransform affine_transform;
     if (!affine_file.empty()) {
-        affine_transform = parse_affine_transform_file(affine_file);
+        try{
+            affine_transform = parse_affine_transform_file(affine_file);
+        }
+        catch (ValidationError& e) {
+            LOG(Error) << e.what();
+            return EXIT_FAILURE;
+        }
     }
 
     // Constraints
