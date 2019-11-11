@@ -6,6 +6,7 @@
 #include <stk/math/float3.h>
 #include <stk/math/matrix3x3f.h>
 
+#include "../affine_transform.h"
 #include "../settings.h"
 
 /** Wrapper for a displacement field image.
@@ -16,63 +17,33 @@
 class GpuDisplacementField
 {
 public:
-    GpuDisplacementField() : _update_rule(Settings::UpdateRule_Additive) {}
+    GpuDisplacementField();
     GpuDisplacementField(
         const stk::GpuVolume& df,
-        Settings::UpdateRule update_rule = Settings::UpdateRule_Additive
-    ) :
-        _update_rule(update_rule),
-        _df(df)
-    {
-        ASSERT(_df.voxel_type() == stk::Type_Float4);
-    }
-    ~GpuDisplacementField() {}
+        const AffineTransform& affine_transform = AffineTransform()
+    );
+    ~GpuDisplacementField();
 
-    GpuDisplacementField clone()
-    {
-        return GpuDisplacementField(_df.clone(), _update_rule);
-    }
+    // Clones the displacement field and underlying data
+    GpuDisplacementField clone();
 
-    void copy_from(const GpuDisplacementField& other)
-    {
-        _df.copy_from(other.volume());
-    }
+    // Copies another displacement field into this
+    void copy_from(const GpuDisplacementField& other);
 
-    dim3 size() const
-    {
-        return _df.size();
-    }
+    // Returns the dimensions of the displacement field
+    dim3 size() const;
 
     // Volume containing the displacements only
-    const stk::GpuVolume& volume() const
-    {
-        return _df;
-    }
+    const stk::GpuVolume& volume() const;
+    const AffineTransform& affine_transform() const;
 
-    const float3& origin() const
-    {
-        return _df.origin();
-    }
-
-    const float3& spacing() const
-    {
-        return _df.spacing();
-    }
-    
-    const Matrix3x3f& direction() const
-    {
-        return _df.direction();
-    }
-
-    Settings::UpdateRule update_rule() const
-    {
-        return _update_rule;
-    }
+    const float3& origin() const;
+    const float3& spacing() const;
+    const Matrix3x3f& direction() const;
 
 private:
-    Settings::UpdateRule _update_rule;
     stk::GpuVolume _df;
-
+    AffineTransform _affine_transform;
 };
 
 #ifdef __CUDACC__
@@ -116,8 +87,10 @@ template<typename TUpdateFn = AdditiveUpdate>
 class DisplacementField
 {
 public:
-    DisplacementField(const GpuDisplacementField& df) :
+    DisplacementField(const GpuDisplacementField& df,
+                      const AffineTransform& affine_transform) :
         _df(df.volume()),
+        _affine_transform(affine_transform),
         _dims(df.size()),
         _origin(df.origin()),
         _spacing(df.spacing()),
@@ -173,6 +146,7 @@ public:
 
 private:
     stk::cuda::VolumePtr<float4> _df;
+    AffineTransform _affine_transform;
     dim3 _dims;
 
     float3 _origin;
