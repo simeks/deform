@@ -705,7 +705,11 @@ stk::Volume RegistrationEngine::execute()
         }
     }
 
-    return _deformation_pyramid.volume(0);
+    // Composite affine transform and displacement field
+    return compute_displacement_field(
+        _deformation_pyramid.volume(0),
+        _affine_transform
+    );
 }
 stk::Volume RegistrationEngine::deformation_field(int level)
 {

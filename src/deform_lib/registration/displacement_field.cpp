@@ -65,3 +65,22 @@ bool DisplacementField::valid() const
     return _df.valid();
 }
 
+stk::VolumeFloat3 compute_displacement_field(
+    const stk::VolumeFloat3& vector_field,
+    const AffineTransform& affine
+)
+{
+    DisplacementField df(vector_field, affine);
+
+    dim3 dims = df.size();
+    stk::VolumeFloat3 out(dims);
+
+    #pragma omp parallel for
+    for (int z = 0; z < (int)dims.z; ++z) {
+    for (int y = 0; y < (int)dims.y; ++y) {
+    for (int x = 0; x < (int)dims.x; ++x) {
+        out(x,y,z) = df.get(int3{x, y, z});
+    }}}
+
+    return out;
+}

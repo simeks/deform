@@ -101,3 +101,10 @@ private:
     AffineTransform _affine;
 
 };
+
+// Computes the composite of a vector field and an affine transform:
+// u'(x) <- A(x + u(x)) + b - x
+stk::VolumeFloat3 compute_displacement_field(
+    const stk::VolumeFloat3& vector_field,
+    const AffineTransform& affine
+);
