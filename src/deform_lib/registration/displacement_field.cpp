@@ -29,13 +29,26 @@ void DisplacementField::update(const DisplacementField& update_field, bool compo
     for (int x = 0; x < (int)dims.x; ++x) {
         int3 p {x, y, z};
         if (composite) {
-            float3 p1 = _df.index2point(p);
-            float3 p2 = p1 + update_field.get(p);
-            float3 p3 = buffer.transform_point(p2);
+            // Transform consists of two components, affine and displacement vector
+            //  V(x) = Ax + b
+            //  W(x) = x + u(x)
+            //
+            // The composition is computed as
+            //  V(W(x)) = A(x + u(x)) + b
+            //
+            // Applying delta, produces following eq
+            // V(W'(x)) = A(x + u'(x)) + b = A(x + u(x + delta) + delta) + b
+            //
+            // Applying the delta only requires us to modify u(x)
+            // u'(x) = u(x + delta) + delta
 
-            _df(p) = p3 - p1;
+            float3 delta = update_field.get(p);
+            float3 p1 = _df.index2point(p);
+            _df(p) = _df.linear_at_point(p1 + delta, stk::Border_Replicate) + delta;
         }
         else {
+            // For additive updates we simply add the delta to the displacement
+
             _df(p) += update_field.get(p);
         }
     }}}

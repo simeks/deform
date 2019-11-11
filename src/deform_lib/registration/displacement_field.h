@@ -41,14 +41,18 @@ public:
     inline float3 get(const int3& p, const float3& delta, bool composite) const
     {
         if (composite) {
+            // T(x) = A(x + u(x + delta) + delta) + b
             float3 p1 = _df.index2point(p);
-            float3 p2 = p1 + delta;
-            float3 p3 = transform_point(p2);
-
-            return p3 - p1;
+            float3 p2 = _affine.transform_point(
+                p1 + _df.linear_at_point(p1 + delta, stk::Border_Replicate) + delta
+            );
+            return p2 - p1;
         }
         else {
-            return get(p) + delta;
+            // T(x) = A(x + u(x) + delta) + b
+            float3 p1 = _df.index2point(p);
+            float3 p2 = _affine.transform_point(p1 + _df(p) + delta);
+            return p2 - p1;
         }
     }
 
@@ -64,6 +68,7 @@ public:
     // Returns coordinates in world space
     inline float3 transform_point(const float3& p) const
     {
+        // T(x) = A(x + u(x)) + b
         return _affine.transform_point(
             p + _df.linear_at_point(p, stk::Border_Replicate)
         );
@@ -73,6 +78,7 @@ public:
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
+        // T(x) = A(x + u(x)) + b
         return _affine.transform_point(_df.index2point(p) + _df(p));
     }
 
