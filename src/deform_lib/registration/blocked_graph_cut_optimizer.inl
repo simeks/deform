@@ -331,12 +331,7 @@ bool BlockedGraphCutOptimizer<TSolver>
         }
 
         if (solver.get_var(sub_x, sub_y, sub_z) == 1) {
-            if (update_rule == Settings::UpdateRule_Compositive) {
-                update_field.set(int3{gx, gy, gz}, delta);
-            }
-            else {
-                update_field.set(int3{gx, gy, gz}, delta);
-            }
+            update_field.set(int3{gx, gy, gz}, delta);
             changed_flag = true;
         }
     }
