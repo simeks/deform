@@ -13,6 +13,8 @@
 #include <deform_lib/regularize.h>
 #include <deform_lib/version.h>
 
+#include <deform_lib/registration/affine_transform.h>
+#include <deform_lib/registration/displacement_field.h>
 #include <deform_lib/registration/settings.h>
 #include <deform_lib/registration/registration.h>
 #include <deform_lib/registration/registration_engine.h>
@@ -256,6 +258,9 @@ moving_landmarks: np.ndarray
 initial_displacement: stk.Volume
     Initial guess of the displacement field.
 
+affine_transform: AffineTransform
+    Initial affine transformation
+
 constraint_mask: stk.Volume
     Boolean mask for the constraints on the displacement.
     Requires to provide `constraint_values`.
@@ -305,6 +310,7 @@ stk::Volume registration_wrapper(
         const py::object& fixed_landmarks,
         const py::object& moving_landmarks,
         const stk::Volume& initial_displacement,
+        const AffineTransform& affine_transform,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -412,6 +418,7 @@ stk::Volume registration_wrapper(
                                             fixed_landmarks_,
                                             moving_landmarks_,
                                             initial_displacement,
+                                            affine_transform,
                                             constraint_mask,
                                             constraint_values,
                                         #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -449,6 +456,9 @@ interpolator: pydeform.Interpolator
     `pydeform.Interpolator.Linear` or
     `pydeform.Interpolator.NearestNeighbour`.
 
+affine_transform: AffineTransform
+    Optional affine transformation
+
 Returns
 -------
 stk.Volume
@@ -459,9 +469,10 @@ stk.Volume
 stk::Volume transform_wrapper(
     const stk::Volume& src,
     const stk::Volume& df,
-    transform::Interp interp)
+    transform::Interp interp,
+    const AffineTransform& affine_transform)
 {
-    return transform_volume(src, df, interp);
+    return transform_volume(src, DisplacementField(df, affine_transform), interp);
 }
 
 std::string jacobian_docstring =
@@ -528,6 +539,40 @@ stk::Volume regularization_wrapper(
     );
 }
 
+
+AffineTransform make_affine_transform(
+    const py::array_t<double>& matrix,
+    const py::array_t<double>& offset
+)
+{
+    AffineTransform t;
+
+    if (matrix.ndim() != 2 ||
+        matrix.shape(0) != 3 ||
+        matrix.shape(1) != 3) {
+        throw py::value_error("Invalid shape of affine matrix, expected (3, 3).");
+    }
+
+    Matrix3x3f m;
+    for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+        m(i, j) = (float)matrix.at(i, j);
+    }}
+
+    if (offset.ndim() != 1 ||
+        offset.shape(0) != 3) {
+        throw py::value_error("Invalid shape of affine offset, expected (3).");
+    }
+
+    float3 o {
+        (float)offset.at(0),
+        (float)offset.at(1),
+        (float)offset.at(2)
+    };
+
+    return AffineTransform(m, o);
+}
+
 PYBIND11_MODULE(_pydeform, m)
 {
     m.attr("__version__") = GIT_VERSION_TAG;
@@ -558,6 +603,13 @@ PYBIND11_MODULE(_pydeform, m)
         .value("Fatal", stk::LogLevel::Fatal, "Report only fatal errors")
         .export_values();
 
+    py::class_<AffineTransform>(m, "AffineTransform")
+        .def(py::init<>())
+        .def(py::init(&make_affine_transform),
+            py::arg("matrix"),
+            py::arg("offset")
+        );
+
     m.def("register",
           &registration_wrapper,
           registration_docstring.c_str(),
@@ -568,6 +620,7 @@ PYBIND11_MODULE(_pydeform, m)
           py::arg("fixed_landmarks") = py::none(),
           py::arg("moving_landmarks") = py::none(),
           py::arg("initial_displacement") = stk::Volume(),
+          py::arg("affine_transform") = AffineTransform(),
           py::arg("constraint_mask") = stk::Volume(),
           py::arg("constraint_values") = stk::Volume(),
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -586,7 +639,8 @@ PYBIND11_MODULE(_pydeform, m)
             transform_docstring.c_str(),
             py::arg("image"),
             py::arg("displacement"),
-            py::arg("interpolator") = transform::Interp_Linear
+            py::arg("interpolator") = transform::Interp_Linear,
+            py::arg("affine_transform") = AffineTransform()
          );
 
     m.def("jacobian",
