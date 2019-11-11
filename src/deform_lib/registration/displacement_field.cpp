@@ -70,10 +70,11 @@ stk::VolumeFloat3 compute_displacement_field(
     const AffineTransform& affine
 )
 {
-    DisplacementField df(vector_field, affine);
-
-    dim3 dims = df.size();
+    dim3 dims = vector_field.size();
     stk::VolumeFloat3 out(dims);
+    out.copy_meta_from(vector_field);
+
+    DisplacementField df(vector_field, affine);
 
     #pragma omp parallel for
     for (int z = 0; z < (int)dims.z; ++z) {
