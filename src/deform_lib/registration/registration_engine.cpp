@@ -527,7 +527,7 @@ void RegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
     _moving_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
     _moving_mask_pyramid.build_from_base(moving_mask, filters::downsample_volume_by_2);
 }
-void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
+void RegistrationEngine::set_initial_displacement_field(const stk::Volume& def)
 {
     ASSERT(def.voxel_type() == stk::Type_Float3); // Only single-precision supported for now
     ASSERT(_settings.num_pyramid_levels);
@@ -598,7 +598,7 @@ stk::Volume RegistrationEngine::execute()
 
         stk::VolumeFloat3 initial(base.size(), float3{0, 0, 0});
         initial.copy_meta_from(base);
-        set_initial_deformation(initial);
+        set_initial_displacement_field(initial);
     }
 
     #ifdef DF_OUTPUT_DEBUG_VOLUMES

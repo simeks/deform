@@ -50,6 +50,7 @@ public:
         const float3& delta,
         const int3& offset,
         const int3& dims,
+        Settings::UpdateRule update_rule,
         stk::GpuVolume& cost_x,
         stk::GpuVolume& cost_y,
         stk::GpuVolume& cost_z,

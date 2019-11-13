@@ -186,6 +186,7 @@ void GpuBinaryFunction::operator()(
         const float3& delta,
         const int3& offset,
         const int3& dims,
+        Settings::UpdateRule update_rule,
         stk::GpuVolume& cost_x,
         stk::GpuVolume& cost_y,
         stk::GpuVolume& cost_z,
@@ -222,7 +223,7 @@ void GpuBinaryFunction::operator()(
         0
     };
 
-    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+    if (update_rule == Settings::UpdateRule_Compositive) {
         regularizer_kernel<cuda::DisplacementField<cuda::CompositiveUpdate>>
         <<<grid_size, block_size, 0, stream>>>(
             df,
@@ -238,7 +239,7 @@ void GpuBinaryFunction::operator()(
             cost_z
         );
     }
-    else if (df.update_rule() == Settings::UpdateRule_Additive) {
+    else if (update_rule == Settings::UpdateRule_Additive) {
         regularizer_kernel<cuda::DisplacementField<cuda::AdditiveUpdate>>
         <<<grid_size, block_size, 0, stream>>>(
             df,

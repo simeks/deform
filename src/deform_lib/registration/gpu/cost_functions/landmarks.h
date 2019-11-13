@@ -30,6 +30,7 @@ struct GpuCostFunction_Landmarks : public GpuCostFunction
         float weight,
         const int3& offset,
         const int3& dims,
+        Settings::UpdateRule update_rule,
         stk::GpuVolume& cost_acc,
         stk::cuda::Stream& stream
     );

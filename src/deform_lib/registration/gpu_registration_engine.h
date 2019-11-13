@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../config.h"
+#include "affine_transform.h"
 #include "settings.h"
 #include "gpu_volume_pyramid.h"
 #include "worker_pool.h"
@@ -19,7 +20,9 @@ public:
     GpuRegistrationEngine(const Settings& settings);
     ~GpuRegistrationEngine();
 
-    void set_initial_deformation(const stk::Volume& def);
+    void set_initial_displacement_field(const stk::Volume& def);
+    void set_affine_transform(const AffineTransform& affine_transform);
+
     void set_image_pair(
         int i,
         const stk::Volume& fixed,
@@ -68,6 +71,8 @@ private:
 
     std::vector<float3> _fixed_landmarks;
     std::vector<float3> _moving_landmarks;
+
+    AffineTransform _affine_transform;
 
     WorkerPool _worker_pool;
     std::vector<stk::cuda::Stream> _stream_pool;

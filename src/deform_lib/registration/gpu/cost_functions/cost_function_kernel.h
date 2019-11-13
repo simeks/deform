@@ -72,8 +72,12 @@ struct CostFunctionKernel
             }
         }
 
+        int3 p {x,y,z};
+        float4 d = df.get(p, delta);
+        float3 pt = df.index2point(p) + float3{d.x, d.y, d.z};
+
         const float3 moving_p = _inv_moving_direction
-            * (df.transform_index({x,y,z}, delta) - _moving_origin)
+            * (pt - _moving_origin)
             * _inv_moving_spacing;
 
         // Check if the moving voxels are masked out
@@ -87,7 +91,6 @@ struct CostFunctionKernel
             }
         }
 
-        float4 d = df.get(int3{x, y, z}, delta);
         float c = _impl(
             _fixed,
             _moving,
@@ -155,6 +158,7 @@ void invoke_cost_function_kernel(
     const int3& offset,
     const int3& dims,
     GpuDisplacementField& df,
+    Settings::UpdateRule update_rule,
     stk::cuda::Stream& stream
 )
 {
@@ -183,7 +187,7 @@ void invoke_cost_function_kernel(
 
     float4 d4 { delta.x, delta.y, delta.z, 0 };
 
-    if (df.update_rule() == Settings::UpdateRule_Compositive) {
+    if (update_rule == Settings::UpdateRule_Compositive) {
         cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,
@@ -193,7 +197,7 @@ void invoke_cost_function_kernel(
             1
         );
     }
-    else if (df.update_rule() == Settings::UpdateRule_Additive) {
+    else if (update_rule == Settings::UpdateRule_Additive) {
         cost_function_kernel<<<grid_size, block_size, 0, stream>>>(
             kernel,
             offset,

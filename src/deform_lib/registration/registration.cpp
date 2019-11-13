@@ -193,7 +193,7 @@ stk::Volume registration(
     // Initial deformation
     if (initial_deformation.valid()) {
         validate_volume_properties(initial_deformation, fixed_ref, "initial deformation field");
-        engine.set_initial_deformation(initial_deformation);
+        engine.set_initial_displacement_field(initial_deformation);
     }
 
     engine.set_affine_transform(affine_transform);

@@ -46,51 +46,53 @@ private:
     AffineTransform _affine_transform;
 };
 
-#ifdef __CUDACC__
-
 namespace cuda {
+
+#ifdef __CUDACC__
 
 struct CompositiveUpdate
 {
-    __device__ float4 operator()(
+    __device__ float3 operator()(
         const stk::cuda::VolumePtr<float4>& df,
         const dim3& dims,
         const float3& inv_spacing,
-        int x, int y, int z,
+        const int3& index,
         const float4& delta
     ) {
         // Convert delta from mm to image space
-        return stk::cuda::linear_at_clamp<float4>(
+        float4 o = stk::cuda::linear_at_clamp<float4>(
             df,
             dims,
-            x + delta.x * inv_spacing.x,
-            y + delta.y * inv_spacing.y,
-            z + delta.z * inv_spacing.z
+            index.x + delta.x * inv_spacing.x,
+            index.y + delta.y * inv_spacing.y,
+            index.z + delta.z * inv_spacing.z
         ) + delta;
+        return float3{o.x, o.y, o.z};
     }
 };
 
 struct AdditiveUpdate
 {
-    __device__ float4 operator()(
+    __device__ float3 operator()(
         const stk::cuda::VolumePtr<float4>& df,
         const dim3& /*dims*/,
         const float3& /*inv_spacing*/,
-        int x, int y, int z,
+        const int3& index,
         const float4& delta
     ) {
-        return df(x, y, z) + delta;
+        float4 o = df(index.x, index.y, index.z) + delta;
+        return float3{o.x, o.y, o.z};
     }
 };
+
 
 template<typename TUpdateFn = AdditiveUpdate>
 class DisplacementField
 {
 public:
-    DisplacementField(const GpuDisplacementField& df,
-                      const AffineTransform& affine_transform) :
+    DisplacementField(const GpuDisplacementField& df) :
         _df(df.volume()),
-        _affine_transform(affine_transform),
+        _affine(df.affine_transform()),
         _dims(df.size()),
         _origin(df.origin()),
         _spacing(df.spacing()),
@@ -106,31 +108,30 @@ public:
 
     __device__ float4 get(const int3& p) const
     {
-        return _df(p.x, p.y, p.z);
+        float3 out = transform_index(p) - index2point(p);
+        return float4{out.x, out.y, out.z, 0};
     }
 
     __device__ float4 get(const int3& p, const float4& delta) const
     {
+        float3 p1 = index2point(p);
+        
         TUpdateFn fn;
-        return fn(_df, _dims, _inv_spacing, p.x, p.y, p.z, delta);
+        float3 p2 = p1 + fn(_df, _dims, _inv_spacing, p, delta);
+        float3 p3 = _affine.transform_point(p2);
+
+        float3 out = p3 - p1;
+        return float4{out.x, out.y, out.z, 0};
     }
 
     // p        : Index in displacement field
     // Returns coordinates in world space
     __device__ float3 transform_index(const int3& p) const
     {
-        float4 d = get(p);
-        return index2point(p) + float3{d.x, d.y, d.z};
-    }
-
-    // Transforms the index with a given delta
-    // p        : Index in displacement field
-    // delta    : Delta to apply to the transformation 
-    // Returns coordinates in world space
-    __device__ float3 transform_index(const int3& p, const float4& delta) const
-    {
-        float4 d = get(p, delta);
-        return index2point(p) + float3{d.x, d.y, d.z};
+        float4 d = _df(p.x, p.y, p.z);
+        return _affine.transform_point(
+            index2point(p) + float3{d.x, d.y, d.z}
+        );
     }
 
     __device__ float3 index2point(const int3& index) const
@@ -138,7 +139,7 @@ public:
         float3 xyz {float(index.x), float(index.y), float(index.z)};
         return _origin + _direction * (_spacing * xyz);
     }
-
+    
     __device__ const dim3& size() const
     {
         return _dims;
@@ -146,13 +147,24 @@ public:
 
 private:
     stk::cuda::VolumePtr<float4> _df;
-    AffineTransform _affine_transform;
+    ::AffineTransform _affine;
     dim3 _dims;
 
     float3 _origin;
     float3 _spacing;
     float3 _inv_spacing;
     Matrix3x3f _direction;
+    Matrix3x3f _inv_direction;
 };
-} // namespace cuda
+
 #endif // __CUDACC__
+
+
+// Computes the composite of a vector field and an affine transform:
+// u'(x) <- A(x + u(x)) + b - x
+stk::GpuVolume compute_displacement_field(
+    const stk::GpuVolume& vector_field,
+    const AffineTransform& affine
+);
+
+} // namespace cuda

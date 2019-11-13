@@ -95,7 +95,7 @@ static void run_nn_kernel(
             transform_kernel_nn<type><<<grid_size, block_size>>>( \
                 src, \
                 src.size(), \
-                df, \
+                cuda::DisplacementField<>(df), \
                 src.origin(), \
                 inv_moving_spacing, \
                 src.inverse_direction(), \

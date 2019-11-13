@@ -5,6 +5,8 @@
 #include <stk/math/float3.h>
 #include <stk/math/matrix3x3f.h>
 
+#include <stk/cuda/cuda.h>
+
 class AffineTransform
 {
 public:
@@ -12,8 +14,9 @@ public:
     AffineTransform(const Matrix3x3f& matrix, const float3& offset);
     ~AffineTransform();
 
-    inline float3 transform_point(const float3& pt) const
+    CUDA_HOST_DEVICE inline float3 transform_point(const float3& pt) const
     {
+        // Used by cuda::DisplacementField
         return _matrix * pt + _offset;
     }
 

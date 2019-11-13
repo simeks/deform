@@ -32,6 +32,7 @@ struct GpuCostFunction
         float weight,
         const int3& offset,
         const int3& dims,
+        Settings::UpdateRule update_rule,
         stk::GpuVolume& cost_acc,
         stk::cuda::Stream& stream
     ) = 0;

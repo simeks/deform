@@ -15,6 +15,7 @@
 #include "gpu/cost_functions/landmarks.h"
 #include "gpu/cost_functions/squared_distance.h"
 #include "gpu/cost_functions/unary_function.h"
+#include "gpu/gpu_displacement_field.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include "../filters/gpu/resample.h"
@@ -173,7 +174,7 @@ GpuRegistrationEngine::~GpuRegistrationEngine()
 {
 }
 
-void GpuRegistrationEngine::set_initial_deformation(const stk::Volume& def)
+void GpuRegistrationEngine::set_initial_displacement_field(const stk::Volume& def)
 {
     // GPU prefers float4 over float3
     ASSERT(def.voxel_type() == stk::Type_Float4 || def.voxel_type() == stk::Type_Float3);
@@ -187,6 +188,10 @@ void GpuRegistrationEngine::set_initial_deformation(const stk::Volume& def)
         gpu_def = def;
 
     _deformation_pyramid.build_from_base(gpu_def, filters::gpu::downsample_vectorfield_by_2);
+}
+void GpuRegistrationEngine::set_affine_transform(const AffineTransform& affine_transform)
+{
+    _affine_transform = affine_transform;
 }
 void GpuRegistrationEngine::set_image_pair(
         int i,
@@ -272,11 +277,11 @@ stk::Volume GpuRegistrationEngine::execute()
         initial.set_spacing(base.spacing());
         initial.set_direction(base.direction());
         
-        set_initial_deformation(initial);
+        set_initial_displacement_field(initial);
     }
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
-        GpuDisplacementField df(_deformation_pyramid.volume(l), _settings.update_rule);
+        GpuDisplacementField df(_deformation_pyramid.volume(l), _affine_transform);
 
         std::vector<int3> neighborhood = determine_neighborhood(l);
 
@@ -293,6 +298,7 @@ stk::Volume GpuRegistrationEngine::execute()
                 HybridGraphCutOptimizer<ICMSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l],
+                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -306,6 +312,7 @@ stk::Volume GpuRegistrationEngine::execute()
                 HybridGraphCutOptimizer<GCOSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l],
+                    _settings.update_rule,
                     unary_fn,
                     binary_fn,
                     df,
@@ -320,6 +327,7 @@ stk::Volume GpuRegistrationEngine::execute()
                 HybridGraphCutOptimizer<GridCutSolver<double>> optimizer(
                     neighborhood,
                     _settings.levels[l],
+                    _settings.update_rule
                     unary_fn,
                     binary_fn,
                     df,
@@ -347,7 +355,12 @@ stk::Volume GpuRegistrationEngine::execute()
         }
     }
 
-    return volume_float4_to_float3(_deformation_pyramid.volume(0).download());
+    return volume_float4_to_float3(
+        cuda::compute_displacement_field(
+            _deformation_pyramid.volume(0),
+            _affine_transform
+        ).download()
+    );
 }
 std::vector<int3> GpuRegistrationEngine::determine_neighborhood(int level) const
 {

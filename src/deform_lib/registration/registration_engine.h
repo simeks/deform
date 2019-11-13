@@ -18,7 +18,7 @@ public:
     RegistrationEngine(const Settings& settings);
     ~RegistrationEngine();
 
-    void set_initial_deformation(const stk::Volume& def);
+    void set_initial_displacement_field(const stk::Volume& def);
     void set_affine_transform(const AffineTransform& affine_transform);
 
     void set_image_pair(
