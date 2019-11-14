@@ -33,6 +33,7 @@ stk::GpuVolume cuda::compute_displacement_field(
     ASSERT(vector_field.voxel_type() == stk::Type_Float4);
 
     stk::GpuVolume out(vector_field.size(), stk::Type_Float4);
+    out.copy_meta_from(vector_field);
 
     dim3 dims = vector_field.size();
     dim3 block_size {32,32,1};
