@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../config.h"
+#include "affine_transform.h"
 #include "settings.h"
 #include "volume_pyramid.h"
 
@@ -17,11 +18,14 @@ public:
     RegistrationEngine(const Settings& settings);
     ~RegistrationEngine();
 
-    void set_initial_deformation(const stk::Volume& def);
+    void set_initial_displacement_field(const stk::Volume& def);
+    void set_affine_transform(const AffineTransform& affine_transform);
+
     void set_image_pair(
         int i,
         const stk::Volume& fixed,
-        const stk::Volume& moving);
+        const stk::Volume& moving
+    );
 
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_regularization_weight_map(const stk::Volume& map);
@@ -81,6 +85,7 @@ private:
     VolumePyramid _regularization_weight_map;
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 
+    AffineTransform _affine_transform;
 
     VolumePyramid _constraints_pyramid;
     VolumePyramid _constraints_mask_pyramid;

@@ -16,10 +16,14 @@ set(DEFORM_LIB_SRCS
     "registration/cost_functions/sub_function.h"
     "registration/cost_functions/unary_function.h"
 
+    "registration/affine_transform.cpp"
+    "registration/affine_transform.h"
     "registration/block_change_flags.cpp"
     "registration/block_change_flags.h"
     "registration/blocked_graph_cut_optimizer.h"
     "registration/blocked_graph_cut_optimizer.inl"
+    "registration/displacement_field.cpp"
+    "registration/displacement_field.h"
     "registration/landmarks.cpp"
     "registration/landmarks.h"
     "registration/registration_engine.cpp"
@@ -80,6 +84,8 @@ if (DF_USE_CUDA)
         "registration/gpu/cost_functions/cost_function.h"
         "registration/gpu/cost_functions/unary_function.h"
 
+        "registration/gpu/gpu_displacement_field.cpp"
+        "registration/gpu/gpu_displacement_field.cu"
         "registration/gpu/gpu_displacement_field.h"
         "registration/gpu/transform.cu"
         "registration/gpu/transform.h"

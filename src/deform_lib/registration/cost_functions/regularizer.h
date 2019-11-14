@@ -41,14 +41,6 @@ struct Regularizer
         _spacing = spacing;
     }
 
-    // Sets the initial displacement for this registration level. This will be
-    //  the reference when computing the regularization energy. Any displacement
-    //  identical to the initial displacement will result in zero energy.
-    void set_initial_displacement(const DisplacementField& initial)
-    {
-        _initial = initial;
-    }
-
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
     void set_weight_map(const stk::VolumeFloat& map) { _weight_map = map; }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -67,7 +59,7 @@ struct Regularizer
         };
 
         // The diff should be relative to the initial displacement diff
-        float3 diff = (def0-_initial.get(p)) - (def1-_initial.get(p+step));
+        float3 diff = def0 - def1;
 
         float dist_squared = stk::norm2(diff);
         float step_squared = stk::norm2(step_in_mm);
@@ -93,8 +85,6 @@ struct Regularizer
     float _scale;
     float _half_exponent;
     float3 _spacing;
-
-    DisplacementField _initial;
 
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         stk::VolumeFloat _weight_map;

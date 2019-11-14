@@ -68,8 +68,8 @@ namespace
         for (int z = 0; z < int(dims.z); ++z) {
             for (int y = 0; y < int(dims.y); ++y) {
                 for (int x = 0; x < int(dims.x); ++x) {
-                    const float3 moving_p = df.transform_index(int3{x,y,z});
-                    out(x, y, z) = src.linear_at_point(moving_p, stk::Border_Constant);
+                    const float3 pt = df.transform_index(int3{x,y,z});
+                    out(x, y, z) = src.linear_at_point(pt, stk::Border_Constant);
                 }
             }
         }

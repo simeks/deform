@@ -22,8 +22,6 @@ regularization_exponent: 1.5
 
 constraints_weight: 1234.1234
 
-regularize_initial_displacement: true
-
 solver: icm
 update_rule: compositive
 
@@ -126,7 +124,6 @@ TEST_CASE("parse_registration_settings")
 
         REQUIRE(settings.pyramid_stop_level == 2);
         REQUIRE(settings.num_pyramid_levels == 4);
-        REQUIRE(settings.regularize_initial_displacement == true);
         REQUIRE(settings.solver == Settings::Solver_ICM);
         REQUIRE(settings.update_rule == Settings::UpdateRule_Compositive);
 

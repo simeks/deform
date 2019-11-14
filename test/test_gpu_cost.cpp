@@ -159,7 +159,6 @@ TEST_CASE("gpu_cost_regularizer", "")
     fill_data(df);
     
     Regularizer cpu_fn(1.0f);
-    cpu_fn.set_initial_displacement(zero_df);
 
     for (int z = 0; z < (int)dims.z; ++z) {
     for (int y = 0; y < (int)dims.y; ++y) {

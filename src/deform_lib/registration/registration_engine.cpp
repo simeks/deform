@@ -47,14 +47,12 @@ namespace
         ASSERT(df.size() == mask.size() && df.size() == values.size());
         dim3 dims = df.size();
         for (int z = 0; z < int(dims.z); ++z) {
-            for (int y = 0; y < int(dims.y); ++y) {
-                for (int x = 0; x < int(dims.x); ++x) {
-                    if (mask(x, y, z) > 0) {
-                        df.set(int3{x,y,z}, values(x, y, z));
-                    }
-                }
+        for (int y = 0; y < int(dims.y); ++y) {
+        for (int x = 0; x < int(dims.x); ++x) {
+            if (mask(x, y, z) > 0) {
+                df.set(int3{x,y,z}, values(x, y, z));
             }
-        }
+        }}}
     }
 
     template<typename T>
@@ -217,20 +215,6 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
     if (_regularization_weight_map.volume(level).valid())
         binary_fn.set_weight_map(_regularization_weight_map.volume(level));
 #endif
-
-    stk::Volume df = _deformation_pyramid.volume(level);
-    if (!_settings.regularize_initial_displacement) {
-        // Clone the def, because the current copy will be changed when executing the optimizer
-        binary_fn.set_initial_displacement(DisplacementField(df.clone()));
-    }
-    else {
-        binary_fn.set_initial_displacement(stk::VolumeFloat3(df.size(), float3{0,0,0}));
-    }
-
-    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-        if (_regularization_weight_map.volume(level).valid())
-            binary_fn.set_weight_map(_regularization_weight_map.volume(level));
-    #endif
 }
 
 void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
@@ -543,7 +527,7 @@ void RegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
     _moving_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
     _moving_mask_pyramid.build_from_base(moving_mask, filters::downsample_volume_by_2);
 }
-void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
+void RegistrationEngine::set_initial_displacement_field(const stk::Volume& def)
 {
     ASSERT(def.voxel_type() == stk::Type_Float3); // Only single-precision supported for now
     ASSERT(_settings.num_pyramid_levels);
@@ -553,6 +537,10 @@ void RegistrationEngine::set_initial_deformation(const stk::Volume& def)
 #else
     _deformation_pyramid.build_from_base(def, filters::downsample_vectorfield_by_2);
 #endif
+}
+void RegistrationEngine::set_affine_transform(const AffineTransform& affine_transform)
+{
+    _affine_transform = affine_transform;
 }
 void RegistrationEngine::set_image_pair(
     int i,
@@ -610,7 +598,7 @@ stk::Volume RegistrationEngine::execute()
 
         stk::VolumeFloat3 initial(base.size(), float3{0, 0, 0});
         initial.copy_meta_from(base);
-        set_initial_deformation(initial);
+        set_initial_displacement_field(initial);
     }
 
     #ifdef DF_OUTPUT_DEBUG_VOLUMES
@@ -618,7 +606,7 @@ stk::Volume RegistrationEngine::execute()
     #endif
 
     for (int l = _settings.num_pyramid_levels-1; l >= 0; --l) {
-        DisplacementField df(_deformation_pyramid.volume(l), _settings.update_rule);
+        DisplacementField df(_deformation_pyramid.volume(l), _affine_transform);
 
         std::vector<int3> neighborhood = determine_neighborhood(l);
 
@@ -648,7 +636,13 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
+                optimizer.execute(
+                    unary_fn,
+                    binary_fn,
+                    _settings.levels[l].step_size,
+                    _settings.update_rule,
+                    df
+                );
             }
 #if defined(DF_ENABLE_GCO)
             else if (_settings.solver == Settings::Solver_GCO) {
@@ -658,7 +652,13 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
+                optimizer.execute(
+                    unary_fn,
+                    binary_fn,
+                    _settings.levels[l].step_size,
+                    _settings.update_rule,
+                    df
+                );
             }
 #endif
 #if defined(DF_ENABLE_GRIDCUT)
@@ -669,7 +669,13 @@ stk::Volume RegistrationEngine::execute()
                     _settings.levels[l].block_energy_epsilon,
                     _settings.levels[l].max_iteration_count
                 );
-                optimizer.execute(unary_fn, binary_fn, _settings.levels[l].step_size, df);
+                optimizer.execute(
+                    unary_fn,
+                    binary_fn,
+                    _settings.levels[l].step_size,
+                    _settings.update_rule,
+                    df
+                );
             }
 #endif
 
@@ -699,7 +705,11 @@ stk::Volume RegistrationEngine::execute()
         }
     }
 
-    return _deformation_pyramid.volume(0);
+    // Composite affine transform and displacement field
+    return compute_displacement_field(
+        _deformation_pyramid.volume(0),
+        _affine_transform
+    );
 }
 stk::Volume RegistrationEngine::deformation_field(int level)
 {

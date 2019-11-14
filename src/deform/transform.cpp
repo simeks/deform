@@ -3,6 +3,8 @@
 #include <stk/io/io.h>
 
 #include "deform_lib/arg_parser.h"
+#include "deform_lib/registration/affine_transform.h"
+#include "deform_lib/registration/displacement_field.h"
 #include "deform_lib/registration/transform.h"
 
 #include "deform/command.h"
@@ -11,10 +13,11 @@ bool TransformCommand::_parse_arguments(void)
 {
     _args.add_positional("command", "registration, transform, regularize, jacobian");
     _args.add_positional("source", "Path to the image you want to transform");
-    _args.add_positional("displacement", "Path to the displacement field used to transform");
+    _args.add_positional("displacement", "Path to the displacement field");
     _args.add_positional("output", "Path to the resulting file");
 
     _args.add_option("interp", "-i, --interp", "Interpolation to use, either 'nn' or 'linear' (default)");
+    _args.add_option("affine", "-a, --affine", "Path to an (optional) affine transformation file");
 
     return _args.parse();
 }
@@ -41,18 +44,32 @@ int TransformCommand::_execute(void)
 
     LOG(Info) << "Interpolation method: " << ((interp == transform::Interp_Linear) ? "linear" : "nn");
     LOG(Info) << "Input: '" << _args.positional("source") << "'";
-    LOG(Info) << "Displacement: '" << _args.positional("displacement") << "'";
+    LOG(Info) << "Displacement field: '" << _args.positional("displacement") << "'";
+    
+    if (_args.is_set("affine"))
+        LOG(Info) << "Affine transform: '" << _args.option("affine") << "'";
 
     stk::Volume src = stk::read_volume(_args.positional("source").c_str());
     if (!src.valid())
         return EXIT_FAILURE;
 
-    stk::Volume def = stk::read_volume(_args.positional("displacement").c_str());
-    if (!def.valid())
+    stk::Volume df = stk::read_volume(_args.positional("displacement").c_str());
+    if (!df.valid())
         return EXIT_FAILURE;
-    ASSERT(def.voxel_type() == stk::Type_Float3);
+    ASSERT(df.voxel_type() == stk::Type_Float3);
 
-    stk::Volume result = transform_volume(src, def, interp);
+    AffineTransform affine;
+    if (_args.is_set("affine")) {
+        try{
+            affine = parse_affine_transform_file(_args.option("affine"));
+        }
+        catch (ValidationError& e) {
+            LOG(Error) << e.what();
+            return EXIT_FAILURE;
+        }
+    }
+
+    stk::Volume result = transform_volume(src, DisplacementField(df, affine), interp);
     if (!result.valid())
         return EXIT_FAILURE;
 

@@ -3,6 +3,7 @@
 #include <stk/image/volume.h>
 #include <stk/math/float3.h>
 
+#include "affine_transform.h"
 #include "settings.h"
 
 /** Wrapper for a displacement field image.
@@ -13,92 +14,103 @@
 class DisplacementField
 {
 public:
-    DisplacementField() : _update_rule(Settings::UpdateRule_Additive) {}
+    DisplacementField();
     DisplacementField(
         const stk::VolumeFloat3& df,
-        Settings::UpdateRule update_rule = Settings::UpdateRule_Additive
-    ) :
-        _update_rule(update_rule),
-        _df(df)
-    {
-    }
-    ~DisplacementField() {}
+        const AffineTransform& affine = AffineTransform()
+    );
+    // Creates a new identity displacement field of size dims
+    DisplacementField(const dim3& dims);
+    ~DisplacementField();
 
+    // Returns displacement at index p
+    // p : Index in displacement field
     inline float3 get(const int3& p) const
     {
-        return _df(p);
+        return transform_index(p) - _df.index2point(p);
+    }
+
+    // Returns displacement at point p
+    // p : Point in world space
+    inline float3 get(const float3& p) const
+    {
+        return transform_point(p) - p;
     }
 
     // delta : Delta in world space (mm)
-    inline float3 get(const int3& p, const float3& delta) const
+    inline float3 get(const int3& p, const float3& delta, bool composite) const
     {
-        if (_update_rule == Settings::UpdateRule_Compositive) {
-            // Convert delta to fixed image space
-            // TODO: What about orientation?
-            float3 fp {
-                p.x + delta.x / _df.spacing().x,
-                p.y + delta.y / _df.spacing().y,
-                p.z + delta.z / _df.spacing().z
-            };
-            return _df.linear_at(fp, stk::Border_Replicate) + delta;
+        if (composite) {
+            // T(x) = A(x + u(x + delta) + delta) + b
+            float3 p1 = _df.index2point(p);
+            float3 p2 = _affine.transform_point(
+                p1 + _df.linear_at_point(p1 + delta, stk::Border_Replicate) + delta
+            );
+            return p2 - p1;
         }
-        else /*(_update_rule == Settings::UpdateRule_Additive)*/ {
-            return _df(p) + delta;
+        else {
+            // T(x) = A(x + u(x) + delta) + b
+            float3 p1 = _df.index2point(p);
+            float3 p2 = _affine.transform_point(p1 + _df(p) + delta);
+            return p2 - p1;
         }
     }
 
+    // Sets the displacement at given index p to value d.
+    // This modifies the displacement field directly with no regards to the affine
+    // transformation
     inline void set(const int3& p, const float3& d)
     {
         _df(p) = d;
+    }
+
+    // p : Point in world space
+    // Returns coordinates in world space
+    inline float3 transform_point(const float3& p) const
+    {
+        // T(x) = A(x + u(x)) + b
+        return _affine.transform_point(
+            p + _df.linear_at_point(p, stk::Border_Replicate)
+        );
     }
 
     // p : Index in displacement field
     // Returns coordinates in world space
     inline float3 transform_index(const int3& p) const
     {
-        return _df.index2point(p) + get(p);
+        // T(x) = A(x + u(x)) + b
+        return _affine.transform_point(_df.index2point(p) + _df(p));
     }
 
-    dim3 size() const
-    {
-        return _df.size();
-    }
+    void update(const DisplacementField& update_field, bool composite);
 
-    DisplacementField clone() const
-    {
-        return DisplacementField(_df.clone(), _update_rule);
-    }
+    // Fills the displacement field component with vector v
+    void fill(const float3& v);
 
-    void copy_from(const DisplacementField& other)
-    {
-        _df.copy_from(other._df);
-    }
+    // Clones the displacement field and any affine transformation
+    DisplacementField clone() const;
+
+    // Size of the displacement field
+    dim3 size() const;
 
     // Volume containing the displacements only
-    const stk::VolumeFloat3& volume() const
-    {
-        return _df;
-    }
+    const stk::VolumeFloat3& volume() const;
 
     // Volume containing the displacements only
-    stk::VolumeFloat3& volume()
-    {
-        return _df;
-    }
+    stk::VolumeFloat3& volume();
 
     // Returns true if the volume is allocated and ready for use
-    bool valid() const
-    {
-        return _df.valid();
-    }
-
-    Settings::UpdateRule update_rule() const
-    {
-        return _update_rule;
-    }
+    bool valid() const;
 
 private:
-    Settings::UpdateRule _update_rule;
     stk::VolumeFloat3 _df;
+    AffineTransform _affine;
 
 };
+
+// Computes the composite of a vector field and an affine transform:
+// u'(x) <- A(x + u(x)) + b - x
+stk::VolumeFloat3 compute_displacement_field(
+    const stk::VolumeFloat3& vector_field,
+    const AffineTransform& affine
+);

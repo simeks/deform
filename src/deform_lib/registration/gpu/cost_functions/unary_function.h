@@ -26,12 +26,22 @@ public:
         const float3& delta,
         const int3& offset,
         const int3& dims,
+        Settings::UpdateRule update_rule,
         stk::GpuVolume& cost_acc,
         stk::cuda::Stream& stream
     )
     {
         for (auto& fn : _functions) {
-            fn.function->cost(df, delta, fn.weight, offset, dims, cost_acc, stream);
+            fn.function->cost(
+                df,
+                delta,
+                fn.weight,
+                offset,
+                dims,
+                update_rule,
+                cost_acc,
+                stream
+            );
         }
     }
 

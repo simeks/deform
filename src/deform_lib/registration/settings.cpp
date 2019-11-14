@@ -21,8 +21,6 @@
 pyramid_levels: 6
 pyramid_stop_level: 0
 
-regularize_initial_displacement: false
-
 solver: gco
 update_rule: additive
 
@@ -372,7 +370,6 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
     s << "pyramid_stop_level = " << settings.pyramid_stop_level << std::endl;
     s << "num_pyramid_levels = " << settings.num_pyramid_levels << std::endl;
     s << "landmarks_stop_level = " << settings.landmarks_stop_level << std::endl;
-    s << "regularize_initial_displacement = " << settings.regularize_initial_displacement << std::endl;
     s << "solver = " << solver_to_str(settings.solver) << std::endl;
     s << "update_rule = " << update_rule_to_str(settings.update_rule) << std::endl;
 
@@ -442,7 +439,7 @@ void parse_registration_settings(const std::string& str, Settings& settings)
             settings.landmarks_stop_level = value.as<int>();
         }
         else if (key == "regularize_initial_displacement") {
-            settings.regularize_initial_displacement = value.as<bool>();
+            LOG(Warning) << "'regularize_initial_displacement' is no longer supported";
         }
         else if (key == "solver") {
             std::string solver = value.as<std::string>();

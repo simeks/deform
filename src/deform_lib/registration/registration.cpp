@@ -91,6 +91,7 @@ stk::Volume registration(
         const std::vector<float3>& fixed_landmarks,
         const std::vector<float3>& moving_landmarks,
         const stk::Volume& initial_deformation,
+        const AffineTransform& affine_transform,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -192,8 +193,10 @@ stk::Volume registration(
     // Initial deformation
     if (initial_deformation.valid()) {
         validate_volume_properties(initial_deformation, fixed_ref, "initial deformation field");
-        engine.set_initial_deformation(initial_deformation);
+        engine.set_initial_displacement_field(initial_deformation);
     }
+
+    engine.set_affine_transform(affine_transform);
 
     // Constraints
     if (constraint_mask.valid() && constraint_values.valid()) {
@@ -224,7 +227,7 @@ stk::Volume registration(
 
     using namespace std::chrono;
     auto t_start = high_resolution_clock::now();
-    stk::Volume def = engine.execute();
+    stk::Volume df = engine.execute();
     auto t_end = high_resolution_clock::now();
     int elapsed = int(round(duration_cast<duration<double>>(t_end - t_start).count()));
     LOG(Info) << "Registration completed in "
@@ -232,7 +235,7 @@ stk::Volume registration(
               << ":"
               << std::right << std::setw(2) << std::setfill('0') << elapsed % 60;
 
-    return def;
+    return df;
 }
 
 stk::Volume registration(
@@ -244,6 +247,7 @@ stk::Volume registration(
         const std::vector<float3>& fixed_landmarks,
         const std::vector<float3>& moving_landmarks,
         const stk::Volume& initial_deformation,
+        const AffineTransform& affine_transform,
         const stk::Volume& constraint_mask,
         const stk::Volume& constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -267,6 +271,7 @@ stk::Volume registration(
             fixed_landmarks,
             moving_landmarks,
             initial_deformation,
+            affine_transform,
             constraint_mask,
             constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
@@ -285,6 +290,7 @@ stk::Volume registration(
             fixed_landmarks,
             moving_landmarks,
             initial_deformation,
+            affine_transform,
             constraint_mask,
             constraint_values,
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP

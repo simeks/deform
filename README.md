@@ -104,7 +104,6 @@ To perform a registration using the standalone executable
 ```yaml
 pyramid_levels: 6
 pyramid_stop_level: 0
-regularize_initial_displacement: false
 solver: gco
 constraints_weight: 1000.0
 landmarks_weight: 1.0
@@ -158,10 +157,6 @@ size of the pyramid and at which level to stop the registration. Each level
 halves the resolution of the input volumes. Setting `pyramid_stop_level` to > 0
 specifies that the registration should not be run on the original resolution
 (level 0).
-
-`regularize_initial_displacement` controls whether to include the initial
-displacement in the regularization. This is disabled by default, meaning the
-initial displacement have no effect on the regularization.
 
 `solver` selects which solver to use for the energy minimization. Available
 solvers are `gco`, `gridcut`, and `icm`. Note: deform needs to be compiled with
