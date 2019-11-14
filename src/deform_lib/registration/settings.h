@@ -108,12 +108,12 @@ struct Settings
 
         Level() :
             block_size(int3{16, 16, 16}),
-            block_energy_epsilon(1e-7f),
-            max_iteration_count(-1),
+            block_energy_epsilon(1e-6f),
+            max_iteration_count(200),
             regularization_weight(0.25f),
             regularization_scale(1.0f),
             regularization_exponent(2.0f),
-            step_size({0.5f, 0.5f, 0.5f}),
+            step_size({0.25f, 0.25f, 0.25f}),
             constraints_weight(1000.0f),
             landmarks_weight(1.0f),
             landmarks_decay(2.0f)
@@ -142,7 +142,7 @@ struct Settings
 
     Settings() :
         pyramid_stop_level(0),
-        num_pyramid_levels(6),
+        num_pyramid_levels(4),
         landmarks_stop_level(0),
     #if defined(DF_ENABLE_GCO)
         solver(Solver_GCO),
