@@ -1,43 +1,37 @@
+import numpy as np
 import SimpleITK as sitk
 import pydeform
+import stk
 from . import interruptible
 
 
-def _sitk2numpy(image):
-    R""" Utility to convert a SimpleITK image to numpy.
-
-    .. note::
-        A view of the ITK underlying data is returned.
-        The array will become invalid if the input
-        ITK object is garbage-collected.
-
-    Parameters
-    ----------
-    image: SimpleITK.Image
-        Input SimpleITK object.
-
-    Returns
-    -------
-    numpy.ndarray
-        Array view of the image data.
-
-    Tuple[float]
-        Origin of the image.
-
-    Tuple[float]
-        Spacing of the image.
-
-    Tuple[float]
-        Cosine direction matrix of the image, a :math:`3 \times 3`
-        matrix flattened as a tuple (row-major).
-
+def _convert_image(sitk_image):
+    """ Converts a SimpleITK.Image to a pydeform.Volume 
+    
+    Return:
+        pydeform.Volume if sitk_image is valid, otherwise None
     """
-    return (
-        sitk.GetArrayViewFromImage(image),
-        image.GetOrigin(),
-        image.GetSpacing(),
-        image.GetDirection()
+
+    if sitk_image is None:
+        return None
+
+    return pydeform.Volume(
+        sitk.GetArrayViewFromImage(sitk_image),
+        sitk_image.GetOrigin(),
+        sitk_image.GetSpacing(),
+        np.array(sitk_image.GetDirection()).reshape((3,3))
     )
+
+def _convert_transform(transform):
+    """ Converts a SimpleITK.AffineTransform to a pydeform.AffineTransform """
+    
+    translation = np.array(transform.GetTranslation())
+    matrix = np.array(transform.GetMatrix()).reshape((3,3))
+
+    # We need to include the fixed parameter (or center) in the offset
+    center = np.array(transform.GetCenter())
+    offset = translation + center - matrix.dot(center)
+    return pydeform.AffineTransform(matrix, offset)
 
 
 def register(
@@ -49,6 +43,7 @@ def register(
         fixed_landmarks=None,
         moving_landmarks=None,
         initial_displacement=None,
+        affine_transform=None,
         constraint_mask=None,
         constraint_values=None,
         settings=None,
@@ -87,6 +82,9 @@ def register(
 
     initial_displacement: SimpleITK.Image
         Initial guess of the displacement field.
+
+    affine_transform: AffineTransform
+        Optional initial affine transformation
 
     constraint_mask: SimpleITK.Image
         Boolean mask for the constraints on the displacement.
@@ -139,61 +137,55 @@ def register(
     if not isinstance(moving_images, (list, tuple)):
         moving_images = [moving_images]
 
-    fixed_origin = fixed_images[0].GetOrigin()
-    fixed_spacing = fixed_images[0].GetSpacing()
-    fixed_direction = fixed_images[0].GetDirection()
-    moving_origin = moving_images[0].GetOrigin()
-    moving_spacing = moving_images[0].GetSpacing()
-    moving_direction = moving_images[0].GetDirection()
-
     # Get numpy view of the input
-    fixed_images = [sitk.GetArrayViewFromImage(img) for img in fixed_images]
-    moving_images = [sitk.GetArrayViewFromImage(img) for img in moving_images]
+    fixed_images = [_convert_image(img) for img in fixed_images]
+    moving_images = [_convert_image(img) for img in moving_images]
 
+    if None in fixed_images or None in moving_images:
+        raise RuntimeError('Cannot pass None as fixed or moving image')
+
+
+    # A bit of magic since we can't pass None for arguments expecting stk.Volume
+    kwargs = {}
     if initial_displacement:
-        initial_displacement = sitk.GetArrayViewFromImage(initial_displacement)
+        kwargs['initial_displacement'] = _convert_image(initial_displacement)
+    if affine_transform:
+        if (not isinstance(affine_transform, sitk.AffineTransform) or 
+            affine_transform.GetDimension() != 3):
+            raise ValueError(
+                'Expected affine transform to be a 3D SimpleITK.AffineTransform'
+            )
+        kwargs['affine_transform'] = _convert_transform(affine_transform)
     if constraint_mask:
-        constraint_mask = sitk.GetArrayViewFromImage(constraint_mask)
+        kwargs['constraint_mask'] = _convert_image(constraint_mask)
     if constraint_values:
-        constraint_values = sitk.GetArrayViewFromImage(constraint_values)
+        kwargs['constraint_values'] = _convert_image(constraint_values)
     if fixed_mask:
-        fixed_mask = sitk.GetArrayViewFromImage(fixed_mask)
+        kwargs['fixed_mask'] = _convert_image(fixed_mask)
     if moving_mask:
-        moving_mask = sitk.GetArrayViewFromImage(moving_mask)
+        kwargs['moving_mask'] = _convert_image(moving_mask)
 
     register = interruptible.register if subprocess else pydeform.register
 
     # Perform registration through the numpy API
     displacement = register(fixed_images=fixed_images,
                             moving_images=moving_images,
-                            fixed_origin=fixed_origin,
-                            moving_origin=moving_origin,
-                            fixed_spacing=fixed_spacing,
-                            moving_spacing=moving_spacing,
-                            fixed_direction=fixed_direction,
-                            moving_direction=moving_direction,
-                            fixed_mask=fixed_mask,
-                            moving_mask=moving_mask,
-                            fixed_landmarks=fixed_landmarks,
-                            moving_landmarks=moving_landmarks,
-                            initial_displacement=initial_displacement,
-                            constraint_mask=constraint_mask,
-                            constraint_values=constraint_values,
                             settings=settings,
                             log=log,
                             log_level=log_level,
                             silent=silent,
                             num_threads=num_threads,
                             use_gpu=use_gpu,
+                            **kwargs
                             )
 
     # Convert the result to SimpleITK
-    displacement = sitk.GetImageFromArray(displacement)
-    displacement.SetOrigin(fixed_origin)
-    displacement.SetSpacing(fixed_spacing)
-    displacement.SetDirection(fixed_direction)
+    out = sitk.GetImageFromArray(np.array(displacement, copy=False), isVector=True)
+    out.SetOrigin(displacement.origin)
+    out.SetSpacing(displacement.spacing)
+    out.SetDirection(displacement.direction.astype(np.float64).flatten())
 
-    return displacement
+    return out
 
 def transform(image, df, interp=sitk.sitkLinear):
     R""" Resample an image with a given displacement field.
@@ -248,11 +240,63 @@ def jacobian(image):
     SimpleITK.Image
         Scalar image representing the Jacobian determinant.
     """
-    result = pydeform.jacobian(*_sitk2numpy(image))
-    result = sitk.GetImageFromArray(result)
+    result = pydeform.jacobian(_convert_image(image))
+    result = sitk.GetImageFromArray(np.array(result, copy=False))
     result.CopyInformation(image)
     return result
 
+def regularize(
+    displacement,
+    precision = 0.5,
+    pyramid_levels = 6,
+    constraint_mask = None,
+    constraint_values = None):
+    """Regularize a given displacement field.
+
+    Parameters
+    ----------
+    displacement: SimpleITK.Image
+        Displacement field used to resample the image.
+    precision: float
+        Amount of precision.
+    pyramid_levels: int
+        Number of levels for the resolution pyramid
+    constraint_mask: SimpleITK.Image
+        Mask for constraining displacements in a specific area, i.e., restricting
+        any changes within the region.
+    constraint_values: SimpleITK.Image
+        Vector field specifying the displacements within the constrained regions.
+
+    Returns
+    -------
+    SimpleITK.Image
+        Scalar volume image containing the resulting displacement field.
+    """
+
+    if displacement is None:
+        raise ValueError('Expected a displacement field')
+
+    displacement = _convert_image(displacement)
+
+    kwargs = {}
+    if constraint_mask:
+        kwargs['constraint_mask'] = _convert_image(constraint_mask)
+    if constraint_values:
+        kwargs['constraint_values'] = _convert_image(constraint_values)
+
+    displacement = pydeform.regularize(
+        displacement,
+        precision,
+        pyramid_levels,
+        **kwargs
+    )
+
+    # Convert the result to SimpleITK
+    out = sitk.GetImageFromArray(np.array(displacement, copy=False), isVector=True)
+    out.SetOrigin(displacement.origin)
+    out.SetSpacing(displacement.spacing)
+    out.SetDirection(displacement.direction.astype(np.float64).flatten())
+    return out
 
 def divergence(image):
     R""" Compute the divergence of a 3D 3-vector field.
@@ -283,8 +327,8 @@ def divergence(image):
     SimpleITK.Image
         Scalar image representing the divergence.
     """
-    result = pydeform.divergence(*_sitk2numpy(image))
-    result = sitk.GetImageFromArray(result)
+    result = stk.divergence(_convert_image(image))
+    result = sitk.GetImageFromArray(np.array(result, copy=False))
     result.CopyInformation(image)
     return result
 
@@ -324,8 +368,8 @@ def rotor(image):
     SimpleITK.Image
         Vector image representing the rotor.
     """
-    result = pydeform.rotor(*_sitk2numpy(image))
-    result = sitk.GetImageFromArray(result)
+    result = stk.rotor(_convert_image(image))
+    result = sitk.GetImageFromArray(np.array(result, copy=False), isVector=True)
     result.CopyInformation(image)
     return result
 
@@ -346,8 +390,8 @@ def circulation_density(image):
     SimpleITK.Image
         Vector image representing the circulation density.
     """
-    result = pydeform.circulation_density(*_sitk2numpy(image))
-    result = sitk.GetImageFromArray(result)
+    result = stk.circulation_density(_convert_image(image))
+    result = sitk.GetImageFromArray(np.array(result, copy=False), isVector=True)
     result.CopyInformation(image)
     return result
 

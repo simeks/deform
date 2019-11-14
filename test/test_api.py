@@ -179,6 +179,41 @@ class Test_API(unittest.TestCase):
         np.testing.assert_equal(np.array(out), np.array(constraints))
 
 
+    def test_affine(self):
+        # Test affine initialization
+
+        affine_transform = pydeform.AffineTransform(
+            np.array((
+                (2, 0, 0),
+                (0, 3, 0),
+                (0, 0, 4)
+            )),
+            np.array((10, 10, 10))
+        )
+
+        # Do a registration pass without actual iterations to see if affine transform is
+        # applied to the resulting displacement field
+        settings = {
+            'max_iteration_count': 0
+        }
+
+        fixed = pydeform.Volume(np.zeros((10,10,10), dtype=np.float32))
+        moving = pydeform.Volume(np.zeros((10,10,10), dtype=np.float32))
+
+        df = pydeform.register(
+            fixed,
+            moving,
+            settings=settings,
+            affine_transform=affine_transform
+        )
+
+        df = np.array(df, copy=False)
+
+        # Ax + b -> A(1, 1, 1) + b -> (2, 3, 4) + (10, 10, 10) -> (12, 13, 14)
+        # u(x) = Ax + b - x
+        self.assertEqual(df[1,1,1,0], 11)
+        self.assertEqual(df[1,1,1,1], 12)
+        self.assertEqual(df[1,1,1,2], 13)
 
 if __name__ == '__main__':
     unittest.main()
