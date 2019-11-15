@@ -61,7 +61,7 @@ settings = {
 def run(fixed_file, moving_file, output, affine_file=None):
     """ Registers the two files and outputs the transformed moving file """
     
-    # Read images using the SimpleITK IO functions
+    # Read images using the IO functions
     fixed = pydeform.read_volume(fixed_file)
     moving = pydeform.read_volume(moving_file)
 
