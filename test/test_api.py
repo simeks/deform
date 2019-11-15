@@ -215,6 +215,26 @@ class Test_API(unittest.TestCase):
         self.assertEqual(df[1,1,1,1], 12)
         self.assertEqual(df[1,1,1,2], 13)
 
+    def test_read_affine(self):
+        affine_str = \
+            "#Insight Transform File V1.0\n" \
+            "#Transform 0\n" \
+            "Transform: AffineTransform_double_3_3\n" \
+            "Parameters: 1 2 3 4 5 6 7 8 9 10 11 12\n" \
+            "FixedParameters: 13 14 15\n"
+
+        with open('affine_test.txt', 'w') as f:
+            f.write(affine_str)
+
+        affine_transform = pydeform.read_affine_transform('affine_test.txt')
+
+        np.testing.assert_equal(affine_transform.matrix,
+            np.array((1,2,3,4,5,6,7,8,9)).reshape((3,3)))
+        
+        # offset = translation + fixed - matrix * fixed
+        np.testing.assert_equal(affine_transform.offset, np.array((-63, -187, -311)))
+        
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -24,6 +24,124 @@
 
 namespace py = pybind11;
 
+// TODO: This is copied from STK, should probably make this importable
+namespace pybind11 { namespace detail {
+    template <> struct type_caster<float3> {
+    public:
+        PYBIND11_TYPE_CASTER(float3, _("float3"));
+
+        bool load(handle src, bool) {
+            try {
+                tuple t = py::cast<tuple>(src);
+                if (t.size() != 3) {
+                    return false;
+                }
+                value = float3{
+                    t[0].cast<float>(),
+                    t[1].cast<float>(),
+                    t[2].cast<float>()
+                };
+            } catch (std::exception& e) {
+                return false;
+            }
+            return true;
+        }
+        static handle cast(float3 src, return_value_policy /* policy */, handle /* parent */) {
+            return make_tuple(
+                src.x,
+                src.y,
+                src.z
+            ).release();
+        }
+    };
+    template <> struct type_caster<dim3> {
+    public:
+        PYBIND11_TYPE_CASTER(dim3, _("dim3"));
+
+        bool load(handle src, bool) {
+            try {
+                tuple t = py::cast<tuple>(src);
+                if (t.size() != 3) {
+                    return false;
+                }
+                value = dim3{
+                    t[0].cast<uint32_t>(),
+                    t[1].cast<uint32_t>(),
+                    t[2].cast<uint32_t>()
+                };
+            } catch (std::exception& e) {
+                return false;
+            }
+            return true;
+        }
+        static handle cast(dim3 src, return_value_policy /* policy */, handle /* parent */) {
+            return make_tuple(
+                src.x,
+                src.y,
+                src.z
+            ).release();
+        }
+    };
+    template <> struct type_caster<int3> {
+    public:
+        PYBIND11_TYPE_CASTER(int3, _("int3"));
+
+        bool load(handle src, bool) {
+            try {
+                tuple t = py::cast<tuple>(src);
+                if (t.size() != 3) {
+                    return false;
+                }
+                value = int3{
+                    t[0].cast<int>(),
+                    t[1].cast<int>(),
+                    t[2].cast<int>()
+                };
+            } catch (std::exception& e) {
+                return false;
+            }
+            return true;
+        }
+        static handle cast(int3 src, return_value_policy /* policy */, handle /* parent */) {
+            return make_tuple(
+                src.x,
+                src.y,
+                src.z
+            ).release();
+        }
+    };
+    template <> struct type_caster<Matrix3x3f> {
+    public:
+        PYBIND11_TYPE_CASTER(Matrix3x3f, _("Matrix3x3f"));
+
+        bool load(handle src, bool) {
+            try {
+                array_t<float> a = py::cast<array_t<float>>(src);
+                if (a.ndim() != 2
+                    || a.shape(0) != 3
+                    || a.shape(1) != 3) {
+                    return false;
+                }
+                value = Matrix3x3f{
+                    float3{a.at(0, 0), a.at(0, 1), a.at(0, 2)},
+                    float3{a.at(1, 0), a.at(1, 1), a.at(1, 2)},
+                    float3{a.at(2, 0), a.at(2, 1), a.at(2, 2)}
+                };
+            } catch (std::exception& e) {
+                return false;
+            }
+            return true;
+        }
+        static handle cast(Matrix3x3f src, return_value_policy /* policy */, handle /* parent */) {
+            return py::array_t<float>(
+                {3, 3},
+                &src._rows[0].x
+            ).release();
+        }
+    };
+
+}} // namespace pybind11::detail
+
 
 /*!
  * \brief Get the shape of the array as an std::vector.
@@ -573,6 +691,30 @@ AffineTransform make_affine_transform(
     return AffineTransform(m, o);
 }
 
+std::string read_affine_transform_docstring =
+R"(Reads an affine transform from an ITK Transform File (.txt).
+
+Parameters
+----------
+path: Str
+    Path to the transform file.
+
+Raises
+------
+RuntimeError: If file cannot be read.
+
+Returns
+-------
+pydeform.AffineTransform
+    Read affine transformation.
+)";
+
+
+AffineTransform read_affine_transform(const std::string& path)
+{
+    return parse_affine_transform_file(path);
+}
+
 PYBIND11_MODULE(_pydeform, m)
 {
     m.attr("__version__") = GIT_VERSION_TAG;
@@ -608,7 +750,14 @@ PYBIND11_MODULE(_pydeform, m)
         .def(py::init(&make_affine_transform),
             py::arg("matrix"),
             py::arg("offset")
-        );
+        )
+        .def_property_readonly("matrix", &AffineTransform::matrix)
+        .def_property_readonly("offset", &AffineTransform::offset);
+
+    m.def("read_affine_transform",
+          read_affine_transform,
+          read_affine_transform_docstring.c_str()
+    );
 
     m.def("register",
           &registration_wrapper,
