@@ -170,6 +170,7 @@ To perform a registration using the standalone executable
 | `-a <file>`                 | Filename for initial affine transformation  |
 | `-constraint_mask <file>`   | Filename for constraint mask.               |
 | `-constraint_values <file>` | Filename for constraint values.             |
+| `-rm <file>`                | Filename for regularization weight map      |
 | `-p <file>`                 | Filename of the parameter file.             |
 | `-o <file>`                 | Filename of the resulting deformation field |
 | `-j <file>`                 | Filename of the resulting jacobian map      |
@@ -188,6 +189,7 @@ To perform a registration using the standalone executable
 pyramid_levels: 6
 pyramid_stop_level: 0
 solver: gco
+update_rule: additive
 constraints_weight: 1000.0
 landmarks_weight: 1.0
 landmarks_decay: 2.0
@@ -244,6 +246,13 @@ specifies that the registration should not be run on the original resolution
 `solver` selects which solver to use for the energy minimization. Available
 solvers are `gco`, `gridcut`, and `icm`. Note: deform needs to be compiled with
 `DF_ENABLE_GCO` and `DF_ENABLE_GRIDCUT` for `gco` and `gridcut` to be enabled.
+
+`update_rule` specifies the update rule for updating the displacement field.
+This can be either `additive` or `compositive`. The first option updates the
+displacement field according to `u(x) = u(x) + delta`, while the second uses
+composition, i.e., `u(x) = u(x+delta) + delta`. Compositive updates should
+produce a more diffeomorphic transformation. Note: compositive updates are
+still considered an experimental feature.
 
 `constraints_weight` sets the weight that is applied for constrained voxels. A
 really high value means hard constraints while a lower value may allow
@@ -373,6 +382,15 @@ computed over all the volume, regardless of the mask values.
 The moving mask should be used carefully because it can affect the quality of
 the result, since there is no penalty for mapping from valid samples in
 reference space to regions outside of the moving image mask.
+
+### Regularization weight maps
+
+It is possible to impose voxel-wise regularization weights in the registration 
+by providing a regularization weight map. This is a map of scalar values the
+same size as the fixed image. In the standard case the binary term is computed
+a `a|u(v)-u(w)|`, where `a` is the regularization weight. Using a regularization
+weight map, the weight `a` is computed as `a = 0.5*(W(v) - W(w))`, where `W` is
+the weight map.
 
 ## References
 
