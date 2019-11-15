@@ -12,7 +12,7 @@ To download and install the pre-compiled Python module from pip:
 pip install pydeform
 ```
 
-Note: to enable GPU-supported registration you're currently required to compile the software yourself. See the section below. 
+Note: to enable GPU-supported registration you're required to compile the software yourself. See the section below. 
 
 ## Building
 
@@ -32,7 +32,20 @@ $ cd deform
 $ git submodule update --init --recursive
 ```
 
-### Build
+### Python
+```
+# python setup.py install
+```
+
+Flags accepted by `setup.py`:
+* `--use-cuda`: build with CUDA support
+* `--use-ispc`: build with ISPC support
+* `--use-itk`: build with ITK support
+* `--debug`: build with debug symbols
+
+Additional flags starting with `-D` are also recognised and forwarded to CMake. See [C++ section](#build_options) for available build options.
+
+### C++
 
 Use CMake (>=3.8) to generate build options of your own choosing.
 
@@ -40,7 +53,7 @@ If CMake cannot find the ISPC executable on your installation, it is possible
 to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
 full path to the executable with `-DISPC_EXECUTABLE`.
 
-#### Build options
+#### <a name="build_options"></a>Build options
 
 The build can be configured with the following CMake boolean options:
 
@@ -58,20 +71,89 @@ The build can be configured with the following CMake boolean options:
 + `DF_ENABLE_MICROPROFILE`: Enable `microprofile` profiler (default: `OFF`)
 + `DF_ENABLE_NVTOOLSEXT`: Enable `nvtoolsext` profiler (default: `OFF`)
 
-### Build and install Python wrapper
-```
-# python setup.py install
-```
-
-Flags accepted by `setup.py`:
-* `--use-cuda`: build with CUDA support
-* `--use-ispc`: build with ISPC support
-* `--use-itk`: build with ITK support
-* `--debug`: build with debug symbols
-
-Additional flags starting with `-D` are also recognised and forwarded to CMake.
-
 # Run
+
+## Examples
+
+Examples on how to run the registration can be found in the [examples](https://github.com/simeks/deform/tree/development/examples) subfolder.
+
+## Python
+
+Everything needed for a simple registration setup is located in the `pydeform` package. The package provides two APIs; first uses `pydeform.Volume` for handling images and the second uses `SimpleITK`.
+
+### pydeform API
+
+This API uses `pydeform.Volume` which is a direct wrapper around the internal `Volume` class used within deform.
+
+```python
+import pydeform
+
+fixed = pydeform.read_volume('fixed_file.nrrd')
+moving = pydeform.read_volume('moving_file.nrrd')
+affine_transform = pydeform.read_affine_transform('affine.txt')
+
+settings = {
+  'pyramid_levels': 4
+}
+
+df = pydeform.register(
+  fixed,
+  moving,
+  settings=settings,
+  affine_transform=affine_transform
+)
+pydeform.write_volume('result.nrrd', df)
+```
+
+### SimpleITK API
+
+[SimpleITK](http://www.simpleitk.org/) is a simplified layer built on top of [ITK](https://itk.org/) that provides a wide array of different filters and supports a larger variety of image formats compared to the `pydeform` API.
+
+The API itself is similar to the `pydeform` API with the exception that it takes `SimpleITK.Image` as input for images and `SimpleITK.AffineTransform` as input for affine transforms. To use this API simply use `import pydeform.sitk_api as pydeform`.
+
+```python
+import SimpleITK as sitk
+import pydeform.sitk_api as pydeform
+
+fixed = sitk.ReadImage('fixed_file.nrrd')
+moving = sitk.ReadImage('moving_file.nrrd')
+affine_transform = sitk.ReadTransform('affine.txt')
+
+settings = {
+  'pyramid_levels': 4
+}
+
+df = pydeform.register(
+  fixed,
+  moving,
+  settings=settings,
+  affine_transform=sitk.AffineTransform(affine_transform)
+)
+sitk.WriteImage(df, 'result.nrrd')
+```
+
+### Settings
+
+The Python API provides the same [parameters](#registration_settings) as the command-line interface. However, rather the specifying the parameters in a YAML-document, the parameters are set by passing a `dict` object to the registration.
+
+```python
+settings = {
+  'pyramid_levels': 4,
+
+  'levels': {
+    '0': {'max_iteration_count': 20}
+  }
+
+  'image_slots': [
+    {'cost_function': 'ncc'}
+  ]
+}
+pydeform.register(fixed, moving, settings=settings)
+```
+
+
+## Command-line
+
 To perform a registration using the standalone executable
 
 `deform registration -p <param file> -f0 <fixed_0> ... -f<i> <fixed_i> -m0 <moving_0> ... -m<i> <moving_i>`
@@ -85,6 +167,7 @@ To perform a registration using the standalone executable
 | `-fp <file>`                | Filename for the fixed landmarks.           |
 | `-mp <file>`                | Filename for the moving landmarks.          |
 | `-d0 <file>`                | Filename for initial deformation field.     |
+| `-a <file>`                 | Filename for initial affine transformation  |
 | `-constraint_mask <file>`   | Filename for constraint mask.               |
 | `-constraint_values <file>` | Filename for constraint values.             |
 | `-p <file>`                 | Filename of the parameter file.             |
@@ -99,7 +182,7 @@ To perform a registration using the standalone executable
 ‡ Fuzzy masks in floating point format, whose values denote the confidence on
   the image intensity at each point.
 
-### Parameter file example
+### <a name="registration_settings"></a>Parameter file example
 
 ```yaml
 pyramid_levels: 6
