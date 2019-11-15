@@ -1,11 +1,9 @@
 import sys
-import SimpleITK as sitk
-import pydeform.sitk_api as pydeform
+import pydeform
 
 """
-This is an example script for registering two images using the
-cross-correlation metric. Optionally, an affine transform can be
-provided.
+This is an example script for registering two images with the cross-correlation
+metric using the regular API. Optionally, an affine transform can be provided.
 """
 
 # If pydeform is built with the `--use-cuda` flag, this can be set to
@@ -64,18 +62,18 @@ def run(fixed_file, moving_file, output, affine_file=None):
     """ Registers the two files and outputs the transformed moving file """
     
     # Read images using the SimpleITK IO functions
-    fixed = sitk.ReadImage(fixed_file)
-    moving = sitk.ReadImage(moving_file)
+    fixed = pydeform.read_volume(fixed_file)
+    moving = pydeform.read_volume(moving_file)
 
     # To use multiple image pairs you simply replace fixed and moving with lists
     # of images. Remember to add an additional image_slot in the settings.
-    # fixed = [sitk.ReadImage(fixed_file0), sitk.ReadImage(fixed_file1)]
-    # moving = [sitk.ReadImage(moving_file0), sitk.ReadImage(moving_file1)]
+    # fixed = [pydeform.read_volume((fixed_file0), pydeform.read_volume((fixed_file1)]
+    # moving = [pydeform.read_volume((moving_file0), pydeform.read_volume((moving_file1)]
 
     # Optionally, read an affine transform
-    affine_transform = None
+    kwargs = {}
     if affine_file:
-        affine_transform = sitk.ReadTransform(affine_file)
+        kwargs['affine_transform'] = pydeform.read_affine_transform(affine_file)
 
     # Perform the registration
     with open('registration_log.txt', 'w') as f:
@@ -83,17 +81,17 @@ def run(fixed_file, moving_file, output, affine_file=None):
             fixed,
             moving,
             settings=settings,
-            affine_transform=affine_transform,
             log=f, # Log output
             log_level=pydeform.LogLevel.Verbose, # Log everything
-            use_gpu=use_gpu
+            use_gpu=use_gpu,
+            **kwargs
         )
 
     # Transform with linear interpolation
-    transformed = pydeform.transform(moving, df, sitk.sitkLinear)
+    transformed = pydeform.transform(moving, df, pydeform.Interpolator.Linear)
 
     # Write transformed image to file
-    sitk.WriteImage(transformed, output)
+    pydeform.write_volume(output, transformed)
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
