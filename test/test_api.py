@@ -234,6 +234,10 @@ class Test_API(unittest.TestCase):
         # offset = translation + fixed - matrix * fixed
         np.testing.assert_equal(affine_transform.offset, np.array((-63, -187, -311)))
         
+        with self.assertRaises(ValueError):
+            pydeform.read_affine_transform('doesnotexist.txt')
+
+
 
 if __name__ == '__main__':
     unittest.main()
