@@ -701,7 +701,7 @@ path: Str
 
 Raises
 ------
-RuntimeError: If file cannot be read.
+ValueError: If file cannot be read.
 
 Returns
 -------

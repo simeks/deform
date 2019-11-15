@@ -4,6 +4,12 @@ import pydeform
 import stk
 from . import interruptible
 
+from pydeform import (
+    __version__,
+    version,
+    has_gpu,
+    LogLevel
+)
 
 def _convert_image(sitk_image):
     """ Converts a SimpleITK.Image to a pydeform.Volume 
