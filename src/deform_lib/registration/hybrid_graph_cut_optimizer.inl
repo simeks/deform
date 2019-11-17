@@ -538,40 +538,43 @@ void HybridGraphCutOptimizer<TSolver>::minimize_block_task(const Block& block)
         current_energy += f0;
 
         if (sub_x + 1 < block_dims.x && gx + 1 < int(full_dims.x)) {
-            double f_same = _binary_cost_x(gx,gy,gz).x;
+            double f00 = _binary_cost_x(gx,gy,gz).x;
             double f01 = _binary_cost_x(gx,gy,gz).y;
             double f10 = _binary_cost_x(gx,gy,gz).z;
+            double f11 = _binary_cost_x(gx,gy,gz).w;
 
             graph.add_term2(
                 sub_x, sub_y, sub_z,
                 sub_x + 1, sub_y, sub_z,
-                f_same, f01, f10, f_same);
+                f00, f01, f10, f11);
 
-            current_energy += f_same;
+            current_energy += f00;
         }
         if (sub_y + 1 < block_dims.y && gy + 1 < int(full_dims.y)) {
-            double f_same = _binary_cost_y(gx,gy,gz).x;
+            double f00 = _binary_cost_y(gx,gy,gz).x;
             double f01 = _binary_cost_y(gx,gy,gz).y;
             double f10 = _binary_cost_y(gx,gy,gz).z;
+            double f11 = _binary_cost_y(gx,gy,gz).w;
 
             graph.add_term2(
                 sub_x, sub_y, sub_z,
                 sub_x, sub_y + 1, sub_z,
-                f_same, f01, f10, f_same);
+                f00, f01, f10, f11);
 
-            current_energy += f_same;
+            current_energy += f00;
         }
         if (sub_z + 1 < block_dims.z && gz + 1 < int(full_dims.z)) {
-            double f_same = _binary_cost_z(gx,gy,gz).x;
+            double f00 = _binary_cost_z(gx,gy,gz).x;
             double f01 = _binary_cost_z(gx,gy,gz).y;
             double f10 = _binary_cost_z(gx,gy,gz).z;
+            double f11 = _binary_cost_z(gx,gy,gz).w;
 
             graph.add_term2(
                 sub_x, sub_y, sub_z,
                 sub_x, sub_y, sub_z + 1,
-                f_same, f01, f10, f_same);
+                f00, f01, f10, f11);
 
-            current_energy += f_same;
+            current_energy += f00;
         }
     }
     }
