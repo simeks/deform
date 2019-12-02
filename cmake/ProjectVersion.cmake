@@ -48,7 +48,7 @@ if(ACTION STREQUAL FETCH)
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
 
-        string(REGEX REPLACE "^v(.*)-.*-.*" "\\1" GIT_VERSION_TAG "${GIT_TAG_STR}")
+        string(REGEX REPLACE "^(.*)-.*-.*" "\\1" GIT_VERSION_TAG "${GIT_TAG_STR}")
 
     else()
         set(GIT_SHA1 "Not found")
