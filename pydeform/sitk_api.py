@@ -52,6 +52,7 @@ def register(
         affine_transform=None,
         constraint_mask=None,
         constraint_values=None,
+        regularization_map=None,
         settings=None,
         log=None,
         log_level=pydeform.LogLevel.Info,
@@ -166,6 +167,8 @@ def register(
         kwargs['constraint_mask'] = _convert_image(constraint_mask)
     if constraint_values:
         kwargs['constraint_values'] = _convert_image(constraint_values)
+    if regularization_map:
+        kwargs['regularization_map'] = _convert_image(regularization_map)
     if fixed_mask:
         kwargs['fixed_mask'] = _convert_image(fixed_mask)
     if moving_mask:
