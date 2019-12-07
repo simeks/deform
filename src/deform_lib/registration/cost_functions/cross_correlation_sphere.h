@@ -13,6 +13,7 @@ struct NCCFunction_sphere : public SubFunction
                 const stk::VolumeHelper<T>& fixed,
                 const stk::VolumeHelper<T>& moving,
                 const int radius) :
+        _df(df),
         _fixed(fixed),
         _moving(moving),
         _radius(radius)
