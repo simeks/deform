@@ -57,6 +57,7 @@ namespace
 
     template<typename T>
     std::unique_ptr<SubFunction> ssd_function_factory(
+        const stk::Volume& /*df*/,
         const stk::Volume& fixed,
         const stk::Volume& moving,
         const stk::VolumeFloat& moving_mask,
@@ -79,6 +80,7 @@ namespace
 
     template<typename T>
     std::unique_ptr<SubFunction> ncc_function_factory(
+        const stk::Volume& df,
         const stk::Volume& fixed,
         const stk::Volume& moving,
         const stk::VolumeFloat& moving_mask,
@@ -107,7 +109,7 @@ namespace
 
         std::unique_ptr<SubFunction> function;
         if ("sphere" == window) {
-            function = make_unique<NCCFunction_sphere<T>>(fixed, moving, radius);
+            function = make_unique<NCCFunction_sphere<T>>(df, fixed, moving, radius);
             if (moving_mask.valid()) {
                 function->set_moving_mask(moving_mask);
             }
@@ -127,6 +129,7 @@ namespace
 
     template<typename T>
     std::unique_ptr<SubFunction> mi_function_factory(
+        const stk::Volume& /*df*/,
         const stk::Volume& fixed,
         const stk::Volume& moving,
         const stk::VolumeFloat& moving_mask,
@@ -176,6 +179,7 @@ namespace
 
     template<typename T>
     std::unique_ptr<SubFunction> gradient_ssd_function_factory(
+        const stk::Volume& /*df*/,
         const stk::Volume& fixed,
         const stk::Volume& moving,
         const stk::VolumeFloat& moving_mask,
@@ -220,6 +224,7 @@ void RegistrationEngine::build_regularizer(int level, Regularizer& binary_fn)
 void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn)
 {
     typedef std::unique_ptr<SubFunction> (*FactoryFn)(
+        const stk::Volume&,
         const stk::Volume&,
         const stk::Volume&,
         const stk::VolumeFloat&,
@@ -407,6 +412,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
     auto const& moving_mask = _moving_mask_pyramid.levels() > 0 ? _moving_mask_pyramid.volume(level)
                                                                 : stk::VolumeFloat();
 
+    const stk::Volume& df = _deformation_pyramid.volume(level);
     for (int i = 0; i < (int) _fixed_pyramids.size(); ++i) {
         stk::Volume fixed;
         stk::Volume moving;
@@ -424,7 +430,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             if (Settings::ImageSlot::CostFunction_SSD == fn.function) {
                 FactoryFn factory = ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(df, fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -436,7 +442,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = ncc_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(df, fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -448,7 +454,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = mi_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(df, fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "
@@ -460,7 +466,7 @@ void RegistrationEngine::build_unary_function(int level, UnaryFunction& unary_fn
             {
                 FactoryFn factory = gradient_ssd_factory[fixed.voxel_type()];
                 if (factory) {
-                    unary_fn.add_function(factory(fixed, moving, moving_mask, fn.parameters), fn.weight);
+                    unary_fn.add_function(factory(df, fixed, moving, moving_mask, fn.parameters), fn.weight);
                 }
                 else {
                     FATAL() << "Unsupported voxel type (" << fixed.voxel_type() << ") "

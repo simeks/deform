@@ -8,7 +8,9 @@ struct NCCFunction_sphere : public SubFunction
     /*!
      * \brief Compute NCC with a spheric window.
      */
-    NCCFunction_sphere(const stk::VolumeHelper<T>& fixed,
+    NCCFunction_sphere(
+                const stk::VolumeFloat3& df,
+                const stk::VolumeHelper<T>& fixed,
                 const stk::VolumeHelper<T>& moving,
                 const int radius) :
         _fixed(fixed),
@@ -20,10 +22,13 @@ struct NCCFunction_sphere : public SubFunction
     virtual ~NCCFunction_sphere() {}
 
 
-    float cost(const int3& p, const float3& def)
+    float cost(const int3& p, const float3& dv)
     {
+        const auto pt = _df.index2point(p);
+
         // [fixed] -> [world] -> [moving]
-        const auto moving_p = _moving.point2index(_fixed.index2point(p) + def);
+        const auto fixed_p = _fixed.point2index(pt);
+        const auto moving_p = _moving.point2index(pt + dv);
 
         // Check whether the point is masked out
         float mask_value = 1.0f;
@@ -56,14 +61,16 @@ struct NCCFunction_sphere : public SubFunction
                     if (r2 > _radius * _radius)
                         continue;
 
-                    int3 fp{p.x + dx, p.y + dy, p.z + dz};
+                    //int3 fp{p.x + dx, p.y + dy, p.z + dz};
 
-                    if (!stk::is_inside(_fixed.size(), fp))
-                        continue;
+                    //if (!stk::is_inside(_fixed.size(), fp))
+                    //    continue;
 
+                    float3 fp{fixed_p.x + dx, fixed_p.y + dy, fixed_p.z + dz};
                     float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
-                    T fixed_v = _fixed(fp);
+                    //T fixed_v = _fixed(fp);
+                    T fixed_v = _fixed.linear_at(fp, stk::Border_Constant);
                     T moving_v = _moving.linear_at(mp, stk::Border_Constant);
 
                     sff += fixed_v * fixed_v;
@@ -93,8 +100,10 @@ struct NCCFunction_sphere : public SubFunction
         return 0.0f;
     }
 
+    stk::VolumeFloat3 _df;
     stk::VolumeHelper<T> _fixed;
     stk::VolumeHelper<T> _moving;
+
     const int _radius;
 };
 
