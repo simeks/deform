@@ -23,7 +23,7 @@ void DisplacementField::update(const DisplacementField& update_field, bool compo
     
     stk::VolumeFloat3 buffer;
     // Only use buffer for compositive updates
-    if (composite) buffer = = _df.clone();
+    if (composite) buffer = _df.clone();
     
     #pragma omp parallel for
     for (int z = 0; z < (int)dims.z; ++z) {
