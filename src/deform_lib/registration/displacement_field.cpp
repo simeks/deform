@@ -21,13 +21,16 @@ void DisplacementField::update(const DisplacementField& update_field, bool compo
 {
     dim3 dims = update_field.size();
     
+    stk::VolumeFloat3 buffer;
+    // Only use buffer for compositive updates
+    if (composite) buffer = = _df.clone();
+    
     #pragma omp parallel for
     for (int z = 0; z < (int)dims.z; ++z) {
     for (int y = 0; y < (int)dims.y; ++y) {
     for (int x = 0; x < (int)dims.x; ++x) {
         int3 p {x, y, z};
         if (composite) {
-            stk::VolumeFloat3 buffer = _df.clone();
 
             // Transform consists of two components, affine and displacement vector
             //  V(x) = Ax + b
