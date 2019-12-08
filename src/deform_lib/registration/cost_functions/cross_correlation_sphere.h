@@ -30,7 +30,7 @@ struct NCCFunction_sphere : public SubFunction
         // [fixed] -> [world] -> [moving]
         const auto fixed_p = _fixed.point2index(pt);
         const auto moving_p = _moving.point2index(pt + dv);
-
+        
         // Check whether the point is masked out
         float mask_value = 1.0f;
         if (_moving_mask.valid()) {
@@ -64,12 +64,17 @@ struct NCCFunction_sphere : public SubFunction
 
                     //int3 fp{p.x + dx, p.y + dy, p.z + dz};
 
-                    //if (!stk::is_inside(_fixed.size(), fp))
-                    //    continue;
-
                     float3 fp{fixed_p.x + dx, fixed_p.y + dy, fixed_p.z + dz};
                     float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
+                    if (fp.x >= 0 && p.x < float(_fixed.size().x) &&
+                        fp.y >= 0 && p.y < float(_fixed.size().y) &&
+                        fp.z >= 0 && p.z < float(_fixed.size().z))
+                        continue;
+
+                    //if (!stk::is_inside(_fixed.size(), fp))
+                    //    continue;
+                    
                     //T fixed_v = _fixed(fp);
                     T fixed_v = _fixed.linear_at(fp, stk::Border_Constant);
                     T moving_v = _moving.linear_at(mp, stk::Border_Constant);
