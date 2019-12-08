@@ -20,6 +20,7 @@
 /*
 pyramid_levels: 6
 pyramid_stop_level: 0
+field_downscale_factor: 1
 
 solver: gco
 update_rule: additive
@@ -369,6 +370,7 @@ void print_registration_settings(const Settings& settings, std::ostream& s)
     s << "Settings:" << std::endl;
     s << "pyramid_stop_level = " << settings.pyramid_stop_level << std::endl;
     s << "num_pyramid_levels = " << settings.num_pyramid_levels << std::endl;
+    s << "field_downscale_factor = " << settings.field_downscale_factor << std::endl;
     s << "landmarks_stop_level = " << settings.landmarks_stop_level << std::endl;
     s << "solver = " << solver_to_str(settings.solver) << std::endl;
     s << "update_rule = " << update_rule_to_str(settings.update_rule) << std::endl;
@@ -434,6 +436,9 @@ void parse_registration_settings(const std::string& str, Settings& settings)
         }
         else if (key == "pyramid_stop_level") {
             settings.pyramid_stop_level = value.as<int>();
+        }
+        else if (key == "field_downscale_factor") {
+            settings.field_downscale_factor = value.as<int>();
         }
         else if (key == "landmarks_stop_level") {
             settings.landmarks_stop_level = value.as<int>();

@@ -127,6 +127,9 @@ struct Settings
     // Size of pyramid
     int num_pyramid_levels;
 
+    // Scale factor for displacement field
+    int field_downscale_factor;
+
     std::vector<Level> levels;
 
     // Last level for which landmarks are used
@@ -143,6 +146,7 @@ struct Settings
     Settings() :
         pyramid_stop_level(0),
         num_pyramid_levels(4),
+        field_downscale_factor(1),
         landmarks_stop_level(0),
     #if defined(DF_ENABLE_GCO)
         solver(Solver_GCO),

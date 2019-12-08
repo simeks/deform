@@ -604,6 +604,14 @@ stk::Volume RegistrationEngine::execute()
 
         stk::VolumeFloat3 initial(base.size(), float3{0, 0, 0});
         initial.copy_meta_from(base);
+
+        if (_settings.field_downscale_factor == 2) {
+            initial = filters::downsample_vectorfield_by_2(initial);
+        }
+        else if (_settings.field_downscale_factor == 4) {
+            initial = filters::downsample_vectorfield_by_2(initial);
+            initial = filters::downsample_vectorfield_by_2(initial);
+        }
         set_initial_displacement_field(initial);
     }
 
@@ -711,9 +719,14 @@ stk::Volume RegistrationEngine::execute()
         }
     }
 
+    stk::VolumeFloat3 out_df = _deformation_pyramid.volume(0);
+    if (_settings.field_downscale_factor != 1) {
+        out_df = filters::upsample_vectorfield(out_df, _fixed_pyramids[0].volume(0).size());
+    }
+
     // Composite affine transform and displacement field
     return compute_displacement_field(
-        _deformation_pyramid.volume(0),
+        out_df,
         _affine_transform
     );
 }
