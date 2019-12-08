@@ -67,9 +67,9 @@ struct NCCFunction_sphere : public SubFunction
                     float3 fp{fixed_p.x + dx, fixed_p.y + dy, fixed_p.z + dz};
                     float3 mp{moving_p.x + dx, moving_p.y + dy, moving_p.z + dz};
 
-                    if (fp.x >= 0 && p.x < float(_fixed.size().x) &&
+                    if (!(fp.x >= 0 && p.x < float(_fixed.size().x) &&
                         fp.y >= 0 && p.y < float(_fixed.size().y) &&
-                        fp.z >= 0 && p.z < float(_fixed.size().z))
+                        fp.z >= 0 && p.z < float(_fixed.size().z)))
                         continue;
 
                     //if (!stk::is_inside(_fixed.size(), fp))
