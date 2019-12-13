@@ -88,10 +88,11 @@ __device__ void do_step_border(
     // Here we need to think in reverse, since this are the costs for the 
     //  neighbouring node. I.e. E01 => E10
 
-    cost(p.x-1,p.y,p.z).x = weight*inv_spacing2_exp*e.x;
-    cost(p.x-1,p.y,p.z).y = weight*inv_spacing2_exp*e.z;
-    cost(p.x-1,p.y,p.z).z = weight*inv_spacing2_exp*e.x; // border nodes can't move
-    cost(p.x-1,p.y,p.z).w = cost(p.x-1,p.y,p.z).z;
+    int3 p2 = p - step;
+    cost(p2.x, p2.y, p2.z).x = weight*inv_spacing2_exp*e.x;
+    cost(p2.x, p2.y, p2.z).y = weight*inv_spacing2_exp*e.z;
+    cost(p2.x, p2.y, p2.z).z = weight*inv_spacing2_exp*e.x; // border nodes can't move
+    cost(p2.x, p2.y, p2.z).w = cost(p2.x, p2.y, p2.z).z;
 }
 
 
