@@ -35,6 +35,10 @@ public:
         _spacing = spacing;
     }
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    void set_weight_map(const stk::GpuVolume& map) { _weight_map = map; }
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
     // Computes the regularization cost in three directions (x+, y+, z+), with and without
     //  applied delta. Results are stored into the three provided cost volumes (of type float2)
     // df           : Displacement field
@@ -62,5 +66,9 @@ private:
     float _scale;
     float _half_exponent;
     float3 _spacing;
+
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    stk::GpuVolume _weight_map;
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 };
 
