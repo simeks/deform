@@ -72,6 +72,10 @@ private:
     std::vector<float3> _fixed_landmarks;
     std::vector<float3> _moving_landmarks;
 
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    GpuVolumePyramid _regularization_weight_map;
+#endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+
     AffineTransform _affine_transform;
 
     WorkerPool _worker_pool;

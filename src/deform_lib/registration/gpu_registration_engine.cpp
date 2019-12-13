@@ -155,6 +155,11 @@ void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& 
     binary_fn.set_regularization_weight(_settings.levels[level].regularization_weight);
     binary_fn.set_regularization_scale(_settings.levels[level].regularization_scale);
     binary_fn.set_regularization_exponent(_settings.levels[level].regularization_exponent);
+
+#ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    if (_regularization_weight_map.volume(level).valid())
+        binary_fn.set_weight_map(_regularization_weight_map.volume(level));
+#endif
 }
 
 GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
@@ -229,9 +234,9 @@ void GpuRegistrationEngine::set_image_pair(
 #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 void GpuRegistrationEngine::set_regularization_weight_map(const stk::Volume& map)
 {
-    map;
-
-    FATAL() << "Not implemented";
+    auto downsample_fn = filters::gpu::downsample_volume_by_2;
+    stk::GpuVolume gpu_map(map);
+    _regularization_weight_map.build_from_base(gpu_map, downsample_fn);
 }
 #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
 

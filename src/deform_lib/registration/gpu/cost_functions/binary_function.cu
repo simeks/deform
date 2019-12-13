@@ -27,6 +27,74 @@ __device__ float4 energy(
     };
 }
 
+// Keep d0 and d1 separate to avoid having to resample them every time
+template<typename TDisplacementField>
+__device__ void do_step(
+    TDisplacementField& df,
+    const int3& step,
+    const int3& p, // Global coordinates
+    const float4& d0,
+    const float4& d1,
+    const float4& delta,
+    float weight,
+    float scale,
+    float half_exponent,
+    float inv_spacing2_exp,
+    cuda::VolumePtr<float4>& cost
+)
+{
+    float4 dn0 = df.get(p+step);
+    float4 dn1 = df.get(p+step, delta);
+
+    float4 e = energy(
+        d0,
+        d1,
+        dn0,
+        dn1,
+        scale,
+        half_exponent
+    );
+
+    cost(p.x,p.y,p.z) = weight*inv_spacing2_exp*e;
+}
+
+template<typename TDisplacementField>
+__device__ void do_step_border(
+    TDisplacementField& df,
+    const int3& step,
+    const int3& p, // Global coordinates
+    const float4& d0,
+    const float4& d1,
+    const float4& delta,
+    float weight,
+    float scale,
+    float half_exponent,
+    float inv_spacing2_exp,
+    cuda::VolumePtr<float4>& cost
+)
+{
+    float4 dn0 = df.get(p+step);
+    float4 dn1 = df.get(p+step, delta);
+
+    float4 e = energy(
+        d0,
+        d1,
+        dn0,
+        dn1,
+        scale,
+        half_exponent
+    );
+
+    // Here we need to think in reverse, since this are the costs for the 
+    //  neighbouring node. I.e. E01 => E10
+
+    cost(p.x-1,p.y,p.z).x = weight*inv_spacing2_exp*e.x;
+    cost(p.x-1,p.y,p.z).y = weight*inv_spacing2_exp*e.z;
+    cost(p.x-1,p.y,p.z).z = weight*inv_spacing2_exp*e.x; // border nodes can't move
+    cost(p.x-1,p.y,p.z).w = cost(p.x-1,p.y,p.z).z;
+}
+
+
 template<typename TDisplacementField>
 __global__ void regularizer_kernel(
     TDisplacementField df,
@@ -42,142 +110,160 @@ __global__ void regularizer_kernel(
     cuda::VolumePtr<float4> cost_z  // z+
 )
 {
+    // Can't add these directly into block_p for some reason
+    // Results in "invalid narrowing conversion" even with casting
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
     int z = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if (x >= dims.x ||
-        y >= dims.y ||
-        z >= dims.z)
+    int3 block_p {x, y, z};
+
+    if (block_p.x >= dims.x ||
+        block_p.y >= dims.y ||
+        block_p.z >= dims.z)
     {
         return;
     }
 
-    int gx = x + offset.x;
-    int gy = y + offset.y;
-    int gz = z + offset.z;
-
-    int3 p {gx, gy, gz};
-
-    // Cost ordered as E00, E01, E10, E11
+    int3 p {
+        block_p.x + offset.x,
+        block_p.y + offset.y,
+        block_p.z + offset.z
+    };
 
     float4 d0 = df.get(p);
     float4 d1 = df.get(p, delta);
 
-    float4 o_x = {0, 0, 0, 0};
-    float4 o_y = {0, 0, 0, 0};
-    float4 o_z = {0, 0, 0, 0};
-
-    if (gx + 1 < (int) df.size().x) {
-        int3 step {1, 0, 0};
-        float4 dn0 = df.get(p+step);
-        float4 dn1 = df.get(p+step, delta);
-
-        o_x = energy(
-            d0,
-            d1,
-            dn0,
-            dn1,
-            scale,
-            half_exponent
+    // Compute energies within the block
+    if (p.x + 1 < (int) df.size().x) {
+        do_step(df, int3{1, 0, 0}, p, d0, d1, delta, weight, scale, half_exponent,
+            inv_spacing2_exp.x, cost_x
         );
     }
-    if (gy + 1 < (int) df.size().y) {
-        int3 step {0, 1, 0};
-        float4 dn0 = df.get(p+step);
-        float4 dn1 = df.get(p+step, delta);
-
-        o_y = energy(
-            d0,
-            d1,
-            dn0,
-            dn1,
-            scale,
-            half_exponent
+    if (p.y + 1 < (int) df.size().y) {
+        do_step(df, int3{0, 1, 0}, p, d0, d1, delta, weight, scale, half_exponent,
+            inv_spacing2_exp.y, cost_y
         );
     }
-    if (gz + 1 < (int) df.size().z) {
-        int3 step {0, 0, 1};
-        float4 dn0 = df.get(p+step);
-        float4 dn1 = df.get(p+step, delta);
-
-        o_z = energy(
-            d0,
-            d1,
-            dn0,
-            dn1,
-            scale,
-            half_exponent
+    if (p.z + 1 < (int) df.size().z) {
+        do_step(df, int3{0, 0, 1}, p, d0, d1, delta, weight, scale, half_exponent,
+            inv_spacing2_exp.z, cost_z
         );
     }
-    cost_x(gx,gy,gz) = weight*inv_spacing2_exp.x*o_x;
-    cost_y(gx,gy,gz) = weight*inv_spacing2_exp.y*o_y;
-    cost_z(gx,gy,gz) = weight*inv_spacing2_exp.z*o_z;
 
 
-     // Compute cost at block border
-
-    if (x == 0 && gx != 0) {
-        int3 step {-1, 0, 0};
-        float4 dn0 = df.get(p+step);
-        float4 dn1 = df.get(p+step, delta);
-
-        float4 e = energy(
-            d0,
-            d1,
-            dn0,
-            dn1,
-            scale,
-            half_exponent
+    // Compute energies at block border
+    if (block_p.x == 0 && p.x != 0) {
+        do_step_border(df, int3{-1, 0, 0}, p, d0, d1, delta, weight, scale,
+            half_exponent, inv_spacing2_exp.x, cost_x
         );
-
-        // Here we need to think in reverse, since this are the costs for the 
-        //  neighbouring node. I.e. E01 => E10
-
-        cost_x(gx-1,gy,gz).x = weight*inv_spacing2_exp.x*e.x;
-        cost_x(gx-1,gy,gz).y = weight*inv_spacing2_exp.x*e.z;
-        cost_x(gx-1,gy,gz).z = weight*inv_spacing2_exp.x*e.x; // border nodes can't move
-        cost_x(gx-1,gy,gz).w = cost_x(gx-1,gy,gz).z;
     }
 
-    if (y == 0 && gy != 0) {
-        int3 step {0, -1, 0};
-        float4 dn0 = df.get(p+step);
-        float4 dn1 = df.get(p+step, delta);
-
-        float4 e = energy(
-            d0,
-            d1,
-            dn0,
-            dn1,
-            scale,
-            half_exponent
+    if (block_p.y == 0 && p.y != 0) {
+        do_step_border(df, int3{0, -1, 0}, p, d0, d1, delta, weight, scale,
+            half_exponent, inv_spacing2_exp.y, cost_y
         );
-
-        cost_y(gx,gy-1,gz).x = weight*inv_spacing2_exp.y*e.x;
-        cost_y(gx,gy-1,gz).y = weight*inv_spacing2_exp.y*e.z;
-        cost_y(gx,gy-1,gz).z = weight*inv_spacing2_exp.y*e.x; // border nodes can't move
-        cost_y(gx,gy-1,gz).w = cost_y(gx,gy-1,gz).z;
     }
 
-    if (z == 0 && gz != 0) {
-        int3 step {0, 0, -1};
-        float4 dn0 = df.get(p+step);
-        float4 dn1 = df.get(p+step, delta);
-
-        float4 e = energy(
-            d0,
-            d1,
-            dn0,
-            dn1,
-            scale,
-            half_exponent
+    if (block_p.z == 0 && p.z != 0) {
+        do_step_border(df, int3{0, 0, -1}, p, d0, d1, delta, weight, scale,
+            half_exponent, inv_spacing2_exp.z, cost_z
         );
+    }
+}
 
-        cost_z(gx,gy,gz-1).x = weight*inv_spacing2_exp.z*e.x;
-        cost_z(gx,gy,gz-1).y = weight*inv_spacing2_exp.z*e.z;
-        cost_z(gx,gy,gz-1).z = weight*inv_spacing2_exp.z*e.x; // border nodes can't move
-        cost_z(gx,gy,gz-1).w = cost_z(gx,gy,gz-1).z;
+template<typename TDisplacementField>
+__global__ void regularizer_kernel_with_map(
+    TDisplacementField df,
+    float4 delta,
+    cuda::VolumePtr<float> weight_map,
+    float scale,
+    float half_exponent,
+    int3 offset,
+    int3 dims,
+    float3 inv_spacing2_exp,
+    cuda::VolumePtr<float4> cost_x, // Regularization cost in x+
+    cuda::VolumePtr<float4> cost_y, // y+
+    cuda::VolumePtr<float4> cost_z  // z+
+)
+{
+    // Can't add these directly into block_p for some reason
+    // Results in "invalid narrowing conversion" even with casting
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    int z = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int3 block_p {x, y, z};
+
+    if (block_p.x >= dims.x ||
+        block_p.y >= dims.y ||
+        block_p.z >= dims.z)
+    {
+        return;
+    }
+
+    int3 p {
+        block_p.x + offset.x,
+        block_p.y + offset.y,
+        block_p.z + offset.z
+    };
+
+    float4 d0 = df.get(p);
+    float4 d1 = df.get(p, delta);
+
+    // Compute energies within the block
+    if (p.x + 1 < (int) df.size().x) {
+        int3 step{1, 0, 0};
+        float weight = 0.5f*(weight_map(p.x, p.y, p.z) 
+            + weight_map(p.x+step.x, p.y+step.y, p.z+step.z));
+        do_step(df, int3{1, 0, 0}, p, d0, d1, delta, weight, scale, half_exponent,
+            inv_spacing2_exp.x, cost_x
+        );
+    }
+    if (p.y + 1 < (int) df.size().y) {
+        int3 step{0, 1, 0};
+        float weight = 0.5f*(weight_map(p.x, p.y, p.z) 
+            + weight_map(p.x+step.x, p.y+step.y, p.z+step.z));
+        do_step(df, int3{0, 1, 0}, p, d0, d1, delta, weight, scale, half_exponent,
+            inv_spacing2_exp.y, cost_y
+        );
+    }
+    if (p.z + 1 < (int) df.size().z) {
+        int3 step{0, 0, 1};
+        float weight = 0.5f*(weight_map(p.x, p.y, p.z) 
+            + weight_map(p.x+step.x, p.y+step.y, p.z+step.z));
+        do_step(df, int3{0, 0, 1}, p, d0, d1, delta, weight, scale, half_exponent,
+            inv_spacing2_exp.z, cost_z
+        );
+    }
+
+
+    // Compute energies at block border
+    if (block_p.x == 0 && p.x != 0) {
+        int3 step{-1, 0, 0};
+        float weight = 0.5f*(weight_map(p.x, p.y, p.z) 
+            + weight_map(p.x+step.x, p.y+step.y, p.z+step.z));
+        do_step_border(df, int3{-1, 0, 0}, p, d0, d1, delta, weight, scale,
+            half_exponent, inv_spacing2_exp.x, cost_x
+        );
+    }
+
+    if (block_p.y == 0 && p.y != 0) {
+        int3 step{0, -1, 0};
+        float weight = 0.5f*(weight_map(p.x, p.y, p.z) 
+            + weight_map(p.x+step.x, p.y+step.y, p.z+step.z));
+        do_step_border(df, int3{0, -1, 0}, p, d0, d1, delta, weight, scale,
+            half_exponent, inv_spacing2_exp.y, cost_y
+        );
+    }
+
+    if (block_p.z == 0 && p.z != 0) {
+        int3 step{0, 0, -1};
+        float weight = 0.5f*(weight_map(p.x, p.y, p.z) 
+            + weight_map(p.x+step.x, p.y+step.y, p.z+step.z));
+        do_step_border(df, int3{0, 0, -1}, p, d0, d1, delta, weight, scale,
+            half_exponent, inv_spacing2_exp.z, cost_z
+        );
     }
 }
 
@@ -223,40 +309,37 @@ void GpuBinaryFunction::operator()(
         0
     };
 
-    if (update_rule == Settings::UpdateRule_Compositive) {
-        regularizer_kernel<cuda::DisplacementField<cuda::CompositiveUpdate>>
-        <<<grid_size, block_size, 0, stream>>>(
-            df,
-            delta4,
-            _weight,
-            _scale,
-            _half_exponent,
-            offset,
-            dims,
-            inv_spacing2_exp,
-            cost_x,
-            cost_y,
-            cost_z
-        );
-    }
-    else if (update_rule == Settings::UpdateRule_Additive) {
-        regularizer_kernel<cuda::DisplacementField<cuda::AdditiveUpdate>>
-        <<<grid_size, block_size, 0, stream>>>(
-            df,
-            delta4,
-            _weight,
-            _scale,
-            _half_exponent,
-            offset,
-            dims,
-            inv_spacing2_exp,
-            cost_x,
-            cost_y,
-            cost_z
-        );
+    if (_weight_map.valid()) {
+        if (update_rule == Settings::UpdateRule_Compositive) {
+            regularizer_kernel_with_map<cuda::DisplacementField<cuda::CompositiveUpdate>>
+            <<<grid_size, block_size, 0, stream>>>(df, delta4, _weight_map, _scale,
+                _half_exponent, offset, dims, inv_spacing2_exp, cost_x, cost_y,
+                cost_z
+            );
+        }
+        else if (update_rule == Settings::UpdateRule_Additive) {
+            regularizer_kernel_with_map<cuda::DisplacementField<cuda::AdditiveUpdate>>
+            <<<grid_size, block_size, 0, stream>>>(df, delta4, _weight_map, _scale,
+                _half_exponent, offset, dims, inv_spacing2_exp, cost_x, cost_y,
+                cost_z
+            );
+        }
     }
     else {
-        ASSERT(false);
+        if (update_rule == Settings::UpdateRule_Compositive) {
+            regularizer_kernel<cuda::DisplacementField<cuda::CompositiveUpdate>>
+            <<<grid_size, block_size, 0, stream>>>(df, delta4, _weight, _scale,
+                _half_exponent, offset, dims, inv_spacing2_exp, cost_x, cost_y,
+                cost_z
+            );
+        }
+        else if (update_rule == Settings::UpdateRule_Additive) {
+            regularizer_kernel<cuda::DisplacementField<cuda::AdditiveUpdate>>
+            <<<grid_size, block_size, 0, stream>>>(df, delta4, _weight, _scale,
+                _half_exponent, offset, dims, inv_spacing2_exp, cost_x, cost_y,
+                cost_z
+            );
+        }
     }
 
     CUDA_CHECK_ERRORS(cudaPeekAtLastError());
