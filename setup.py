@@ -78,7 +78,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name='pydeform',
-    version='0.5',
+    version='0.5.1',
     author='Simon Ekström',
     author_email='',
     description='',
