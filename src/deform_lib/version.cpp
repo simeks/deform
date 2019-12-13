@@ -5,7 +5,7 @@
 std::string deform::version_string()
 {
     std::stringstream ss;
-    ss << "v" << GIT_VERSION_TAG << "-" << GIT_SHA1_SHORT << (GIT_DIRTY ? "+" : "");
+    ss << GIT_VERSION_TAG << "-" << GIT_SHA1_SHORT << (GIT_DIRTY ? "+" : "");
 
     #ifdef _DEBUG
         ss << " [DEBUG]";
