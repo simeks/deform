@@ -172,6 +172,10 @@ GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
 
     _deformation_pyramid.set_level_count(_settings.num_pyramid_levels);
 
+    #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+        _regularization_weight_map.set_level_count(_settings.num_pyramid_levels);
+    #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
+    
     // Create CUDA streams
     _stream_pool.resize(5);
 }
