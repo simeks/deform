@@ -207,7 +207,7 @@ stk::Volume registration(
         // If a mask and an initial displacement is set, use the initial displacement field as
         // constraint values.
         validate_volume_properties(constraint_mask, fixed_ref, "constraint mask");
-        engine.set_voxel_constraints(constraint_mask, constraint_values);
+        engine.set_voxel_constraints(constraint_mask, initial_deformation);
         LOG(Info) << "Using the initial displacement field as constraint values";
     }
     else if (constraint_mask.valid() || constraint_values.valid()) {
