@@ -40,7 +40,7 @@ stk::VolumeUChar voxel_constraints::downsample_mask_by_2(const stk::VolumeUChar&
 
                 uint8_t max = 0;
                 for (int i = 0; i < 8; ++i) {
-                    int3 p = 2 * src_p + subvoxels[i];
+                    int3 p = src_p + subvoxels[i];
                     if (p.x >= int(old_dims.x) ||
                         p.y >= int(old_dims.y) ||
                         p.z >= int(old_dims.z))
@@ -105,8 +105,11 @@ stk::VolumeFloat3 voxel_constraints::downsample_values_by_2(
                         val = val + values(p);
                     }
                 }
-                // TODO: Div by zero?
-                result(x, y, z) = 0.5f * val / float(nmask);
+                if (nmask > 0) {
+                    result(x, y, z) = val / float(nmask);
+                } else {
+                    result(x, y, z) = float3{0,0,0};
+                }
             }
         }
     }
