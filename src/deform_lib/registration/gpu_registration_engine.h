@@ -69,6 +69,9 @@ private:
     GpuVolumePyramid _fixed_mask_pyramid;
     GpuVolumePyramid _moving_mask_pyramid;
 
+    GpuVolumePyramid _constraints_mask_pyramid;
+    GpuVolumePyramid _constraints_pyramid;
+
     std::vector<float3> _fixed_landmarks;
     std::vector<float3> _moving_landmarks;
 
