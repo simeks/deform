@@ -13,9 +13,11 @@
 #include "gpu/cost_functions/binary_function.h"
 #include "gpu/cost_functions/cross_correlation.h"
 #include "gpu/cost_functions/landmarks.h"
+#include "gpu/cost_functions/soft_constraints.h"
 #include "gpu/cost_functions/squared_distance.h"
 #include "gpu/cost_functions/unary_function.h"
 #include "gpu/gpu_displacement_field.h"
+#include "gpu/gpu_voxel_constraints.h"
 #include "hybrid_graph_cut_optimizer.h"
 
 #include "../filters/gpu/resample.h"
@@ -148,6 +150,15 @@ void GpuRegistrationEngine::build_unary_function(int level, GpuUnaryFunction& un
                 );
         unary_fn.add_function(f, _settings.levels[level].landmarks_weight);
     }
+    
+    if (_constraints_mask_pyramid.volume(level).valid()) {
+        auto& fixed = _fixed_pyramids[0].volume(level);
+        FunctionPtr f = make_unique<GpuCostFunction_SoftConstraints>(
+                _constraints_mask_pyramid.volume(level),
+                _constraints_pyramid.volume(level)
+        );
+        unary_fn.add_function(f, _settings.levels[level].constraints_weight);
+    }
 }
 void GpuRegistrationEngine::build_binary_function(int level, GpuBinaryFunction& binary_fn)
 {
@@ -175,7 +186,10 @@ GpuRegistrationEngine::GpuRegistrationEngine(const Settings& settings) :
     #ifdef DF_ENABLE_REGULARIZATION_WEIGHT_MAP
         _regularization_weight_map.set_level_count(_settings.num_pyramid_levels);
     #endif // DF_ENABLE_REGULARIZATION_WEIGHT_MAP
-    
+
+    _constraints_pyramid.set_level_count(_settings.num_pyramid_levels);
+    _constraints_mask_pyramid.set_level_count(_settings.num_pyramid_levels);
+
     // Create CUDA streams
     _stream_pool.resize(5);
 }
@@ -267,9 +281,20 @@ void GpuRegistrationEngine::set_moving_mask(const stk::VolumeFloat& moving_mask)
 void GpuRegistrationEngine::set_voxel_constraints(const stk::VolumeUChar& mask,
                                                   const stk::VolumeFloat3& values)
 {
-    (void) mask; (void) values;
+    stk::GpuVolume gpu_mask(mask);
+    stk::GpuVolume gpu_values;
+    if (values.voxel_type() == stk::Type_Float3)
+        gpu_values = volume_float3_to_float4(values);
+    else
+        gpu_values = values;
 
-    FATAL() << "Not implemented";
+    gpu_voxel_constraints::build_pyramids(
+        gpu_mask,
+        gpu_values,
+        _settings.num_pyramid_levels,
+        _constraints_mask_pyramid,
+        _constraints_pyramid
+    );
 }
 
 stk::Volume GpuRegistrationEngine::execute()
@@ -296,6 +321,14 @@ stk::Volume GpuRegistrationEngine::execute()
 
         if (l >= _settings.pyramid_stop_level) {
             LOG(Info) << "Performing registration level " << l;
+
+            if (_constraints_mask_pyramid.volume(l).valid()) {
+                gpu_voxel_constraints::constraint_displacement_field(
+                    df,
+                    _constraints_mask_pyramid.volume(l),
+                    _constraints_pyramid.volume(l)
+                );
+            }
 
             GpuUnaryFunction unary_fn;
             build_unary_function(l, unary_fn);
