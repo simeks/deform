@@ -1,6 +1,6 @@
 # deform
 
-deform is an implementation of an efficient graph-cut based method for dense deformable image registration. If you find this useful, please cite https://arxiv.org/abs/1810.08427.
+deform is an implementation of an efficient graph-cut based method for dense deformable image registration. If you find this useful, please cite https://doi.org/10.1016/j.compmedimag.2020.101745.
 
 The method can be used either as a module through Python (recommended) or a standalone executable. Currently no pre-built binaries for the standalone executable are provided, but the Python module (excluding GPU support) can be installed through pip.
 
