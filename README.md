@@ -1,6 +1,11 @@
 # deform
 
-deform is an implementation of an efficient graph-cut based method for dense deformable image registration. If you find this useful, please cite https://doi.org/10.1016/j.compmedimag.2020.101745.
+deform is an implementation of an efficient graph-cut based method for dense deformable image registration. The original and the GPU accelerated method were introduced in the following papers:
+
+* S. Ekström, F. Malmberg, H. Ahlström, J. Kullberg, and R. Strand, “Fast graph-cut based optimization for practical dense deformable registration of volume images,” Computerized Medical Imaging and Graphics, vol. 84, p. 101745, Sep. 2020, doi: [10.1016/j.compmedimag.2020.101745](https://doi.org/10.1016/j.compmedimag.2020.101745).
+* S. Ekström, M. Pilia, J. Kullberg, H. Ahlström, R. Strand, and F. Malmberg, “Faster dense deformable image registration by utilizing both CPU and GPU,” J. Med. Imag., vol. 8, no. 01, Feb. 2021, doi: [10.1117/1.JMI.8.1.014002](https://doi.org/10.1117/1.JMI.8.1.014002).
+
+If you make use of this software it would be appreciated if you cite these papers.
 
 The method can be used either as a module through Python (recommended) or a standalone executable. Currently no pre-built binaries for the standalone executable are provided, but the Python module (excluding GPU support) can be installed through pip.
 
