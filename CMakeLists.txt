@@ -159,10 +159,10 @@ if (DF_USE_ISPC)
     endif()
 
     if (DF_ENABLE_FAST_MATH)
-        set(ISPC_OPTIONS ${ISPC_OPTIONS} " --opt=fast-math")
+        set(ISPC_OPTIONS ${ISPC_OPTIONS} "--opt=fast-math")
     endif()
     if (DF_BUILD_WITH_DEBUG_INFO)
-        set(ISPC_OPTIONS ${ISPC_OPTIONS} " -g")
+        set(ISPC_OPTIONS ${ISPC_OPTIONS} "-g")
     endif()
 endif()
 
