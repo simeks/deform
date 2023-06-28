@@ -38,8 +38,11 @@ $ git submodule update --init --recursive
 ```
 
 ### Python
+
+For the best possible build experience it is recommended to install the stk dependency first. For this a build script is provided doing exactly that:
+
 ```
-# python setup.py install
+> sh build.sh <flags>
 ```
 
 Flags accepted by `setup.py`:
