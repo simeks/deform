@@ -42,7 +42,7 @@ $ git submodule update --init --recursive
 For the best possible build experience it is recommended to install the stk dependency first. For this a build script is provided doing exactly that:
 
 ```
-> sh build.sh <flags>
+> sh build_python.sh <flags>
 ```
 
 Flags accepted by `setup.py`:
@@ -85,11 +85,11 @@ There has been reports on issues on building on certain gcc versions, therefore 
 ```
 > sudo apt install gcc-10 g++10
 ```
-Then run the build with the following arguments: `-DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10`, either through the `build.sh` script for Python, or through CMake.
+Then run the build with the following arguments: `-DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10`, either through the `build_python.sh` script for Python, or through CMake.
 
 E.g.:
 ```
-> sh build.sh --use-cuda -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
+> sh build_python.sh --use-cuda -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
 ```
 
 # Run
