@@ -79,6 +79,19 @@ The build can be configured with the following CMake boolean options:
 + `DF_ENABLE_MICROPROFILE`: Enable `microprofile` profiler (default: `OFF`)
 + `DF_ENABLE_NVTOOLSEXT`: Enable `nvtoolsext` profiler (default: `OFF`)
 
+### GCC issues
+
+There has been reports on issues on building on certain gcc versions, therefore I advise to use gcc-10. To do this on Ubuntu, ensure you install `gcc-10` and `g++-10`:
+```
+> sudo apt install gcc-10 g++10
+```
+Then run the build with the following arguments: `-DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10`, either through the `build.sh` script for Python, or through CMake.
+
+E.g.:
+```
+> sh build.sh --use-cuda -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
+```
+
 # Run
 
 ## Examples
