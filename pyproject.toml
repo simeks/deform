@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools", "cmake"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pydeform"
+version = "0.5.2"
+description = ""
+readme = "README.md"
+authors = [
+    { name = "Simon Ekström" },
+]
+dependencies = [
+    "numpy",
+    "python-stk",
+    "PyYAML",
+]
