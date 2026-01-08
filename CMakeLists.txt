@@ -178,7 +178,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${EXTRA_LI
 include_directories(src)
 
 if(NOT WIN32)
-    find_package(YAML-CPP QUIET)
+    find_package(yaml-cpp QUIET CONFIG)
 endif()
 
 add_subdirectory(third_party)

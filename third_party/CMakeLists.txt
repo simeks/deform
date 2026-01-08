@@ -20,13 +20,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     string(REPLACE "-pedantic" ""  CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 endif()
 
-if (NOT YAML-CPP_FOUND)
-    set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Do not build yaml-cpp tests")
-    set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Do not build yaml-cpp tools")
-    set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Do not build yaml-cpp contrib")
-    add_subdirectory(yaml-cpp)
+if(NOT yaml-cpp_FOUND)
+  set(YAML_CPP_BUILD_TESTS   OFF CACHE BOOL "" FORCE)
+  set(YAML_CPP_BUILD_TOOLS   OFF CACHE BOOL "" FORCE)
+  set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
 
-    if (WIN32)
+  add_subdirectory(yaml-cpp)
+
+  if (WIN32)
         # /wd4100 : "'type': unreferenced formal parameter"
         # /wd4127 : "conditional expression is constant"
         # /wd4244 : "conversion from 'unsigned int' to 'unsigned char'"
