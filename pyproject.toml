@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools", "cmake"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "pydeform"
@@ -15,3 +15,9 @@ dependencies = [
     "python-stk",
     "PyYAML",
 ]
+
+[tool.scikit-build]
+sdist.include = ["third_party/stk/third_party/zlib/zconf.h"]
+
+[tool.scikit-build.cmake.define]
+DF_BUILD_EXECUTABLE = "OFF"

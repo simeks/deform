@@ -6,3 +6,10 @@ target_link_libraries(_pydeform PUBLIC stk yaml-cpp::yaml-cpp gco deform_lib)
 
 set(DF_PYTHON_PATH "$ENV{PYTHONPATH}${SEP}${CMAKE_CURRENT_BINARY_DIR}" CACHE STRING "Python path for Sphinx")
 
+if (DF_BUILD_PYTHON_WRAPPER)
+    install(TARGETS _pydeform
+        LIBRARY DESTINATION .
+        RUNTIME DESTINATION .
+        ARCHIVE DESTINATION .
+    )
+endif()
