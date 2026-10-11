@@ -8,8 +8,6 @@
 #include <fstream>
 #include <iostream>
 
-using namespace Catch;
-
 TEST_CASE("parse_affine")
 {
     SECTION("test_parsing")
@@ -49,7 +47,7 @@ TEST_CASE("parse_affine")
         const std::string filename {"non_existing_file.pts"};
 
         CHECK_THROWS_WITH(parse_affine_transform_file(filename),
-            Contains("Failed to open"));
+            Catch::Matchers::Contains("Failed to open"));
     }
 
     SECTION("test_invalid_file_1")
@@ -68,7 +66,7 @@ TEST_CASE("parse_affine")
         f.close();
 
         CHECK_THROWS_WITH(parse_affine_transform_file(filename),
-            Contains("Unsupported transform file format"));
+            Catch::Matchers::Contains("Unsupported transform file format"));
     }
 
     SECTION("test_invalid_file_2")
@@ -84,7 +82,7 @@ TEST_CASE("parse_affine")
         f.close();
 
         CHECK_THROWS_WITH(parse_affine_transform_file(filename),
-            Contains("Invalid file format"));
+            Catch::Matchers::Contains("Invalid file format"));
     }
 
     SECTION("test_invalid_file_2")
@@ -102,7 +100,7 @@ TEST_CASE("parse_affine")
         f.close();
 
         CHECK_THROWS_WITH(parse_affine_transform_file(filename),
-            Contains("Invalid transform name"));
+            Catch::Matchers::Contains("Invalid transform name"));
     }
 
     SECTION("test_transform_point")
