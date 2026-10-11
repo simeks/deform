@@ -198,7 +198,3 @@ if (DF_BUILD_TESTS)
     enable_testing()
     add_subdirectory(test)
 endif()
-
-if (DF_BUILD_PYTHON_WRAPPER)
-    install(DIRECTORY pydeform/ DESTINATION .)
-endif()
