@@ -21,3 +21,29 @@ sdist.include = ["third_party/stk/third_party/zlib/zconf.h"]
 
 [tool.scikit-build.cmake.define]
 DF_BUILD_EXECUTABLE = "OFF"
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-* cp313-* cp314-* cp315-*"
+skip = "*-musllinux_*"
+archs = "auto64"
+# pydeform and python-stk must be built with the same pybind11, so test
+# against python-stk built from the submodule rather than the one on PyPI
+before-test = "pip install {project}/third_party/stk"
+test-requires = ["SimpleITK"]
+test-command = "python -m unittest discover -s {project}/test"
+
+[tool.cibuildwheel.macos]
+# Apple Clang ships without an OpenMP runtime, so use libomp from Homebrew.
+# Homebrew builds libomp for the macOS version of the build machine, which the
+# deployment target has to match for delocate to accept bundling it.
+before-all = "brew install libomp"
+environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", OpenMP_ROOT = "$(brew --prefix libomp)", HOMEBREW_NO_AUTO_UPDATE = "1" }
+
+[tool.cibuildwheel.windows]
+# Bundle the OpenMP runtime (vcomp140.dll), which is not shipped with Python
+before-build = "pip install delvewheel"
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.config-settings]
+# Wheels are built for distribution, so don't optimise for the build machine
+"cmake.define.DF_NON_PORTABLE" = "OFF"
