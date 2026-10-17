@@ -1,4 +1,0 @@
-recursive-include src *
-recursive-include third_party *
-include cmake/*
-include CMakeLists.txt
