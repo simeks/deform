@@ -7,7 +7,8 @@
    :maxdepth: 2
    :caption: Contents:
 
-.. mdinclude:: ../README.md
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
 
 
 pydeform package

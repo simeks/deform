@@ -171,6 +171,11 @@ if (DEFINED SKBUILD)
     set(DF_BUILD_PYTHON_WRAPPER ON)
 endif()
 
+# The docs are generated from the Python wrapper
+if (DF_BUILD_DOCS)
+    set(DF_BUILD_PYTHON_WRAPPER ON)
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${EXTRA_FLAGS_RELEASE}")
 
@@ -190,7 +195,7 @@ add_subdirectory(third_party)
 add_subdirectory(src)
 
 if (DF_BUILD_DOCS)
-    set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
+    set(PYPROJECT_TOML "${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml")
     add_subdirectory(sphinx)
 endif()
 
