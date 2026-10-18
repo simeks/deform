@@ -12,7 +12,9 @@ authors = [
 ]
 dependencies = [
     "numpy",
-    "python-stk",
+    # Must match the version in third_party/stk, since pydeform shares types with
+    # python-stk and the two have to be built with the same pybind11
+    "python-stk==0.5",
     "PyYAML",
 ]
 
