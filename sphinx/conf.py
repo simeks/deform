@@ -14,28 +14,28 @@
 
 import os
 import sys
-import re
 import time
+import tomllib
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-with open('@SETUP_PY@') as f:
-    setup_text = f.read()
+with open('@PYPROJECT_TOML@', 'rb') as f:
+    pyproject = tomllib.load(f)['project']
 
-    project = 'deform'
-    author = re.search(r'author\s*=\s*\'([^\']+)\'', setup_text).group(1)
-    copyright = time.strftime('%Y') + ', ' + author
+project = 'deform'
+author = ', '.join(a['name'] for a in pyproject['authors'])
+copyright = time.strftime('%Y') + ', ' + author
 
-    # The version info for the project you're documenting, acts as replacement for
-    # |version| and |release|, also used in various other places throughout the
-    # built documents.
-    #
-    # The short X.Y version.
-    version = re.search(r'version\s*=\s*\'([0-9a-zA-Z.-]+)\'', setup_text).group(1)
-    # The full version, including alpha/beta/rc tags.
-    release = version
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = pyproject['version']
+# The full version, including alpha/beta/rc tags.
+release = version
 
 
 
@@ -54,7 +54,7 @@ extensions = [
     'sphinx.ext.imgmath',
     'sphinx.ext.githubpages',
     'sphinx.ext.napoleon',
-    'm2r'
+    'myst_parser'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -74,7 +74,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -176,10 +176,13 @@ texinfo_documents = [
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 
 
 # -- Options for Napoleon -------------------------------------------------
+
+# Generate GitHub-style anchors for headings so links within README.md resolve
+myst_heading_anchors = 4
 
 napoleon_google_docstring = False
 napoleon_use_param = False

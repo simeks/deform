@@ -1,6 +1,8 @@
 #!/bin/sh
 
+export CMAKE_ARGS=$@
+
 # Install STK first
-(cd third_party/stk && python setup.py install $@)
+(cd third_party/stk && pip install .)
 # Install deform
-python setup.py install $@
+pip install .

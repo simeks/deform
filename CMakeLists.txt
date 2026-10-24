@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.15)
 
 project(deform)
 
@@ -166,6 +166,16 @@ if (DF_USE_ISPC)
     endif()
 endif()
 
+# Build Python wrapper if building using Scikit build
+if (DEFINED SKBUILD)
+    set(DF_BUILD_PYTHON_WRAPPER ON)
+endif()
+
+# The docs are generated from the Python wrapper
+if (DF_BUILD_DOCS)
+    set(DF_BUILD_PYTHON_WRAPPER ON)
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${EXTRA_FLAGS_RELEASE}")
 
@@ -178,14 +188,14 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${EXTRA_LI
 include_directories(src)
 
 if(NOT WIN32)
-    find_package(YAML-CPP QUIET)
+    find_package(yaml-cpp QUIET CONFIG)
 endif()
 
 add_subdirectory(third_party)
 add_subdirectory(src)
 
 if (DF_BUILD_DOCS)
-    set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
+    set(PYPROJECT_TOML "${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml")
     add_subdirectory(sphinx)
 endif()
 

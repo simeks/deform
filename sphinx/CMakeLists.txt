@@ -14,7 +14,7 @@ configure_file(
 
 add_custom_target(docs ALL
     ${CMAKE_COMMAND}
-    -E env PYTHONPATH=${CMAKE_SOURCE_DIR}${SEP}${DF_PYTHON_PATH}
+    -E env PYTHONPATH=${CMAKE_SOURCE_DIR}${SEP}$<TARGET_FILE_DIR:_pydeform>${SEP}$ENV{PYTHONPATH}
     ${SPHINX_EXECUTABLE}
         -q -b html
         -c "${BINARY_BUILD_DIR}"

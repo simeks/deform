@@ -119,7 +119,7 @@ add_dependencies(deform_lib FetchGitVersion)
 
 target_include_directories(deform_lib PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} "${CMAKE_BINARY_DIR}/src")
 
-target_link_libraries(deform_lib stk yaml-cpp)
+target_link_libraries(deform_lib stk yaml-cpp::yaml-cpp)
 
 if (DF_ENABLE_GCO)
     target_link_libraries(deform_lib gco)

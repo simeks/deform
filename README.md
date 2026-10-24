@@ -45,13 +45,17 @@ For the best possible build experience it is recommended to install the stk depe
 > sh build_python.sh <flags>
 ```
 
-Flags accepted by `setup.py`:
-* `--use-cuda`: build with CUDA support
-* `--use-ispc`: build with ISPC support
-* `--use-itk`: build with ITK support
-* `--debug`: build with debug symbols
+The script installs `python-stk` from the bundled submodule and builds the `pydeform` package into `dist/`. Flags are forwarded to CMake, e.g. `-DDF_USE_CUDA=ON` to build with CUDA support. See [C++ section](#build-options) for available build options.
 
-Additional flags starting with `-D` are also recognised and forwarded to CMake. See [C++ section](#build_options) for available build options.
+`pydeform` and `python-stk` need to be built from the same checkout, since the two modules share types and must be compiled with the same version of pybind11.
+
+#### Wheels
+
+Wheels for multiple Python versions are built with [cibuildwheel](https://cibuildwheel.pypa.io):
+
+```
+> pipx run cibuildwheel --platform linux
+```
 
 ### C++
 
@@ -61,7 +65,7 @@ If CMake cannot find the ISPC executable on your installation, it is possible
 to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
 full path to the executable with `-DISPC_EXECUTABLE`.
 
-#### <a name="build_options"></a>Build options
+#### Build options
 
 The build can be configured with the following CMake boolean options:
 
@@ -89,7 +93,7 @@ Then run the build with the following arguments: `-DCMAKE_C_COMPILER=gcc-10 -DCM
 
 E.g.:
 ```
-> sh build_python.sh --use-cuda -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
+> sh build_python.sh -DDF_USE_CUDA=ON -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
 ```
 
 # Run
@@ -155,7 +159,7 @@ sitk.WriteImage(df, 'result.nrrd')
 
 ### Settings
 
-The Python API provides the same [parameters](#registration_settings) as the command-line interface. However, rather the specifying the parameters in a YAML-document, the parameters are set by passing a `dict` object to the registration.
+The Python API provides the same [parameters](#parameter-file-example) as the command-line interface. However, rather the specifying the parameters in a YAML-document, the parameters are set by passing a `dict` object to the registration.
 
 ```python
 settings = {
@@ -204,7 +208,7 @@ To perform a registration using the standalone executable
 ‡ Fuzzy masks in floating point format, whose values denote the confidence on
   the image intensity at each point.
 
-### <a name="registration_settings"></a>Parameter file example
+### Parameter file example
 
 ```yaml
 pyramid_levels: 6
@@ -284,7 +288,7 @@ from the constraint target. See cost function for more info.
 `landmarks_weight` sets the weight for the landmark cost term when performing
 landmark-based registration.  In order to perform landmark-based registration,
 a set of fixed and moving landmarks must be supplied.  The implementation of
-the landmark-based unary energy term is inspired to [[2]](#2), but the cost in
+the landmark-based unary energy term is inspired to [[2]](#references), but the cost in
 each term of the sum is also proportional to the distance between the current
 displacement and the landmark displacement. It is possible to limit the usage
 of the landmarks up to a certain height of the resolution pyramid by assigning
@@ -415,11 +419,11 @@ the weight map.
 
 ## References
 
-+ <a id="1"></a>[1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih:
++ [1] Junhwan Kim, Vladimir Kolmogorov, Ramin Zabih:
   *Visual correspondence using energy minimization and mutual information.*
   Proceedings of the Ninth IEEE International Conference on Computer Vision,
   1033-1040, 2003.
 
-+ <a id="2"></a>[2] Herve Lombaert, Yiyong Sun, Farida Cheriet:
++ [2] Herve Lombaert, Yiyong Sun, Farida Cheriet:
   *Landmark-based non-rigid registration via graph cuts*,
   International Conference Image Analysis and Recognition, 166–175, 2007

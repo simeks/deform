@@ -4,11 +4,18 @@ set(STK_BUILD_WITH_DEBUG_INFO ${DF_BUILD_WITH_DEBUG_INFO} CACHE BOOL "")
 set(STK_ENABLE_FAST_MATH ${DF_ENABLE_FAST_MATH} CACHE BOOL "")
 set(STK_ITK_BRIDGE ${DF_ITK_BRIDGE} CACHE BOOL "")
 set(STK_STACK_TRACE ${DF_STACK_TRACE} CACHE BOOL "")
-set(STK_BUILD_PYTHON_WRAPPER ${DF_BUILD_PYTHON_WRAPPER} CACHE BOOL "")
+# The STK Python wrapper is provided by the separate python-stk package
+set(STK_BUILD_PYTHON_WRAPPER OFF CACHE BOOL "" FORCE)
 set(STK_BUILD_EXAMPLES OFF CACHE BOOL "")
 set(STK_BUILD_TESTS OFF CACHE BOOL "")
 
-add_subdirectory(stk)
+add_subdirectory(stk EXCLUDE_FROM_ALL)
+
+# Use the same pybind11 as python-stk, since the modules can only share types
+# (e.g. stk.Volume) if their pybind11 internals versions match.
+if (DF_BUILD_PYTHON_WRAPPER)
+    add_subdirectory(stk/third_party/pybind11)
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     string(REPLACE "-Wextra" ""  CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
@@ -20,13 +27,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     string(REPLACE "-pedantic" ""  CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 endif()
 
-if (NOT YAML-CPP_FOUND)
-    set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Do not build yaml-cpp tests")
-    set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Do not build yaml-cpp tools")
-    set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Do not build yaml-cpp contrib")
-    add_subdirectory(yaml-cpp)
+if(NOT yaml-cpp_FOUND)
+  set(YAML_CPP_BUILD_TESTS   OFF CACHE BOOL "" FORCE)
+  set(YAML_CPP_BUILD_TOOLS   OFF CACHE BOOL "" FORCE)
+  set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
 
-    if (WIN32)
+  add_subdirectory(yaml-cpp)
+
+  if (WIN32)
         # /wd4100 : "'type': unreferenced formal parameter"
         # /wd4127 : "conditional expression is constant"
         # /wd4244 : "conversion from 'unsigned int' to 'unsigned char'"

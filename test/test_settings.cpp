@@ -5,8 +5,6 @@
 #include <cstring>
 #include <fstream>
 
-using namespace Catch;
-
 namespace {
 const char* sample_settings = R"(
 pyramid_levels: 4
@@ -414,7 +412,7 @@ TEST_CASE("settings_parameters", "")
         std::string settings_str = "not_a_real_parameter: 1\n";
 
         CHECK_THROWS_WITH(parse_registration_settings(settings_str, settings),
-                          Contains("Unrecognized parameter: not_a_real_parameter"));
+                          Catch::Matchers::Contains("Unrecognized parameter: not_a_real_parameter"));
     }
     SECTION("invalid_parameter_image_slot")
     {
@@ -428,7 +426,7 @@ TEST_CASE("settings_parameters", "")
                 "        weight: 0.3\n";
 
         CHECK_THROWS_WITH(parse_registration_settings(settings_str, settings),
-                          Contains("Unrecognized image slot parameter: not_an_param"));
+                          Catch::Matchers::Contains("Unrecognized image slot parameter: not_an_param"));
     }
     SECTION("invalid_parameter_image_slot")
     {
@@ -439,6 +437,6 @@ TEST_CASE("settings_parameters", "")
                 "        not_an_param: gaussian\n";
 
         CHECK_THROWS_WITH(parse_registration_settings(settings_str, settings),
-                          Contains("Unrecognized level parameter: not_an_param"));
+                          Catch::Matchers::Contains("Unrecognized level parameter: not_an_param"));
     }
 }

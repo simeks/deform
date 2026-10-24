@@ -7,8 +7,6 @@
 #include <fstream>
 #include <iostream>
 
-using namespace Catch;
-
 TEST_CASE("parse_landmarks")
 {
     SECTION("test_parsing")
@@ -43,7 +41,7 @@ TEST_CASE("parse_landmarks")
         std::vector<float3> landmarks;
 
         CHECK_THROWS_WITH(landmarks = parse_landmarks_file(filename),
-                          Contains("Failed to open"));
+                          Catch::Matchers::Contains("Failed to open"));
     }
 
     SECTION("test_invalid_file_1")
@@ -64,7 +62,7 @@ TEST_CASE("parse_landmarks")
         std::vector<float3> landmarks;
 
         CHECK_THROWS_WITH(landmarks = parse_landmarks_file(filename),
-                          Contains("expected \"point\""));
+                          Catch::Matchers::Contains("expected \"point\""));
     }
 
     SECTION("test_invalid_file_2")
@@ -84,7 +82,7 @@ TEST_CASE("parse_landmarks")
         std::vector<float3> landmarks;
 
         CHECK_THROWS_WITH(landmarks = parse_landmarks_file(filename),
-                          Contains("expected number of points"));
+                          Catch::Matchers::Contains("expected number of points"));
     }
 
     SECTION("test_invalid_file_3")
@@ -105,7 +103,7 @@ TEST_CASE("parse_landmarks")
         std::vector<float3> landmarks;
 
         CHECK_THROWS_WITH(landmarks = parse_landmarks_file(filename),
-                          Contains("Wrong number of components for point 2"));
+                          Catch::Matchers::Contains("Wrong number of components for point 2"));
     }
 
     SECTION("test_invalid_file_4")
@@ -126,7 +124,7 @@ TEST_CASE("parse_landmarks")
         std::vector<float3> landmarks;
 
         CHECK_THROWS_WITH(landmarks = parse_landmarks_file(filename),
-                          Contains("Wrong number of components for point 3"));
+                          Catch::Matchers::Contains("Wrong number of components for point 3"));
     }
 }
 

@@ -179,6 +179,8 @@ def register(
     # Perform registration through the numpy API
     displacement = register(fixed_images=fixed_images,
                             moving_images=moving_images,
+                            fixed_landmarks=fixed_landmarks,
+                            moving_landmarks=moving_landmarks,
                             settings=settings,
                             log=log,
                             log_level=log_level,
