@@ -17,8 +17,22 @@
     #pragma GCC diagnostic ignored "-Wparentheses"
     #pragma GCC diagnostic ignored "-Woverflow"
 
+    // GCO rebases its pointers after realloc, which GCC 12+ flags
+    #if !defined(__clang__) && __GNUC__ >= 12
+        #pragma GCC diagnostic ignored "-Wuse-after-free"
+    #endif
+
     #if defined(__clang__)
         #pragma clang diagnostic ignored "-Wkeyword-macro"
+
+        #if __has_warning("-Wunused-but-set-variable")
+            #pragma clang diagnostic ignored "-Wunused-but-set-variable"
+        #endif
+
+        // GCO assigns 1 to its signed one-bit is_sink bit-field
+        #if __has_warning("-Wsingle-bit-bitfield-constant-conversion")
+            #pragma clang diagnostic ignored "-Wsingle-bit-bitfield-constant-conversion"
+        #endif
     #endif
 #else
     #pragma warning(push)

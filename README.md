@@ -42,10 +42,16 @@ $ git submodule update --init --recursive
 For the best possible build experience it is recommended to install the stk dependency first. For this a build script is provided doing exactly that:
 
 ```
-> sh build_python.sh <flags>
+> sh build_python.sh [--use-cuda] <flags>
 ```
 
-The script installs `python-stk` from the bundled submodule and builds the `pydeform` package into `dist/`. Flags are forwarded to CMake, e.g. `-DDF_USE_CUDA=ON` to build with CUDA support. See [C++ section](#build-options) for available build options.
+The script builds `python-stk` from the bundled submodule and `pydeform`, and installs both into the active Python environment. Pass `--use-cuda` as the first argument to build both packages with CUDA support. Any other flags are forwarded to CMake. See [C++ section](#build-options) for available build options.
+
+To build a wheel instead of installing the package, use
+
+```
+> pip wheel . --no-deps -w dist
+```
 
 `pydeform` and `python-stk` need to be built from the same checkout, since the two modules share types and must be compiled with the same version of pybind11.
 
@@ -64,6 +70,14 @@ Use CMake (>=3.8) to generate build options of your own choosing.
 If CMake cannot find the ISPC executable on your installation, it is possible
 to hint the installation directory with `-DISPC_DIR_HINTS`, or to specify the
 full path to the executable with `-DISPC_EXECUTABLE`.
+
+#### Documentation
+
+The Sphinx docs are built with `-DDF_BUILD_DOCS=ON -DDF_BUILD_PYTHON_WRAPPER=ON`, which adds a `docs` target. The docs import `pydeform`, so a matching `python-stk` has to be installed in the Python environment first, along with the docs requirements:
+
+```
+> pip install ./third_party/stk -r sphinx/requirements.txt
+```
 
 #### Build options
 
@@ -93,7 +107,7 @@ Then run the build with the following arguments: `-DCMAKE_C_COMPILER=gcc-10 -DCM
 
 E.g.:
 ```
-> sh build_python.sh -DDF_USE_CUDA=ON -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
+> sh build_python.sh --use-cuda -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DCMAKE_CUDA_HOST_COMPILER=g++-10
 ```
 
 # Run

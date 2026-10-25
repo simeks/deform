@@ -98,27 +98,19 @@ if (MSVC)
     string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
     string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
-    if (DF_WARNINGS_ARE_ERRORS)
-        set(EXTRA_FLAGS "${extra_flags} /WX")
-    endif()
-
     if (DF_BUILD_WITH_DEBUG_INFO)
         set(EXTRA_FLAGS_RELEASE "/Zi")
         set(EXTRA_LINK_FLAGS_RELEASE "/DEBUG")
     endif()
 
     if (DF_ENABLE_FAST_MATH)
-        set(EXTRA_FLAGS "${extra_flags} /fp:fast")
+        set(EXTRA_FLAGS "${EXTRA_FLAGS} /fp:fast")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(EXTRA_FLAGS "-Wall -Wextra -pedantic")
 
     if(DF_NON_PORTABLE)
-        set(EXTRA_FLAGS "${extra_flags} -march=native")
-    endif()
-
-    if (DF_WARNINGS_ARE_ERRORS)
-        set(EXTRA_FLAGS "${extra_flags} -Werror")
+        set(EXTRA_FLAGS "${EXTRA_FLAGS} -march=native")
     endif()
 
     if (DF_BUILD_WITH_DEBUG_INFO)
@@ -126,7 +118,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Cla
     endif()
 
     if (DF_ENABLE_FAST_MATH)
-        set(EXTRA_FLAGS "${extra_flags} -ffast-math")
+        set(EXTRA_FLAGS "${EXTRA_FLAGS} -ffast-math")
     endif()
 endif()
 
@@ -134,7 +126,9 @@ if (DF_USE_CUDA)
     add_definitions(-DDF_USE_CUDA)
     add_definitions(-DSTK_USE_CUDA)
     enable_language(CUDA)
-    set(CMAKE_CUDA_STANDARD 11)
+    # Thrust and CUB in CUDA 13 require C++17
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD 17)
 
     if (DF_ENABLE_FAST_MATH)
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math")
@@ -192,6 +186,16 @@ if(NOT WIN32)
 endif()
 
 add_subdirectory(third_party)
+
+# Only treat warnings as errors in deform itself, not in third-party code
+if (DF_WARNINGS_ARE_ERRORS)
+    if (MSVC)
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/WX>)
+    else()
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Werror>)
+    endif()
+endif()
+
 add_subdirectory(src)
 
 if (DF_BUILD_DOCS)
