@@ -9,17 +9,13 @@ on:
 
 jobs:
   build_wheels:
-    name: Build ${{ matrix.package.name }} wheels on ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         # macos-15 builds arm64 wheels, macos-15-intel builds x86_64 wheels
         os: [ubuntu-latest, windows-latest, macos-15, macos-15-intel]
-        # python-stk is built from the submodule, so that the wheels match
-        # the version pydeform was built and tested against
-        package:
-          - { name: pydeform, dir: . }
 
     steps:
       - uses: actions/checkout@v4
@@ -27,10 +23,38 @@ jobs:
           submodules: recursive
 
       - uses: pypa/cibuildwheel@v4.3.1
-        with:
-          package-dir: ${{ matrix.package.dir }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.package.name }}-${{ matrix.os }}
+          name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
+
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: pipx run build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pydeform
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1

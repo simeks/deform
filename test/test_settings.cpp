@@ -75,42 +75,6 @@ image_slots:
     normalize: false
     cost_function: none
 )";
-const char* broken_sample_settings = R"(
-pyramid_levels: 4
-pyramid_stop_level: 2
-
-block_size: [20, 24
-": 10.5
-regularization_weight: [0, 1, 2, 3]
-
-constraints_weight: 1234.1234
-
-image_slots:
-  - resampler: gaussian
-    normalize: true
-    cost_function: none
-  - resampler: gaussian
-    normalize: true
-    cost_function: squared_distance
-  - resampler: gaussian
-    normalize: true
-    cost_function: ncc
-  - resampler: gaussian
-    normalize: false
-    cost_function: none
-  - resampler: gaussian
-    normalize: false
-    cost_function: squared_distance
-  - resampler: gaussian
-    normalize: false
-    cost_function: ncc
-  - resampler: gaussian
-    normalize: false
-    cost_function: squared_distance
-  - resampler: gaussian
-    normalize: false
-    cost_function: none
-)";
 }
 
 TEST_CASE("parse_registration_settings")

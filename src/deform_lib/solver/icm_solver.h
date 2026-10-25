@@ -34,7 +34,7 @@ public:
     T minimize()
     {
         T e = 0;
-        for (int i = 0; i < _f0.size(); ++i) {
+        for (size_t i = 0; i < _f0.size(); ++i) {
             if (_f1[i] < _f0[i]) {
                 _var[i] = 1;
                 e += _f1[i];

@@ -1,12 +1,15 @@
 [build-system]
-requires = ["scikit-build-core"]
+requires = ["scikit-build-core>=0.11"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "pydeform"
-version = "0.5.2"
+version = "0.6.0"
 description = ""
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
 authors = [
     { name = "Simon Ekström" },
 ]
@@ -18,7 +21,11 @@ dependencies = [
     "PyYAML",
 ]
 
+[project.urls]
+Homepage = "https://github.com/simeks/deform"
+
 [tool.scikit-build]
+minimum-version = "build-system.requires"
 sdist.include = ["third_party/stk/third_party/zlib/zconf.h"]
 
 [tool.scikit-build.cmake.define]
@@ -28,9 +35,6 @@ DF_BUILD_EXECUTABLE = "OFF"
 build = "cp310-* cp311-* cp312-* cp313-* cp314-* cp315-*"
 skip = "*-musllinux_*"
 archs = "auto64"
-# pydeform and python-stk must be built with the same pybind11, so test
-# against python-stk built from the submodule rather than the one on PyPI
-before-test = "pip install {project}/third_party/stk"
 test-requires = ["SimpleITK"]
 test-command = "python -m unittest discover -s {project}/test"
 
